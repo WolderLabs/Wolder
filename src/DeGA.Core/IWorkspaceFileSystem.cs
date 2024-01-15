@@ -9,6 +9,7 @@ namespace DeGA.Core
     public interface IWorkspaceFileSystem
     {
         void EnsureRootDirectory();
-        void CreateFile(string name);
+        string GetAbsolutePath(string relativePath);
+        Task<string> WriteFileAsync(string name, string text);
     }
 }

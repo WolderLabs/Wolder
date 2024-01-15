@@ -1,13 +1,13 @@
 ﻿using Azure.AI.OpenAI;
 using DeGA.Core;
 
-namespace DeGA.OpenAI
+namespace DeGA.Assistant.OpenAI
 {
     public class OpenAIAssistant : IAIAssistant
     {
         private readonly OpenAIClient _client;
 
-        public OpenAIAssistant(OpenAIClient client) 
+        public OpenAIAssistant(OpenAIClient client)
         {
             _client = client;
         }
@@ -18,7 +18,7 @@ namespace DeGA.OpenAI
             {
                 DeploymentName = "gpt-3.5-turbo-1106",
                 //DeploymentName = "gpt-4-1106-preview",
-                Messages = 
+                Messages =
                 {
                     new ChatRequestUserMessage(prompt)
                 }

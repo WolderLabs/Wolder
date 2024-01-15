@@ -7,7 +7,7 @@
         public WorkspaceFileSystem(string rootDirectoryName)
         {
             string workingDirectory = Environment.CurrentDirectory;
-            string? workspaceDirectory = Directory.GetParent(workingDirectory)?.Parent?.Parent?.FullName;
+            string? workspaceDirectory = Directory.GetParent(workingDirectory)?.Parent?.Parent?.Parent?.FullName;
             if (workspaceDirectory == null)
             {
                 throw new InvalidOperationException("Could not find root directory.");
@@ -21,16 +21,17 @@
             Directory.CreateDirectory(_rootDirectoryPath);
         }
 
-        public void CreateFile(string name)
+        public async Task<string> WriteFileAsync(string name, string text)
         {
             string filePath = Path.Combine(_rootDirectoryPath, name);
-            if (!File.Exists(filePath))
-            {
-                using (var stream = File.Create(filePath))
-                {
-                    // The using statement ensures that the file is closed and resources are released after creation
-                }
-            }
+            await File.WriteAllTextAsync(filePath, text);
+            return filePath;
+        }
+
+        public string GetAbsolutePath(string relativePath)
+        {
+            string filePath = Path.Combine(_rootDirectoryPath, relativePath);
+            return filePath;
         }
     }
 }

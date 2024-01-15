@@ -7,9 +7,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeGA.Core", "DeGA.Core\DeGA
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{574F7457-69C0-4F32-9E27-A64CFF0E5154}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeGA.FizzBuzz", "..\samples\DeGA.FizzBuzz\DeGA.FizzBuzz.csproj", "{3202C88E-C6B8-4972-8B0F-9CB07BB1EE71}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FizzBuzz.Generator", "..\samples\DeGA.FizzBuzz\FizzBuzz.Generator.csproj", "{3202C88E-C6B8-4972-8B0F-9CB07BB1EE71}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeGA.OpenAI", "DeGA.OpenAI\DeGA.OpenAI.csproj", "{A4F200A3-B02B-4CE2-BA94-2E39566EC317}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeGA.Assistant.OpenAI", "DeGA.OpenAI\DeGA.Assistant.OpenAI.csproj", "{A4F200A3-B02B-4CE2-BA94-2E39566EC317}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeGA.Generator.CSharp", "DeGA.CSharp\DeGA.Generator.CSharp.csproj", "{C2BE94A5-CAE5-497F-8601-492206657B46}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -29,6 +31,10 @@ Global
 		{A4F200A3-B02B-4CE2-BA94-2E39566EC317}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A4F200A3-B02B-4CE2-BA94-2E39566EC317}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A4F200A3-B02B-4CE2-BA94-2E39566EC317}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C2BE94A5-CAE5-497F-8601-492206657B46}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C2BE94A5-CAE5-497F-8601-492206657B46}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C2BE94A5-CAE5-497F-8601-492206657B46}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C2BE94A5-CAE5-497F-8601-492206657B46}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

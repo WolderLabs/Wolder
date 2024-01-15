@@ -1,10 +1,27 @@
-﻿
-using Azure.AI.OpenAI;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
 using DeGA.Core;
-using DeGA.OpenAI;
+using DeGA.Assistant.OpenAI;
+using DeGA.Generator.CSharp.LayerActions;
 
-var client = new OpenAIClient("your-api-key-from-platform.openai.com");
-var assitant = new OpenAIAssistant()
+var builder = Host.CreateApplicationBuilder();
+builder.Logging.AddConsole();
 
-var fileSystem = new WorkspaceFileSystem("DeGA.FizzBuzz.Workspace");
-var workspace = new Workspace("DeGA.FizzBuzz.Workspace");
+builder.Services.AddDeGA("FizzBuzz");
+builder.Services.AddOpenAIAssistant(builder.Configuration["OpenAIApiKey"]
+    ?? throw new InvalidOperationException("No OpenAI API key has been set."));
+
+var host = builder.Build();
+
+var workspace = host.Services.GetRequiredService<Workspace>();
+
+await workspace
+    .AddLayer(generateFizzBuzz => 
+        generateFizzBuzz
+            .AddAction<GenerateProject, GenerateProjectOptions>(
+                new GenerateProjectOptions("FizzBuzz", "Console App"))
+            .AddAction<GenerateClass, GenerateClassOptions>(
+                new GenerateClassOptions("Program", "A main method that implements the common fizz buzz app.")))
+    .BuildAsync();
