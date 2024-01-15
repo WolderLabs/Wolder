@@ -1,9 +1,11 @@
 ﻿using DeGA.Core;
+using DeGA.Generator.CSharp.Compilation;
 using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.MSBuild;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DeGA.Generator.CSharp.LayerActions
 {
@@ -28,7 +30,7 @@ namespace DeGA.Generator.CSharp.LayerActions
                 You are a c# csproj generator. Output only a single csproj file, your 
                 output will be directly written into a csproj file. 
                 Create modern SDK style project files using dotnet 8 as the target framework.
-                Enable implicit usings and nullable reference types. Omit a default namespace.
+                Enable implicit usings and nullable reference types.
 
 
                 Create a csproj file for the following type of application: {_options.Type}
@@ -41,42 +43,11 @@ namespace DeGA.Generator.CSharp.LayerActions
             // Write a minimal program cs file so that it can build once
             await layer.WriteFileAsync($"Program.cs", "Console.WriteLine();");
 
-            var msBuildInstance = MSBuildLocator.RegisterDefaults();
-
-            // Create an instance of MSBuildWorkspace
-            var workspace = MSBuildWorkspace.Create();
-
-            // Open the project
-            var project = await workspace.OpenProjectAsync(projectPath);
-
-            // Compile the project
-            var compilation = await project.GetCompilationAsync()
-                ?? throw new InvalidOperationException("No compilation");
-
-            // Handle errors and warnings
-            foreach (var diagnostic in compilation.GetDiagnostics())
+            var project = new CSharpProject(projectPath, new NullLogger<CSharpProject>());
+            var success = await project.TryCompileAsync();
+            if (!success)
             {
-                if (diagnostic.Severity == DiagnosticSeverity.Error)
-                {
-                    _logger.LogInformation($"Error: {diagnostic.GetMessage()}");
-                }
-                else if (diagnostic.Severity == DiagnosticSeverity.Warning)
-                {
-                    _logger.LogInformation($"Warning: {diagnostic.GetMessage()}");
-                }
-            }
-
-            // Emit the compilation to a DLL or an executable
-            var dllPath = layer.GetAbsolutePath($"{_options.Name}.dll");
-            var result = compilation.Emit(dllPath);
-
-            if (result.Success)
-            {
-                Console.WriteLine("Compilation successful!");
-            }
-            else
-            {
-                Console.WriteLine("Compilation failed.");
+                throw new Exception("Could not compile");
             }
         }
     }

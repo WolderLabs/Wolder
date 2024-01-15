@@ -1,8 +1,7 @@
 ﻿using DeGA.Core;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+using DeGA.Generator.CSharp.Compilation;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Text.RegularExpressions;
 
 namespace DeGA.Generator.CSharp.LayerActions
@@ -24,6 +23,7 @@ namespace DeGA.Generator.CSharp.LayerActions
         {
             var response = await _assistant.CompletePromptAsync($"""
                 You are a C# code generator. Output only C#, your output will be directly compiled by Roslyn.
+                Write terse but helpful explanatory comments.
 
                 Create a class named `{_options.ClassName}` with the following behavior:
                 {_options.BehaviorPrompt}
@@ -32,7 +32,12 @@ namespace DeGA.Generator.CSharp.LayerActions
 
             _logger.LogInformation(sanitized);
 
-            if (CanBeCompiledToClass(sanitized))
+            await layer.WriteFileAsync("Program.cs", sanitized);
+
+            var projectPath = layer.GetAbsolutePath($"FizzBuzz.csproj");
+            var project = new CSharpProject(projectPath, new NullLogger<CSharpProject>());
+            var success = await project.TryCompileAsync();
+            if (success)
             {
                 _logger.LogInformation("Can be compiled.");
             }
@@ -49,33 +54,6 @@ namespace DeGA.Generator.CSharp.LayerActions
             string result = Regex.Replace(input, pattern, "", RegexOptions.Multiline);
 
             return result;
-        }
-
-        public bool CanBeCompiledToClass(string code)
-        {
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
-            // If we want to introspect the code:
-            //var root = (CompilationUnitSyntax)syntaxTree.GetRoot();
-
-            var compilation = CSharpCompilation.Create("DynamicCompilation")
-                .AddReferences(MetadataReference.CreateFromFile(typeof(object).Assembly.Location))
-                .AddSyntaxTrees(syntaxTree);
-
-            var diagnostics = compilation.GetDiagnostics();
-            return !HasErrors(diagnostics);
-        }
-
-        private bool HasErrors(IEnumerable<Diagnostic> diagnostics)
-        {
-            foreach (var diag in diagnostics)
-            {
-                if (diag.Severity == DiagnosticSeverity.Error)
-                {
-                    _logger.LogError("Response compile error: {error}", diag.ToString());
-                    return true;
-                }
-            }
-            return false;
         }
     }
 }

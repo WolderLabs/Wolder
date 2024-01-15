@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "DeGA.FizzBuzz": {
+    "FizzBuzz.Generator": {
       "commandName": "Project",
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development"
