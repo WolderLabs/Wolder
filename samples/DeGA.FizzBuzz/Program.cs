@@ -15,9 +15,9 @@ builder.Services.AddOpenAIAssistant(builder.Configuration["OpenAIApiKey"]
 
 var host = builder.Build();
 
-var workspace = host.Services.GetRequiredService<Workspace>();
+var generator = host.Services.GetRequiredService<Generator>();
 
-await workspace
+await generator
     .AddLayer(generateFizzBuzz => 
         generateFizzBuzz
             .AddAction<GenerateProject, GenerateProjectOptions>(
