@@ -9,15 +9,15 @@ using DeGA.Generator.CSharp.LayerActions;
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole();
 
-builder.Services.AddDeGA("FizzBuzz");
+builder.Services.AddDeGA("FizzBuzz.Output");
 builder.Services.AddOpenAIAssistant(builder.Configuration["OpenAIApiKey"]
     ?? throw new InvalidOperationException("No OpenAI API key has been set."));
 
 var host = builder.Build();
 
-var workspace = host.Services.GetRequiredService<Workspace>();
+var generator = host.Services.GetRequiredService<Generator>();
 
-await workspace
+await generator
     .AddLayer(generateFizzBuzz => 
         generateFizzBuzz
             .AddAction<GenerateProject, GenerateProjectOptions>(

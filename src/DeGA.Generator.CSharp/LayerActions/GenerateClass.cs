@@ -22,7 +22,7 @@ namespace DeGA.Generator.CSharp.LayerActions
         public async Task InvokeAsync(Layer layer)
         {
             var response = await _assistant.CompletePromptAsync($"""
-                You are a C# code generator. Output only C#, your output will be directly compiled by Roslyn.
+                You are a C# code generator. Output only C#, your output will be directly written to a `.cs` file.
                 Write terse but helpful explanatory comments.
 
                 Create a class named `{_options.ClassName}` with the following behavior:

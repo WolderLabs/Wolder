@@ -8,10 +8,12 @@ namespace DeGA.Assistant.OpenAI
     {
         public static IServiceCollection AddOpenAIAssistant(this IServiceCollection services, string openAIApiKey)
         {
-            services.AddSingleton<IAIAssistant, OpenAIAssistant>(s =>
+            services.AddSingleton<IAIAssistant>(s =>
             {
                 var client = new OpenAIClient(openAIApiKey);
-                return new OpenAIAssistant(client);
+                var assistant = new OpenAIAssistant(client);
+                var cache = ActivatorUtilities.CreateInstance<AIAssistantCache>(s, assistant);
+                return cache;
             });
 
             return services;

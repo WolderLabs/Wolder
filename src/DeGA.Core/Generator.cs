@@ -1,6 +1,6 @@
 ﻿namespace DeGA.Core
 {
-    public class Workspace
+    public class Generator
     {
         private readonly IWorkspaceFileSystem _fileSystem;
         private readonly LayerActionFactory _layerActionFactory;
@@ -11,7 +11,7 @@
         //    // TODO: Create new workspace service container
         //}
 
-        public Workspace(IWorkspaceFileSystem fileSystem, LayerActionFactory layerActionFactory)
+        public Generator(IWorkspaceFileSystem fileSystem, LayerActionFactory layerActionFactory)
         {
             _fileSystem = fileSystem;
             _layerActionFactory = layerActionFactory;
@@ -19,7 +19,7 @@
 
         internal IWorkspaceFileSystem FileSystem => _fileSystem;
 
-        public Workspace AddLayer(Action<Layer> configureLayer)
+        public Generator AddLayer(Action<Layer> configureLayer)
         {
             var layer = new Layer(_layerActionFactory, _fileSystem);
             _layers.Add(layer);
