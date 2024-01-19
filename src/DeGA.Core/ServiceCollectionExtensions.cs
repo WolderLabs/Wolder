@@ -8,7 +8,7 @@ namespace DeGA.Core
         {
             services.AddTransient<IWorkspaceFileSystem, WorkspaceFileSystem>(s => new WorkspaceFileSystem(workspaceName));
             services.AddTransient<IWorkspaceAssistantCache, WorkspaceFileSystem>(s => new WorkspaceFileSystem(workspaceName));
-            services.AddTransient<Generator>();
+            services.AddTransient<GeneratorWorkspace>();
             services.AddTransient<LayerActionFactory>();
 
             return services;

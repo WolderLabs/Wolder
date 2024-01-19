@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using DeGA.Core;
 using DeGA.Assistant.OpenAI;
 using DeGA.Generator.CSharp.LayerActions;
+using DeGA.Generator.CSharp.Compilation;
 
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole();
@@ -15,13 +16,15 @@ builder.Services.AddOpenAIAssistant(builder.Configuration["OpenAIApiKey"]
 
 var host = builder.Build();
 
-var generator = host.Services.GetRequiredService<Generator>();
+var generator = host.Services.GetRequiredService<GeneratorWorkspace>();
 
 await generator
-    .AddLayer(generateFizzBuzz => 
+    .AddLayer(
+        generateFizzBuzz => 
         generateFizzBuzz
             .AddAction<GenerateProject, GenerateProjectOptions>(
                 new GenerateProjectOptions("FizzBuzz", "Console App"))
             .AddAction<GenerateClass, GenerateClassOptions>(
                 new GenerateClassOptions("Program", "A main method that implements the common fizz buzz app.")))
+    .StartScope(new DotNetSolutionScope("FizzBuzz.sln"))
     .BuildAsync();

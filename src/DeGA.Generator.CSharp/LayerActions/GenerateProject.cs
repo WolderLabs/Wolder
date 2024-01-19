@@ -24,7 +24,7 @@ namespace DeGA.Generator.CSharp.LayerActions
             _options = options;
         }
 
-        public async Task InvokeAsync(Layer layer)
+        public async Task InvokeAsync(GeneratorScope layer)
         {
             var response = await _assistant.CompletePromptAsync($"""
                 You are a c# csproj generator. Output only a single csproj file, your 

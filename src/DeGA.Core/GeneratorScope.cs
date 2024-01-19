@@ -1,12 +1,12 @@
 ﻿namespace DeGA.Core
 {
-    public class Layer
+    public class GeneratorScope<TScopeContext>
     {
         private readonly List<ILayerAction> _actions = new();
         private readonly LayerActionFactory _layerActionFactory;
         private readonly IWorkspaceFileSystem _workspaceFileSystem;
 
-        internal Layer(LayerActionFactory layerActionFactory, IWorkspaceFileSystem workspaceFileSystem)
+        internal GeneratorScope(TScopeContext scope, LayerActionFactory layerActionFactory, IWorkspaceFileSystem workspaceFileSystem)
         {
             _layerActionFactory = layerActionFactory;
             _workspaceFileSystem = workspaceFileSystem;
@@ -14,7 +14,7 @@
 
         internal IReadOnlyList<ILayerAction> Actions => _actions.AsReadOnly();
 
-        public Layer AddAction<TAction, TOption>(TOption option)
+        public GeneratorScope<TScopeContext> AddAction<TAction, TOption>(TOption option)
             where TAction : ILayerAction<TOption>
             where TOption : notnull
         {

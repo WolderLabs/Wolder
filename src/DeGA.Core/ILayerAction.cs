@@ -6,6 +6,6 @@
 
     public interface ILayerAction
     {
-        Task InvokeAsync(Layer layer);
+        Task InvokeAsync(GeneratorScope layer);
     }
 }
