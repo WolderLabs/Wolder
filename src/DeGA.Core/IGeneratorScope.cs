@@ -1,14 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace DeGA.Core
+﻿namespace DeGA.Core
 {
-    public interface IGeneratorScope<TScopeContext>
+    public interface IGeneratorScope
     {
-        IGeneratorScope<TScopeContext> AddLayer(Action<TScopeContext> layer);
-        IGeneratorScope<TScopeContext> AddLayer<TOutput>(Func<TScopeContext, TOutput> layer);
     }
 }

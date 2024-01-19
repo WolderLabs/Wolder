@@ -19,7 +19,7 @@ namespace DeGA.Generator.CSharp.LayerActions
             _options = options;
         }
 
-        public async Task InvokeAsync(GeneratorScope layer)
+        public async Task InvokeAsync(Generator layer)
         {
             var response = await _assistant.CompletePromptAsync($"""
                 You are a C# code generator. Output only C#, your output will be directly written to a `.cs` file.

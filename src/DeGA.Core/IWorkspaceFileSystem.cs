@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace DeGA.Core
 {
-    public interface IWorkspaceFileSystem
+    public interface IWorkspaceFileSystem : IGeneratorScope
     {
         void EnsureRootDirectory();
         string GetAbsolutePath(string relativePath);

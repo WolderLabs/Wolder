@@ -1,36 +1,53 @@
 ﻿namespace DeGA.Core
 {
-    public class GeneratorScope<TScopeContext>
+    public class Generator<TScope> where TScope : IGeneratorScope
     {
-        private readonly List<ILayerAction> _actions = new();
-        private readonly LayerActionFactory _layerActionFactory;
-        private readonly IWorkspaceFileSystem _workspaceFileSystem;
+        private readonly TScope scope;
 
-        internal GeneratorScope(TScopeContext scope, LayerActionFactory layerActionFactory, IWorkspaceFileSystem workspaceFileSystem)
+        //private readonly List<ILayerAction> _actions = new();
+        //private readonly LayerActionFactory _layerActionFactory;
+        //private readonly IWorkspaceFileSystem _workspaceFileSystem;
+
+        //internal Generator(TScope scope, LayerActionFactory layerActionFactory, IWorkspaceFileSystem workspaceFileSystem)
+        //{
+        //    _layerActionFactory = layerActionFactory;
+        //    _workspaceFileSystem = workspaceFileSystem;
+        //}
+
+        internal Generator(TScope scope)
         {
-            _layerActionFactory = layerActionFactory;
-            _workspaceFileSystem = workspaceFileSystem;
+            this.scope = scope;
         }
 
-        internal IReadOnlyList<ILayerAction> Actions => _actions.AsReadOnly();
+        //internal IReadOnlyList<ILayerAction> Actions => _actions.AsReadOnly();
 
-        public GeneratorScope<TScopeContext> AddAction<TAction, TOption>(TOption option)
-            where TAction : ILayerAction<TOption>
-            where TOption : notnull
+        //public Generator<TScope> AddAction<TAction, TOption>(TOption option)
+        //    where TAction : ILayerAction<TOption>
+        //    where TOption : notnull
+        //{
+        //    var action = _layerActionFactory.Create<TAction, TOption>(option);
+        //    _actions.Add(action);
+        //    return this;
+        //}
+
+        public Generator<TScope> Generate(string layerName, Action<TScope> layerAction)
         {
-            var action = _layerActionFactory.Create<TAction, TOption>(option);
-            _actions.Add(action);
             return this;
         }
 
-        public async Task<string> WriteFileAsync(string relativePath, string text)
+        public Generator<TScope> Generate<TOutput>(string layerName, Func<TScope, TOutput> layer)
         {
-            return await _workspaceFileSystem.WriteFileAsync(relativePath, text);
+            return this;
         }
 
-        public string GetAbsolutePath(string relativePath)
-        {
-            return _workspaceFileSystem.GetAbsolutePath(relativePath);
-        }
+        //public async Task<string> WriteFileAsync(string relativePath, string text)
+        //{
+        //    return await _workspaceFileSystem.WriteFileAsync(relativePath, text);
+        //}
+
+        //public string GetAbsolutePath(string relativePath)
+        //{
+        //    return _workspaceFileSystem.GetAbsolutePath(relativePath);
+        //}
     }
 }

@@ -18,9 +18,9 @@
 
         internal IWorkspaceFileSystem FileSystem => _fileSystem;
 
-        public GeneratorScope<TScope> StartScope<TScope>(TScope scope)
+        public Generator<TScope> StartScope<TScope>(TScope scope) where TScope : IGeneratorScope
         {
-            return new GeneratorScope<TScope>(scope, _layerActionFactory, _fileSystem);
+            return new Generator<TScope>(scope);
         }
 
         public async Task BuildAsync()
