@@ -8,16 +8,14 @@ namespace DeGA.Core.Scopes.FileSystem
 {
     public static class GeneratorWorkspaceExtensions
     {
-        public static GeneratorWorkspace InRootFolder(this GeneratorWorkspace workspace,
-            Action<Generator<FolderScope>> action)
+        public static Generator<FolderScope> InRootDirectory(this GeneratorWorkspace workspace)
         {
-            return workspace;
+            return new Generator<FolderScope>(new FolderScope());
         }
 
-        public static GeneratorWorkspace InFolder(this GeneratorWorkspace workspace, string relativePath, 
-            Action<Generator<FolderScope>> action)
+        public static Generator<FolderScope> InDirectory(this GeneratorWorkspace workspace, string relativePath)
         {
-            return workspace;
+            return new Generator<FolderScope>(new FolderScope());
         }
     }
 }

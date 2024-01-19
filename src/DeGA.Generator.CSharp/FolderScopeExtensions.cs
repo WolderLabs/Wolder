@@ -1,4 +1,5 @@
 ﻿using DeGA.Core.Scopes.FileSystem;
+using DeGA.Generator.CSharp.Compilation;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +14,11 @@ namespace DeGA.Generator.CSharp
             this FolderScope scope, string name, string projectTypePrompt, string? additionalRequirements = null)
         {
             return scope;
+        }
+        
+        public static DotNetProjectScope InProject(this FolderScope scope, string name)
+        {
+            return new DotNetProjectScope();
         }
     }
 }
