@@ -20,19 +20,30 @@ var host = builder.Build();
 
 var generator = host.Services.GetRequiredService<GeneratorWorkspace>();
 
+
 generator
     .InDirectory("/src/FizzBuzz/")
     .Generate("Base Project", folder =>
         folder.AddProjectFile("FizzBuzz", "Console App"));
 
-generator
-    .InDirectory("/src/FizzBuzz/")
-    .Generate("");
-    //    generateFizzBuzz
-    //        .AddAction<GenerateProject, GenerateProjectOptions>(
-    //            new GenerateProjectOptions("FizzBuzz", "Console App"))
-    //        .AddAction<GenerateClass, GenerateClassOptions>(
-    //            new GenerateClassOptions("Program", "A main method that implements the common fizz buzz app.")))
-    //.StartScope(new DotNetSolutionScope("FizzBuzz.sln"))
+//    generateFizzBuzz
+//        .AddAction<GenerateProject, GenerateProjectOptions>(
+//            new GenerateProjectOptions("FizzBuzz", "Console App"))
+//        .AddAction<GenerateClass, GenerateClassOptions>(
+//            new GenerateClassOptions("Program", "A main method that implements the common fizz buzz app.")))
+//.StartScope(new DotNetSolutionScope("FizzBuzz.sln"))
 
 await generator.BuildAsync();
+
+var generator2 = new Generator();
+
+generator2
+    .Generate("Base Project",
+        generate =>
+        {
+            generate.InDirectory("/src/FizzBuzz")
+                .AddProjectFile("FizzBuzz", "Console App")
+                .AddClass("Program", "A main method that implements the common fizz buzz app.");
+        });
+
+

@@ -8,5 +8,9 @@ namespace DeGA.Generator.CSharp.Compilation
 {
     public class DotNetProjectScope
     {
+        public DotNetProjectScope AddClass(string name, string prompt)
+        {
+            return this;
+        }
     }
 }

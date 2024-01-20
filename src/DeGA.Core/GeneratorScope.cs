@@ -1,5 +1,22 @@
 ﻿namespace DeGA.Core
 {
+    public class Generator
+    {
+        public Generator Generate(string layerName, Action<LayerGenerator> layerAction)
+        {
+            return this;
+        }
+
+        //public async Task<string> WriteFileAsync(string relativePath, string text)
+        //{
+        //    return await _workspaceFileSystem.WriteFileAsync(relativePath, text);
+        //}
+
+        //public string GetAbsolutePath(string relativePath)
+        //{
+        //    return _workspaceFileSystem.GetAbsolutePath(relativePath);
+        //}
+    }
     public class Generator<TScope> where TScope : IGeneratorScope
     {
         private readonly TScope scope;

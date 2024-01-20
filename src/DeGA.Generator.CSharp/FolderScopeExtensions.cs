@@ -10,10 +10,10 @@ namespace DeGA.Generator.CSharp
 {
     public static class FolderScopeExtensions
     {
-        public static FolderScope AddProjectFile(
+        public static DotNetProjectScope AddProjectFile(
             this FolderScope scope, string name, string projectTypePrompt, string? additionalRequirements = null)
         {
-            return scope;
+            return new DotNetProjectScope();
         }
         
         public static DotNetProjectScope InProject(this FolderScope scope, string name)

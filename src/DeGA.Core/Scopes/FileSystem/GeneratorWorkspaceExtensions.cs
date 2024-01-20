@@ -17,5 +17,10 @@ namespace DeGA.Core.Scopes.FileSystem
         {
             return new Generator<FolderScope>(new FolderScope());
         }
+
+        public static FolderScope InDirectory(this LayerGenerator workspace, string relativePath)
+        {
+            return new FolderScope();
+        }
     }
 }
