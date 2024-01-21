@@ -23,16 +23,11 @@
             return new Generator<TScope>(scope);
         }
 
-        public async Task BuildAsync()
+        public Task InitializeAsync()
         {
             _fileSystem.EnsureRootDirectory();
-            //foreach (var layer in _layers)
-            //{
-            //    foreach (var action in layer.Actions)
-            //    {
-            //        await action.InvokeAsync(layer);
-            //    }
-            //}
+            _fileSystem.CleanSourceDirectory();
+            return Task.CompletedTask;
         }
     }
 }

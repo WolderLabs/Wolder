@@ -30,7 +30,7 @@ namespace DeGA.Generator.CSharp.Compilation
             if (!s_isInitialized)
             {
                 s_isInitialized = true;
-                var msBuildInstance = MSBuildLocator.RegisterDefaults();
+                MSBuildLocator.RegisterDefaults();
             }
 
             // Create an instance of MSBuildWorkspace
@@ -57,7 +57,10 @@ namespace DeGA.Generator.CSharp.Compilation
             }
 
             // Emit the compilation to a DLL or an executable
-            var dllPath = Path.ChangeExtension(_projectPath, ".dll");
+            var projectRoot = Path.GetDirectoryName(_projectPath)!;
+            var binDirectory = Path.Combine(projectRoot, "bin", "generate");
+            Directory.CreateDirectory(binDirectory);
+            var dllPath = Path.Combine(binDirectory, Path.GetFileNameWithoutExtension(_projectPath) + ".dll");
             var result = compilation.Emit(dllPath);
 
             return result.Success;

@@ -62,5 +62,13 @@
         {
             return Path.Combine(_assistantCacheDirectoryPath, $"{key}.txt");
         }
+
+        public void CleanSourceDirectory()
+        {
+            if (Directory.Exists(_srcDirectoryPath))
+            {
+                Directory.Delete(_srcDirectoryPath, true);
+            }
+        }
     }
 }

@@ -24,9 +24,10 @@ services.AddDeGA("FizzBuzz.Output")
 var host = builder.Build();
 
 var workspace = host.Services.GetRequiredService<GeneratorWorkspace>();
+await workspace.InitializeAsync();
 
 var projectGenerator = host.Services.GetRequiredService<DotNetProjectGenerator>();
-var project = await projectGenerator.CreateAsync("/src/FizzBuzz/FizzBuzz.csproj", "Console App");
+var project = await projectGenerator.CreateAsync("FizzBuzz/FizzBuzz.csproj", "Console App");
 var codeGeneratorFactory = host.Services.GetRequiredService<CodeGeneratorFactory>();
 var appCodeGenerator = codeGeneratorFactory.Create(project);
 await appCodeGenerator.CreateClassAsync("Program", "A main method that implements the common fizz buzz app.");

@@ -6,9 +6,10 @@ using System.Threading.Tasks;
 
 namespace DeGA.Core
 {
-    public interface IWorkspaceFileSystem : IGeneratorScope
+    public interface IWorkspaceFileSystem
     {
         void EnsureRootDirectory();
+        void CleanSourceDirectory();
         string GetAbsolutePath(string relativePath);
         Task<string> WriteFileAsync(string name, string text);
     }
