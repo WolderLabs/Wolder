@@ -1,19 +1,52 @@
 ﻿using DeGA.Core;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using DeGA.Generator.CSharp.Compilation;
+using DeGA.Generator.CSharp.LayerActions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Text.RegularExpressions;
 
-namespace DeGA.Generator.CSharp.CodeGeneration
+namespace DeGA.Generator.CSharp.Generators;
+
+public class CodeGenerator(
+    DotNetProject project,
+    IAIAssistant assistant,
+    ILogger<CodeGenerator> logger,
+    IWorkspaceFileSystem fileSystem)
 {
-    public class CodeGenerator
+    public async Task CreateClassAsync(string className, string behaviorPrompt)
     {
-        private readonly IAIAssistant _assistant;
+        var response = await assistant.CompletePromptAsync($"""
+            You are a C# code generator. Output only C#, your output will be directly written to a `.cs` file.
+            Write terse but helpful explanatory comments.
 
-        public CodeGenerator(IAIAssistant assistant)
+            Create a class named `{className}` with the following behavior:
+            {behaviorPrompt}
+            """);
+        var sanitized = Sanitize(response);
+
+        logger.LogInformation(sanitized);
+
+        var path = Path.Combine(project.BasePath, $"{className}.cs");
+
+        await fileSystem.WriteFileAsync(path, sanitized);
+
+        var success = await project.TryCompileAsync();
+        if (success)
         {
-            _assistant = assistant;
+            logger.LogInformation("Can be compiled.");
         }
+        else
+        {
+            logger.LogInformation("Can not be compiled.");
+            throw new InvalidOperationException("Can't compile");
+        }
+    }
+
+    private string Sanitize(string input)
+    {
+        string pattern = @"^\s*```\s*csharp|^\s*```";
+        string result = Regex.Replace(input, pattern, "", RegexOptions.Multiline);
+
+        return result;
     }
 }

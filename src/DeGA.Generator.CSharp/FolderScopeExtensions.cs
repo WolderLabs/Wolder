@@ -8,17 +8,17 @@ using System.Threading.Tasks;
 
 namespace DeGA.Generator.CSharp
 {
-    public static class FolderScopeExtensions
-    {
-        public static DotNetProjectScope AddProjectFile(
-            this FolderScope scope, string name, string projectTypePrompt, string? additionalRequirements = null)
-        {
-            return new DotNetProjectScope();
-        }
+    //public static class FolderScopeExtensions
+    //{
+    //    public static DotNetProjectGenerator AddProjectFile(
+    //        this FolderScope scope, string name, string projectTypePrompt, string? additionalRequirements = null)
+    //    {
+    //        return new DotNetProjectGenerator();
+    //    }
         
-        public static DotNetProjectScope InProject(this FolderScope scope, string name)
-        {
-            return new DotNetProjectScope();
-        }
-    }
+    //    public static DotNetProjectGenerator InProject(this FolderScope scope, string name)
+    //    {
+    //        return new DotNetProjectGenerator();
+    //    }
+    //}
 }

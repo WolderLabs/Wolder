@@ -11,17 +11,19 @@ using System.Threading.Tasks;
 
 namespace DeGA.Generator.CSharp.Compilation
 {
-    public class CSharpProject
+    public class DotNetProject
     {
         private static bool s_isInitialized; // TODO: thread safety, with lazy?
         private readonly string _projectPath;
-        private readonly ILogger<CSharpProject> _logger;
+        private readonly ILogger<DotNetProject> _logger;
 
-        public CSharpProject(string path, ILogger<CSharpProject> logger) 
+        public DotNetProject(string path, ILogger<DotNetProject> logger) 
         {
             _projectPath = path;
             _logger = logger;
         }
+
+        public string BasePath => Path.GetDirectoryName(_projectPath)!;
 
         public async Task<bool> TryCompileAsync()
         {

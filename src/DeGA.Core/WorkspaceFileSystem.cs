@@ -29,7 +29,9 @@
 
         public async Task<string> WriteFileAsync(string name, string text)
         {
+            name = name.Trim().TrimStart('/', '\\');
             string filePath = Path.Combine(_srcDirectoryPath, name);
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
             await File.WriteAllTextAsync(filePath, text);
             return filePath;
         }

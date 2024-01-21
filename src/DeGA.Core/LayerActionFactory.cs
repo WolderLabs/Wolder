@@ -17,7 +17,7 @@ namespace DeGA.Core
         }
 
         public TAction Create<TAction, TOption>(TOption options) 
-            where TAction : ILayerAction<TOption>
+            where TAction : IGeneratorAction<TOption>
             where TOption : notnull
         { 
             return ActivatorUtilities.CreateInstance<TAction>(_services, options);
