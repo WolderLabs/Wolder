@@ -1,32 +1,14 @@
 ﻿namespace DeGA.Core
 {
-    public class GeneratorWorkspace
+    public class GeneratorWorkspace(IWorkspaceFileSystem fileSystem, IWorkspaceAssistantCache assistantCache)
     {
-        private readonly IWorkspaceFileSystem _fileSystem;
-        private readonly LayerActionFactory _layerActionFactory;
-
-        //public Workspace(string name)
-        //{
-        //    // TODO: Create new workspace service container
-        //}
-
-        public GeneratorWorkspace(IWorkspaceFileSystem fileSystem, LayerActionFactory layerActionFactory)
-        {
-            _fileSystem = fileSystem;
-            _layerActionFactory = layerActionFactory;
-        }
-
-        internal IWorkspaceFileSystem FileSystem => _fileSystem;
-
-        public Generator<TScope> StartScope<TScope>(TScope scope) where TScope : IGeneratorScope
-        {
-            return new Generator<TScope>(scope);
-        }
+        public IWorkspaceFileSystem FileSystem => fileSystem;
+        public IWorkspaceAssistantCache AssistantCache => assistantCache;
 
         public Task InitializeAsync()
         {
-            _fileSystem.EnsureRootDirectory();
-            _fileSystem.CleanSourceDirectory();
+            fileSystem.EnsureRootDirectory();
+            fileSystem.CleanSourceDirectory();
             return Task.CompletedTask;
         }
     }

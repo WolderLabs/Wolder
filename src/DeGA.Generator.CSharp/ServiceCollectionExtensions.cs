@@ -1,4 +1,5 @@
 ﻿using DeGA.Core;
+using DeGA.Generator.CSharp.Compilation;
 using DeGA.Generator.CSharp.Generators;
 using Microsoft.Extensions.DependencyInjection;
 

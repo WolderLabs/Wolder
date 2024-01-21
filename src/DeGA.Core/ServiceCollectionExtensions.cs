@@ -6,10 +6,11 @@ namespace DeGA.Core
     {
         public static DeGAServiceBuilder AddDeGA(this IServiceCollection services, string workspaceName)
         {
-            services.AddTransient<IWorkspaceFileSystem, WorkspaceFileSystem>(s => new WorkspaceFileSystem(workspaceName));
-            services.AddTransient<IWorkspaceAssistantCache, WorkspaceFileSystem>(s => new WorkspaceFileSystem(workspaceName));
-            services.AddTransient<GeneratorWorkspace>();
-            services.AddTransient<LayerActionFactory>();
+            services.AddSingleton<GeneratorWorkspace>(s =>
+            {
+                var fs = new WorkspaceFileSystem(workspaceName);
+                return new GeneratorWorkspace(fs, fs);
+            });
 
             return new DeGAServiceBuilder(services);
         }
