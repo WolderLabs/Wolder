@@ -1,0 +1,32 @@
+```csharp
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Reflection;
+
+namespace BlazorServerProject
+{
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            // Initialize a Blazor server project
+            var builder = WebApplication.CreateBuilder(args);
+            var app = builder.Build();
+
+            // Use reflection to register scoped services
+            var assembly = Assembly.GetExecutingAssembly();
+            foreach (var type in assembly.GetExportedTypes())
+            {
+                if (type.Name.EndsWith("Service"))
+                {
+                    app.Services.AddScoped(type);
+                }
+            }
+
+            // Run the application
+            app.Run();
+        }
+    }
+}
+```

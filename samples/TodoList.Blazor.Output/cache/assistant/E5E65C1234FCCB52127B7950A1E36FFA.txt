@@ -1,0 +1,19 @@
+// BEGIN: TodoListComponent.razor
+
+@code {
+    // Add code here to define the logic for displaying the todo items using C# logic
+}
+
+// END: TodoListComponent.razor
+
+// BEGIN: TodoItemService.cs
+
+namespace TodoList.Blazor
+{
+    public class TodoItemService
+    {
+        // Add code here to define the in-memory storage and methods for managing todo items
+    }
+}
+
+// END: TodoItemService.cs

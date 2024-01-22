@@ -1,0 +1,53 @@
+Creating the supporting service "TodoService.cs" and the razor page "Index.razor" with the specified behavior.
+
+```csharp
+// === START FILE: TodoList.Blazor/Services/TodoService.cs
+using System;
+using System.Collections.Generic;
+
+namespace TodoList.Blazor.Services
+{
+    public class Todo
+    {
+        public string Title { get; set; }
+        public bool IsCompleted { get; set; }
+    }
+
+    public class TodoService
+    {
+        private List<Todo> _todos;
+
+        public TodoService()
+        {
+            _todos = new List<Todo>
+            {
+                new Todo { Title = "Complete task 1", IsCompleted = false },
+                new Todo { Title = "Review task 2", IsCompleted = true },
+                new Todo { Title = "Start task 3", IsCompleted = false }
+            };
+        }
+
+        public List<Todo> GetAllTodos()
+        {
+            return _todos;
+        }
+    }
+}
+// === END FILE: TodoList.Blazor/Services/TodoService.cs
+
+// === START FILE: TodoList.Blazor/Pages/Index.razor
+@page "/"
+@using TodoList.Blazor.Services
+@inject TodoService TodoService
+
+<h3>Todo List</h3>
+<ul>
+    @foreach (var todo in TodoService.GetAllTodos())
+    {
+        <li>@todo.Title - @if (todo.IsCompleted) { <text>Completed</text> } else { <text>Not Completed</text> }</li>
+    }
+</ul>
+// === END FILE: TodoList.Blazor/Pages/Index.razor
+```
+
+These files will be added to the "TodoList.Blazor" project and will create a razor page with a route '/' that displays a listing of todo items from the "TodoService" in memory.

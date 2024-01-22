@@ -1,0 +1,38 @@
+Sure, here is an example of how the C# and razor files could be generated:
+
+```csharp
+// BEGIN: TodoList.Blazor.Services/TodoService.cs
+
+using System.Collections.Generic;
+
+namespace TodoList.Blazor.Services
+{
+    public class TodoService
+    {
+        private List<string> _todoItems = new List<string>();
+
+        public IReadOnlyList<string> TodoItems => _todoItems.AsReadOnly();
+
+        public void AddTodoItem(string todoItem)
+        {
+            _todoItems.Add(todoItem);
+        }
+    }
+}
+```
+
+```html
+<!-- BEGIN: TodoList.Blazor.Components/TodoList.razor -->
+
+@inject TodoList.Blazor.Services.TodoService TodoService
+
+<h3>Todo List</h3>
+<ul>
+    @foreach(var item in TodoService.TodoItems)
+    {
+        <li>@item</li>
+    }
+</ul>
+```
+
+These files can be added to a dotnet 8.0 project under the specified namespace `TodoList.Blazor`. The `TodoService.cs` file contains the `TodoService` class that holds the todo items in memory and the `TodoList.razor` file contains the razor component that displays the todo items using the `TodoService` injected as a dependency.

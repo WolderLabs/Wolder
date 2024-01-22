@@ -1,0 +1,53 @@
+Here are the C# and Razor files to implement the behavior described:
+
+// === START FILE: TodoList/Blazor/Pages/Index.razor
+@page "/"
+@using TodoList.Blazor.Services
+@inject TodoItemService todoItemService
+
+<h1>Todo List</h1>
+
+@if (todoItemService.TodoItems.Count == 0)
+{
+    <p>No todo items yet</p>
+}
+else
+{
+    <ul>
+        @foreach (var item in todoItemService.TodoItems)
+        {
+            <li>@item.Title</li>
+        }
+    </ul>
+}
+// === END FILE: TodoList/Blazor/Pages/Index.razor
+
+// === START FILE: TodoList/Blazor/Services/TodoItemService.cs
+using System.Collections.Generic;
+
+namespace TodoList.Blazor.Services
+{
+    public class TodoItem
+    {
+        public string Title { get; set; }
+        public bool IsDone { get; set; }
+    }
+
+    public class TodoItemService
+    {
+        public List<TodoItem> TodoItems { get; set; }
+
+        public TodoItemService()
+        {
+            // Initialize with some sample todo items
+            TodoItems = new List<TodoItem>
+            {
+                new TodoItem { Title = "Finish report", IsDone = false },
+                new TodoItem { Title = "Go for a run", IsDone = false }
+            };
+        }
+    }
+}
+// === END FILE: TodoList/Blazor/Services/TodoItemService.cs
+
+These files implement a Razor page at the route '/', displaying a listing of todo items from the `TodoItemService` class. The `TodoItemService` class is initialized with some sample todo items.

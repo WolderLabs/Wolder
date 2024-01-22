@@ -1,0 +1,54 @@
+```csharp
+=== START FILE: TodoList.Blazor/Pages/Index.razor
+@page "/"
+@inject ITodoItemService todoItemService
+
+<h1>Todo List</h1>
+
+<ul>
+    @foreach(var item in todoItemService.GetItems())
+    {
+        <li>@item.Name</li>
+    }
+</ul>
+=== END FILE: TodoList.Blazor/Pages/Index.razor
+
+=== START FILE: TodoList.Blazor/Services/ITodoItemService.cs
+using System.Collections.Generic;
+
+namespace TodoList.Blazor.Services
+{
+    public interface ITodoItemService
+    {
+        IEnumerable<TodoItem> GetItems();
+    }
+}
+=== END FILE: TodoList.Blazor/Services/ITodoItemService.cs
+
+=== START FILE: TodoList.Blazor/Services/TodoItemService.cs
+using System.Collections.Generic;
+
+namespace TodoList.Blazor.Services
+{
+    public class TodoItem
+    {
+        public string Name { get; set; }
+    }
+
+    public class TodoItemService : ITodoItemService
+    {
+        private List<TodoItem> _todoItems = new List<TodoItem>
+        {
+            new TodoItem { Name = "Complete assignment" },
+            new TodoItem { Name = "Submit project" },
+            new TodoItem { Name = "Prepare for meeting" }
+        };
+
+        public IEnumerable<TodoItem> GetItems()
+        {
+            return _todoItems;
+        }
+    }
+}
+=== END FILE: TodoList.Blazor/Services/TodoItemService.cs
+```

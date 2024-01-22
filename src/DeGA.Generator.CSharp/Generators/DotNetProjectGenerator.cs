@@ -8,7 +8,7 @@ public class DotNetProjectGenerator(
     IAIAssistant assistant,
     ILogger<DotNetProjectGenerator> logger,
     DotNetProjectFactory projectFactory,
-    IWorkspaceFileSystem fileSystem)
+    GeneratorWorkspace workspace)
 {
     public async Task<DotNetProject> CreateAsync(string name, string type)
     {
@@ -24,11 +24,12 @@ public class DotNetProjectGenerator(
 
         logger.LogInformation("Response from generate project prompt: \n{response}", response);
 
-        var projectPath = await fileSystem.WriteFileAsync(name, response);
+        var projectPath = await workspace.FileSystem.WriteFileAsync(name, response);
+
 
         // Write a minimal program cs file so that it can build once
         var folder = Path.GetDirectoryName(name)!;
-        await fileSystem.WriteFileAsync(Path.Combine(folder, "Program.cs"), "Console.WriteLine();");
+        await workspace.FileSystem.WriteFileAsync(Path.Combine(folder, "Program.cs"), "Console.WriteLine();");
 
         var project = projectFactory.Create(projectPath);
         var success = await project.TryCompileAsync();

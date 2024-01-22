@@ -1,0 +1,66 @@
+Sure, below is the code to create the required files:
+
+1. TodoListService.cs
+```csharp
+=== START FILE: TodoList.Blazor/Services/TodoListService.cs
+using System;
+using System.Collections.Generic;
+
+namespace TodoList.Blazor.Services
+{
+    public class TodoItem
+    {
+        public string Title { get; set; }
+        public bool IsCompleted { get; set; }
+    }
+
+    public class TodoListService
+    {
+        private List<TodoItem> _todoItems;
+
+        public TodoListService()
+        {
+            _todoItems = new List<TodoItem>
+            {
+                new TodoItem { Title = "Complete task 1", IsCompleted = false },
+                new TodoItem { Title = "Review task 2", IsCompleted = true },
+                new TodoItem { Title = "Start task 3", IsCompleted = false }
+            };
+        }
+
+        public List<TodoItem> GetTodoItems()
+        {
+            return _todoItems;
+        }
+    }
+}
+=== END FILE: TodoList.Blazor/Services/TodoListService.cs
+```
+
+2. TodoList.razor
+```csharp
+=== START FILE: TodoList.Blazor/Components/TodoList.razor
+@page "/todolist"
+@inject TodoList.Blazor.Services.TodoListService TodoListService
+
+<h3>Todo List</h3>
+
+<ul>
+    @foreach (var item in TodoListService.GetTodoItems())
+    {
+        <li>
+            @if (item.IsCompleted)
+            {
+                <s>@item.Title</s>
+            }
+            else
+            {
+                @item.Title
+            }
+        </li>
+    }
+</ul>
+=== END FILE: TodoList.Blazor/Components/TodoList.razor
+```
+
+These files can be added to a dotnet 8.0 project under the specified namespace and will provide the required behavior of showing a listing of todo items using a razor component and the supporting service.
