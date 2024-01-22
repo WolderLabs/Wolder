@@ -1,4 +1,8 @@
+// === START FILE: TodoList.Blazor/Program.cs
+
 using TodoList.Blazor.Components;
+using System;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +25,19 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
+// Use reflection to register any classes in the current assembly that have a name that ends in `Service` as scoped services.
+var assembly = Assembly.GetExecutingAssembly();
+foreach (var type in assembly.GetTypes())
+{
+    if (type.Name.EndsWith("Service"))
+    {
+        builder.Services.AddScoped(type);
+    }
+}
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+// === END FILE: TodoList.Blazor/Program.cs

@@ -1,0 +1,40 @@
+=== BEGIN: Program.cs ===
+using System;
+using System.Reflection;
+using TodoList.Blazor.Components;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+
+app.UseStaticFiles();
+app.UseAntiforgery();
+
+// Use reflection to register any classes in the current assembly that have a name that ends in `Service` as scoped services.
+var assembly = Assembly.GetExecutingAssembly();
+var serviceTypes = assembly.GetTypes().Where(t => t.Name.EndsWith("Service"));
+foreach (var serviceType in serviceTypes)
+{
+    builder.Services.AddScoped(serviceType);
+}
+
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+
+app.Run();
+
+=== END: Program.cs ===

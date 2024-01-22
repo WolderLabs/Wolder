@@ -14,5 +14,6 @@ namespace DeGA.Core
         void CleanSourceDirectory();
         string GetAbsolutePath(string relativePath);
         Task<string> WriteFileAsync(string name, string text);
+        Task<string> ReadFileAsync(string filePath);
     }
 }

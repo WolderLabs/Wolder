@@ -1,0 +1,63 @@
+// === START FILE: TodoListBlazor/Services/TodoService.cs
+using System;
+using System.Collections.Generic;
+
+namespace TodoListBlazor.Services
+{
+    public class TodoItem
+    {
+        public string Title { get; set; }
+        public bool IsCompleted { get; set; }
+    }
+
+    public class TodoService
+    {
+        private List<TodoItem> _todoItems;
+
+        public TodoService()
+        {
+            _todoItems = new List<TodoItem>
+            {
+                new TodoItem { Title = "Complete assignment", IsCompleted = false },
+                new TodoItem { Title = "Buy groceries", IsCompleted = true },
+                new TodoItem { Title = "Call mom", IsCompleted = false }
+            };
+        }
+
+        public List<TodoItem> GetTodoItems()
+        {
+            return _todoItems;
+        }
+    }
+}
+// === END FILE: TodoListBlazor/Services/TodoService.cs
+
+// === START FILE: TodoListBlazor/Pages/Todo.razor
+@page "/todo"
+@inject TodoListBlazor.Services.TodoService todoService
+
+<h3>Todo List</h3>
+
+@if (todoItems != null && todoItems.Count > 0)
+{
+    <ul>
+        @foreach (var item in todoItems)
+        {
+            <li>@item.Title - @item.IsCompleted</li>
+        }
+    </ul>
+}
+else
+{
+    <p>No todo items found.</p>
+}
+
+@code {
+    List<TodoListBlazor.Services.TodoItem> todoItems;
+
+    protected override void OnInitialized()
+    {
+        todoItems = todoService.GetTodoItems();
+    }
+}
+// === END FILE: TodoListBlazor/Pages/Todo.razor

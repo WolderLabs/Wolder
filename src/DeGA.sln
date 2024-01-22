@@ -15,7 +15,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FizzBuzz.Generator", "..\sa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TodoList.Blazor.Generator", "..\samples\TodoList.Blazor.Generator\TodoList.Blazor.Generator.csproj", "{75771AE8-D14E-42DF-B959-790AB9DB71AA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TodoList.Blazor", "..\samples\TodoList.Blazor.Output\src\TodoList.Blazor\TodoList.Blazor.csproj", "{148ADA2F-4DDF-4651-913E-02F205D44BC8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TodoListBlazor", "..\samples\TodoList.Blazor.Output\src\TodoListBlazor\TodoListBlazor.csproj", "{78C5358D-DE1C-40DD-96CA-F39B39B9856F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -43,10 +43,10 @@ Global
 		{75771AE8-D14E-42DF-B959-790AB9DB71AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{75771AE8-D14E-42DF-B959-790AB9DB71AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{75771AE8-D14E-42DF-B959-790AB9DB71AA}.Release|Any CPU.Build.0 = Release|Any CPU
-		{148ADA2F-4DDF-4651-913E-02F205D44BC8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{148ADA2F-4DDF-4651-913E-02F205D44BC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{148ADA2F-4DDF-4651-913E-02F205D44BC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{148ADA2F-4DDF-4651-913E-02F205D44BC8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{78C5358D-DE1C-40DD-96CA-F39B39B9856F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{78C5358D-DE1C-40DD-96CA-F39B39B9856F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{78C5358D-DE1C-40DD-96CA-F39B39B9856F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{78C5358D-DE1C-40DD-96CA-F39B39B9856F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -54,7 +54,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{8A9CE11B-B392-44B7-858D-3F059EBAADDD} = {574F7457-69C0-4F32-9E27-A64CFF0E5154}
 		{75771AE8-D14E-42DF-B959-790AB9DB71AA} = {574F7457-69C0-4F32-9E27-A64CFF0E5154}
-		{148ADA2F-4DDF-4651-913E-02F205D44BC8} = {574F7457-69C0-4F32-9E27-A64CFF0E5154}
+		{78C5358D-DE1C-40DD-96CA-F39B39B9856F} = {574F7457-69C0-4F32-9E27-A64CFF0E5154}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D434B684-6853-4AF4-A1C5-C4790108EC6B}

@@ -15,6 +15,7 @@ public class CodeGenerator(
 {
     public async Task CreateClassesAsync(string baseNamespace, string behaviorPrompt)
     {
+        var tree = GetDirectoryTree(workspace.FileSystem.SourceDirectoryPath);
         var response = await assistant.CompletePromptAsync($$"""
             You are a C# and razor code generator. The code you create will be compiled immediately and tested.
             Output only C# or razor files, your output will be directly written to one or more files. 
@@ -23,20 +24,26 @@ public class CodeGenerator(
             project is `{{baseNamespace}}`. 
             Each file should always have a delimiter header like this:
 
-            // === START FILE: NamespaceComponent/ClassName.cs
+            // === START FILE: ProjectName/Namespace/Namespace/ClassName.cs
             File contents
-            // === END FILE: NamespaceComponent/ClassName.cs
+            // === END FILE: ProjectName/Namespace/Namespace/ClassName.cs
+            // === START FILE: ProjectName/Namespace/Namespace/ClassName.razor
+            File contents
+            // === END FILE: ProjectName/Namespace/Namespace/ClassName.razor
+
+            For context, here is a listing of the current directory tree.
+            {{tree}}
 
             Create files that implement the following behavior:
             {{behaviorPrompt}}
             """);
 
-        SplitAndSaveFiles(response);
+        await SplitAndSaveFilesAsync(response);
 
         await TryCompileAsync();
     }
 
-    private void SplitAndSaveFiles(string input)
+    private async Task SplitAndSaveFilesAsync(string input)
     {
         var sanitized = Sanitize(input);
 
@@ -59,7 +66,7 @@ public class CodeGenerator(
                 {
                     if (currentFileName != null)
                     {
-                        workspace.FileSystem.WriteFileAsync(currentFileName, fileContent.ToString());
+                        await workspace.FileSystem.WriteFileAsync(currentFileName, fileContent.ToString());
                         currentFileName = null;
                     }
                 }
@@ -96,6 +103,33 @@ public class CodeGenerator(
         await TryCompileAsync();
     }
 
+    public async Task TransformAsync(string filePath, string behaviorPrompt)
+    {
+        var content = await workspace.FileSystem.ReadFileAsync(filePath);
+        var response = await assistant.CompletePromptAsync($"""
+            You are a C# code generator. Output only C#, your output will be directly written to a `.cs` file.
+            Write terse but helpful explanatory comments.
+            Each file should always have a delimiter header like this:
+            // === START FILE: ProjectName/Namespace/Namespace/ClassName.cs
+            File contents
+            // === END FILE: ProjectName/Namespace/Namespace/ClassName.cs
+
+            Using the code from this file:
+            === START FILE: {filePath}
+            {content}
+            === END FILE: {filePath}
+
+            Update the code with the following behavior:
+            {behaviorPrompt}
+            """);
+
+        logger.LogInformation(response);
+
+        await SplitAndSaveFilesAsync(response);
+
+        await TryCompileAsync();
+    }
+
     private async Task TryCompileAsync()
     {
         var success = await project.TryCompileAsync();
@@ -116,5 +150,52 @@ public class CodeGenerator(
         string result = Regex.Replace(input, pattern, "", RegexOptions.Multiline);
 
         return result;
+    }
+
+    private string GetDirectoryTree(string rootPath)
+    {
+        StringBuilder treeBuilder = new StringBuilder();
+
+        // Start the recursive method to build the directory tree string
+        BuildDirectoryTree(rootPath, "", treeBuilder);
+
+        // Print the entire tree at once
+        string tree = treeBuilder.ToString();
+        logger.LogInformation(tree);
+        return tree;
+    }
+
+    static void BuildDirectoryTree(string directoryPath, string indent, StringBuilder treeBuilder)
+    {
+        try
+        {
+            // Get all directories in the current directory
+            string[] directories = Directory.GetDirectories(directoryPath);
+
+            foreach (string directory in directories)
+            {
+                // Skip bin and obj directories
+                if (directory.EndsWith("\\bin") || directory.EndsWith("\\obj"))
+                {
+                    continue;
+                }
+
+                treeBuilder.AppendLine($"{indent}+ {new DirectoryInfo(directory).Name}");
+                // Recursively build the string for the contents of this directory
+                BuildDirectoryTree(directory, indent + "  ", treeBuilder);
+            }
+
+            // Get all files in the current directory
+            string[] files = Directory.GetFiles(directoryPath);
+
+            foreach (string file in files)
+            {
+                treeBuilder.AppendLine($"{indent}- {Path.GetFileName(file)}");
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            treeBuilder.AppendLine($"{indent}! Access Denied");
+        }
     }
 }

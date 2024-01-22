@@ -31,11 +31,23 @@
 
         public async Task<string> WriteFileAsync(string name, string text)
         {
+            string filePath = NormalizeSourcePath(name);
+            await File.WriteAllTextAsync(filePath, text);
+            return filePath;
+        }
+
+        private string NormalizeSourcePath(string name)
+        {
             name = name.Trim().TrimStart('/', '\\');
             string filePath = Path.Combine(_srcDirectoryPath, name);
             Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
-            await File.WriteAllTextAsync(filePath, text);
             return filePath;
+        }
+
+        public async Task<string> ReadFileAsync(string name)
+        {
+            string filePath = NormalizeSourcePath(name);
+            return await File.ReadAllTextAsync(filePath);
         }
 
         public string GetAbsolutePath(string relativePath)
