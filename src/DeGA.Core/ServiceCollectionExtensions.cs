@@ -4,14 +4,15 @@ namespace DeGA.Core
 {
     public static class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddDeGA(this IServiceCollection services, string workspaceName)
+        public static DeGAServiceBuilder AddDeGA(this IServiceCollection services, string workspaceName)
         {
-            services.AddTransient<IWorkspaceFileSystem, WorkspaceFileSystem>(s => new WorkspaceFileSystem(workspaceName));
-            services.AddTransient<IWorkspaceAssistantCache, WorkspaceFileSystem>(s => new WorkspaceFileSystem(workspaceName));
-            services.AddTransient<Generator>();
-            services.AddTransient<LayerActionFactory>();
+            var fs = new WorkspaceFileSystem(workspaceName);
+            services.AddSingleton<IWorkspaceFileSystem>(fs);
+            services.AddSingleton<IWorkspaceAssistantCache>(fs);
+            services.AddSingleton<IWorkspaceCommandLine, WorkspaceCommandLine>();
+            services.AddSingleton<GeneratorWorkspace>();
 
-            return services;
+            return new DeGAServiceBuilder(services);
         }
     }
 }

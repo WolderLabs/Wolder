@@ -20,6 +20,8 @@
             _assistantCacheDirectoryPath = Path.Combine(_rootDirectoryPath, "cache", "assistant");
         }
 
+        public string SourceDirectoryPath => _srcDirectoryPath;
+
         public void EnsureRootDirectory()
         {
             Directory.CreateDirectory(_rootDirectoryPath);
@@ -29,9 +31,23 @@
 
         public async Task<string> WriteFileAsync(string name, string text)
         {
-            string filePath = Path.Combine(_srcDirectoryPath, name);
+            string filePath = NormalizeSourcePath(name);
             await File.WriteAllTextAsync(filePath, text);
             return filePath;
+        }
+
+        private string NormalizeSourcePath(string name)
+        {
+            name = name.Trim().TrimStart('/', '\\');
+            string filePath = Path.Combine(_srcDirectoryPath, name);
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+            return filePath;
+        }
+
+        public async Task<string> ReadFileAsync(string name)
+        {
+            string filePath = NormalizeSourcePath(name);
+            return await File.ReadAllTextAsync(filePath);
         }
 
         public string GetAbsolutePath(string relativePath)
@@ -59,6 +75,14 @@
         private string GetCachePath(string key)
         {
             return Path.Combine(_assistantCacheDirectoryPath, $"{key}.txt");
+        }
+
+        public void CleanSourceDirectory()
+        {
+            if (Directory.Exists(_srcDirectoryPath))
+            {
+                Directory.Delete(_srcDirectoryPath, true);
+            }
         }
     }
 }

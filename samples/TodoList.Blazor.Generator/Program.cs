@@ -15,7 +15,7 @@ var services = builder.Services;
 var openAiKey = builder.Configuration["OpenAIApiKey"]
         ?? throw new InvalidOperationException("No OpenAI API key has been set.");
 
-services.AddDeGA("FizzBuzz.Output")
+services.AddDeGA("TodoList.Blazor.Output")
     .AddOpenAIAssistant(openAiKey)
     .AddCSharpGeneration();
 
@@ -25,11 +25,21 @@ var workspace = host.Services.GetRequiredService<GeneratorWorkspace>();
 await workspace.InitializeAsync();
 
 var projectGenerator = host.Services.GetRequiredService<DotNetProjectGenerator>();
-var project = await projectGenerator.CreateAsync("FizzBuzz/FizzBuzz.csproj", "Console App");
+var project = await projectGenerator.CreateBlazorServerAppAsync("TodoListBlazor");
+
 var codeGeneratorFactory = host.Services.GetRequiredService<CodeGeneratorFactory>();
 var appCodeGenerator = codeGeneratorFactory.Create(project);
-await appCodeGenerator.CreateClassAsync(
-    "Program", "A main method that implements the common fizz buzz app.");
+await appCodeGenerator.TransformAsync("TodoListBlazor/Program.cs",
+    """
+    Use reflection to register any classes in the current assembly 
+    that have a name that ends in `Service`, register them as scoped services.
+    Make sure the services are registered before the app containter is built.
+    """);
 
-
+await appCodeGenerator.CreateClassesAsync(
+    "TodoListBlazor",
+    """
+    A razor page with route '/todo' that shows a listing of todo items and the supporting 
+    service that holds the todo items in memory.
+    """);
 

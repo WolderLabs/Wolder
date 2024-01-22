@@ -1,0 +1,71 @@
+// === START FILE: TodoList.Blazor/Components/Todo/TodoItem.cs
+using System;
+
+namespace TodoList.Blazor.Components.Todo
+{
+    public class TodoItem
+    {
+        public string Title { get; set; }
+        public DateTime DueDate { get; set; }
+        public bool IsCompleted { get; set; }
+    }
+}
+// === END FILE: TodoList.Blazor/Components/Todo/TodoItem.cs
+
+// === START FILE: TodoList.Blazor/Components/Todo/TodoService.cs
+using System;
+using System.Collections.Generic;
+
+namespace TodoList.Blazor.Components.Todo
+{
+    public class TodoService
+    {
+        private List<TodoItem> _todoItems;
+
+        public TodoService()
+        {
+            _todoItems = new List<TodoItem>();
+        }
+
+        public List<TodoItem> GetTodoItems()
+        {
+            return _todoItems;
+        }
+
+        public void AddTodoItem(TodoItem todoItem)
+        {
+            _todoItems.Add(todoItem);
+        }
+    }
+}
+// === END FILE: TodoList.Blazor/Components/Todo/TodoService.cs
+
+// === START FILE: TodoList.Blazor/Pages/Todo.razor
+@page "/todo"
+@using TodoList.Blazor.Components.Todo
+
+<h3>Todo List</h3>
+
+@if (todoItems.Count > 0)
+{
+    <ul>
+        @foreach (var item in todoItems)
+        {
+            <li>@item.Title - Due: @item.DueDate.ToShortDateString()</li>
+        }
+    </ul>
+}
+else
+{
+    <p>No items in the todo list</p>
+}
+
+@code {
+    List<TodoItem> todoItems;
+
+    protected override void OnInitialized()
+    {
+        todoItems = new TodoService().GetTodoItems();
+    }
+}
+// === END FILE: TodoList.Blazor/Pages/Todo.razor

@@ -6,9 +6,9 @@ namespace DeGA.Assistant.OpenAI
 {
     public static class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddOpenAIAssistant(this IServiceCollection services, string openAIApiKey)
+        public static DeGAServiceBuilder AddOpenAIAssistant(this DeGAServiceBuilder builder, string openAIApiKey)
         {
-            services.AddSingleton<IAIAssistant>(s =>
+            builder.Services.AddSingleton<IAIAssistant>(s =>
             {
                 var client = new OpenAIClient(openAIApiKey);
                 var assistant = new OpenAIAssistant(client);
@@ -16,7 +16,7 @@ namespace DeGA.Assistant.OpenAI
                 return cache;
             });
 
-            return services;
+            return builder;
         }
     }
 }

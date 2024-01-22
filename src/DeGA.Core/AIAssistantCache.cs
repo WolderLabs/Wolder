@@ -10,9 +10,9 @@ namespace DeGA.Core
         private readonly IAIAssistant _wrappedAssistant;
         private readonly ILogger<AIAssistantCache> _logger;
 
-        public AIAssistantCache(IWorkspaceAssistantCache cache, IAIAssistant wrappedAssistant, ILogger<AIAssistantCache> logger)
+        public AIAssistantCache(GeneratorWorkspace workspace, IAIAssistant wrappedAssistant, ILogger<AIAssistantCache> logger)
         {
-            _cache = cache;
+            _cache = workspace.AssistantCache;
             _wrappedAssistant = wrappedAssistant;
             _logger = logger;
         }

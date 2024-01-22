@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>fc5ba7c0-13bf-4e95-a78f-f27dfb81a285</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.AI.OpenAI" Version="1.0.0-beta.12" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DeGA.Core\DeGA.Core.csproj" />
+    <ProjectReference Include="..\..\src\DeGA.Generator.CSharp\DeGA.Generator.CSharp.csproj" />
+    <ProjectReference Include="..\..\src\DeGA.Assistant.OpenAI\DeGA.Assistant.OpenAI.csproj" />
+  </ItemGroup>
+
+</Project>
