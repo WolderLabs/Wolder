@@ -25,18 +25,19 @@ var workspace = host.Services.GetRequiredService<GeneratorWorkspace>();
 await workspace.InitializeAsync();
 
 var projectGenerator = host.Services.GetRequiredService<DotNetProjectGenerator>();
-var project = await projectGenerator.CreateAsync(
-    "TodoList.Blazor/TodoList.Blazor.csproj", 
-    "A Blazor Server Web App that references the packages needed for basic DI.");
+var project = await projectGenerator.CreateBlazorServerAppAsync("TodoList.Blazor");
+//var project = await projectGenerator.CreateAsync(
+//    "TodoList.Blazor/TodoList.Blazor.csproj", 
+//    "A Blazor Server Web App that references the packages needed for basic DI.");
 
-var codeGeneratorFactory = host.Services.GetRequiredService<CodeGeneratorFactory>();
-var appCodeGenerator = codeGeneratorFactory.Create(project);
-await appCodeGenerator.CreateClassAsync(
-    className: "Program",
-    behaviorPrompt: """
-        "A `Main` method that initializes a dotnet8.0 blazor server project.
-        Assume the current project references the correct SDK and nuget packages.
-        """);
+//var codeGeneratorFactory = host.Services.GetRequiredService<CodeGeneratorFactory>();
+//var appCodeGenerator = codeGeneratorFactory.Create(project);
+//await appCodeGenerator.CreateClassAsync(
+//    className: "Program",
+//    behaviorPrompt: """
+//        "A `Main` method that initializes a dotnet8.0 blazor server project.
+//        Assume the current project references the correct SDK and nuget packages.
+//        """);
 //await appCodeGenerator.CreateClassAsync(
 //    className: "Program",
 //    behaviorPrompt: """
@@ -44,6 +45,6 @@ await appCodeGenerator.CreateClassAsync(
 //        and uses reflection to register any classes in the current assembly 
 //        that have a name that ends in `Service`, register them as scoped services.
 //        """);
-await appCodeGenerator.CreateClassesAsync(
-    "TodoList.Blazor", "A razor page with route '/' that shows a listing of todo items and the supporting service that holds the todo items in memory.");
+//await appCodeGenerator.CreateClassesAsync(
+//    "TodoList.Blazor", "A razor page with route '/' that shows a listing of todo items and the supporting service that holds the todo items in memory.");
 

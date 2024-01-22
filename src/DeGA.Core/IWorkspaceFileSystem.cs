@@ -8,6 +8,8 @@ namespace DeGA.Core
 {
     public interface IWorkspaceFileSystem
     {
+        string SourceDirectoryPath { get; }
+
         void EnsureRootDirectory();
         void CleanSourceDirectory();
         string GetAbsolutePath(string relativePath);

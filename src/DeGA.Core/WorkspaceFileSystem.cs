@@ -20,6 +20,8 @@
             _assistantCacheDirectoryPath = Path.Combine(_rootDirectoryPath, "cache", "assistant");
         }
 
+        public string SourceDirectoryPath => _srcDirectoryPath;
+
         public void EnsureRootDirectory()
         {
             Directory.CreateDirectory(_rootDirectoryPath);

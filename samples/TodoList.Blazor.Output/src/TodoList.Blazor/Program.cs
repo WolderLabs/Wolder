@@ -1,23 +1,27 @@
+using TodoList.Blazor.Components;
 
-using System;
+var builder = WebApplication.CreateBuilder(args);
 
-namespace CodeGenerator
+// Add services to the container.
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (!app.Environment.IsDevelopment())
 {
-    class Program
-    {
-        static void Main(string[] args)
-        {
-            // Initialize a dotnet8.0 blazor server project
-            DotNet8BlazorServerProjectInitializer.InitializeProject();
-        }
-    }
-
-    public static class DotNet8BlazorServerProjectInitializer
-    {
-        public static void InitializeProject()
-        {
-            // Code to initialize dotnet8.0 blazor server project
-            // Assume the current project references the correct SDK and nuget packages
-        }
-    }
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.UseHsts();
 }
+
+app.UseHttpsRedirection();
+
+app.UseStaticFiles();
+app.UseAntiforgery();
+
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+
+app.Run();

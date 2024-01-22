@@ -39,4 +39,29 @@ public class DotNetProjectGenerator(
         }
         return project;
     }
+    
+    public async Task<DotNetProject> CreateBlazorServerAppAsync(string name)
+    {
+        await workspace.FileSystem.WriteFileAsync(
+            "global.json", 
+            """
+            {
+              "sdk": {
+                "version": "8.0.100",
+                "rollForward": "latestFeature"
+              }
+            }
+            """);
+        await workspace.CommandLine.RunCommandAsync(
+            $"dotnet new blazor  -o {name} --interactivity server --empty");
+
+        var path = Path.Combine(workspace.FileSystem.SourceDirectoryPath, $"{name}/{name}.csproj");
+        var project = projectFactory.Create(path);
+        var success = await project.TryCompileAsync();
+        if (!success)
+        {
+            throw new Exception("Could not compile");
+        }
+        return project;
+    }
 }
