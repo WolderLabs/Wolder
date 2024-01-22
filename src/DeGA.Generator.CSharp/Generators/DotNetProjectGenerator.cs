@@ -18,8 +18,8 @@ public class DotNetProjectGenerator(
             Create modern SDK style project files using dotnet 8 as the target framework.
             Enable implicit usings and nullable reference types.
 
-
-            Create a csproj file for the following type of application: {type}
+            Create a csproj file for the following type of application: 
+            {type}
             """);
 
         logger.LogInformation("Response from generate project prompt: \n{response}", response);

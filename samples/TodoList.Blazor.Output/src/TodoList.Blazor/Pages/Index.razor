@@ -1,0 +1,19 @@
+@page "/"
+@using TodoList.Blazor.Services
+@inject TodoItemService todoItemService
+
+<h1>Todo List</h1>
+
+@if (todoItemService.TodoItems.Any())
+{
+    <ul>
+        @foreach (var item in todoItemService.TodoItems)
+        {
+            <li>@item</li>
+        }
+    </ul>
+}
+else
+{
+    <p>No todo items available</p>
+}

@@ -16,6 +16,7 @@ namespace DeGA.Assistant.OpenAI
         {
             var options = new ChatCompletionsOptions()
             {
+                Temperature = 0.1f,
                 DeploymentName = "gpt-3.5-turbo-1106",
                 //DeploymentName = "gpt-4-1106-preview",
                 Messages =
