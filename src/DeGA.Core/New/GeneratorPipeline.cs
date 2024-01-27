@@ -8,11 +8,14 @@ namespace DeGA.Core.New
 {
     public class GeneratorPipeline
     {
-        public void AddAction<TInput, TAction>(
-            Func<IPipelineContext, TAction> actionFactory) 
-                where TAction : IPipelineAction
-        {
+        private readonly List<IPipelineStep> _actions = new();
 
+        public void AddStep<TParameters, TAction>(
+            Func<IPipelineContext, TParameters> parametersFactory)
+                where TParameters : IActionInputParameters
+                where TAction : IPipelineAction<TParameters>
+        {
+            _actions.Add(new PipelineStep<TParameters, TAction>(parametersFactory));
         }
     }
 }

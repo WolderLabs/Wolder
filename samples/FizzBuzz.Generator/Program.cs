@@ -6,6 +6,9 @@ using DeGA.Core;
 using DeGA.Assistant.OpenAI;
 using DeGA.Generator.CSharp;
 using DeGA.Generator.CSharp.Generators;
+using DeGA.Core.New;
+using DeGA.CSharp.Actions;
+using DeGA.CSharp.Compilation;
 
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole();
@@ -31,5 +34,8 @@ var appCodeGenerator = codeGeneratorFactory.Create(project);
 await appCodeGenerator.CreateClassAsync(
     "Program", "A main method that implements the common fizz buzz app.");
 
+var mainProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
 
-
+var pipeline = new GeneratorPipeline();
+pipeline.AddStep<CreateClassParameters, CreateClass>(
+    ctx => new(mainProject, "Program", "Console.WriteLine()"));

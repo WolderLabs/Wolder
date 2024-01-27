@@ -8,9 +8,16 @@ namespace DeGA.Core.New
 {
     public class PipelineActionContext
     {
-        internal Task WriteFileAsync(string path, string content)
+        public Task WriteFileAsync(string path, string content)
         {
             return Task.CompletedTask;
+        }
+
+        public void AddAction<TParameters, TAction>(Func<IPipelineContext, TParameters> parametersFactory)
+            where TParameters : IActionInputParameters
+            where TAction : IPipelineAction<TParameters>
+        {
+
         }
     }
 }
