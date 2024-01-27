@@ -17,6 +17,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TodoList.Blazor.Generator",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TodoListBlazor", "..\samples\TodoList.Blazor.Output\src\TodoListBlazor\TodoListBlazor.csproj", "{78C5358D-DE1C-40DD-96CA-F39B39B9856F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeGA.CSharp", "DeGA.CSharp\DeGA.CSharp.csproj", "{C845DBDC-F4F0-4B4F-816D-47861006EA3C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,6 +49,10 @@ Global
 		{78C5358D-DE1C-40DD-96CA-F39B39B9856F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{78C5358D-DE1C-40DD-96CA-F39B39B9856F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{78C5358D-DE1C-40DD-96CA-F39B39B9856F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C845DBDC-F4F0-4B4F-816D-47861006EA3C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C845DBDC-F4F0-4B4F-816D-47861006EA3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C845DBDC-F4F0-4B4F-816D-47861006EA3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C845DBDC-F4F0-4B4F-816D-47861006EA3C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
