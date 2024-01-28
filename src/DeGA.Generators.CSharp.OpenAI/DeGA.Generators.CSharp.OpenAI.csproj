@@ -8,6 +8,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\DeGA.Actions.CSharp\DeGA.Actions.CSharp.csproj" />
+		<ProjectReference Include="..\DeGA.Assistants.OpenAI\DeGA.Assistants.OpenAI.csproj" />
 		<ProjectReference Include="..\DeGA.Core\DeGA.Core.csproj" />
 	</ItemGroup>
 

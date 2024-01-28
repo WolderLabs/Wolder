@@ -18,7 +18,7 @@ var services = builder.Services;
 var openAiKey = builder.Configuration["OpenAIApiKey"]
         ?? throw new InvalidOperationException("No OpenAI API key has been set.");
 
-services.AddDeGA("FizzBuzz.Output")
+services.AddDeGA()
     .AddOpenAIAssistant(openAiKey)
     .AddCSharpGeneration();
 
