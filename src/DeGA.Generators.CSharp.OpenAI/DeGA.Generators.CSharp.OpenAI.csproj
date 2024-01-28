@@ -7,6 +7,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\DeGA.Actions.CSharp\DeGA.Actions.CSharp.csproj" />
 		<ProjectReference Include="..\DeGA.Core\DeGA.Core.csproj" />
 	</ItemGroup>
 

@@ -1,4 +1,4 @@
-﻿namespace DeGA.Core.Assistant
+﻿namespace DeGA.Core.Assistants
 {
     public interface IAIAssistantCacheStore
     {

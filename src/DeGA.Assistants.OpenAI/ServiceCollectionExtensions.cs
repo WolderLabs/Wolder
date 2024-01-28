@@ -1,8 +1,9 @@
 ﻿using Azure.AI.OpenAI;
 using DeGA.Core;
+using DeGA.Core.Assistants;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DeGA.Assistant.OpenAI
+namespace DeGA.Assistants.OpenAI
 {
     public static class ServiceCollectionExtensions
     {

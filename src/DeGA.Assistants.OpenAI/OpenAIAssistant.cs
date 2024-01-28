@@ -1,7 +1,7 @@
 ﻿using Azure.AI.OpenAI;
-using DeGA.Core;
+using DeGA.Core.Assistants;
 
-namespace DeGA.Assistant.OpenAI
+namespace DeGA.Assistants.OpenAI
 {
     public class OpenAIAssistant : IAIAssistant
     {

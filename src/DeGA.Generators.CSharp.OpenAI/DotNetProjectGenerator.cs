@@ -1,14 +1,16 @@
-﻿using DeGA.Core;
-using DeGA.Generator.CSharp.Compilation;
+﻿using DeGA.Actions.CSharp.Compilation;
+using DeGA.Core.Assistants;
+using DeGA.Core.Files;
+using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 
-namespace DeGA.Generator.CSharp.Generators;
+namespace DeGA.Generators.CSharp.OpenAI;
 
 public class DotNetProjectGenerator(
     IAIAssistant assistant,
     ILogger<DotNetProjectGenerator> logger,
     DotNetProjectFactory projectFactory,
-    GeneratorWorkspace workspace)
+    ISourceFiles sourceFiles)
 {
     public async Task<DotNetProject> CreateAsync(string name, string type)
     {
@@ -24,14 +26,15 @@ public class DotNetProjectGenerator(
 
         logger.LogInformation("Response from generate project prompt: \n{response}", response);
 
-        var projectPath = await workspace.FileSystem.WriteFileAsync(name, response);
+        var projectPath = await sourceFiles.WriteFileAsync(name, response);
+        var projectReference = new DotNetProjectReference(projectPath);
 
 
         // Write a minimal program cs file so that it can build once
         var folder = Path.GetDirectoryName(name)!;
-        await workspace.FileSystem.WriteFileAsync(Path.Combine(folder, "Program.cs"), "Console.WriteLine();");
+        await sourceFiles.WriteFileAsync(Path.Combine(folder, "Program.cs"), "Console.WriteLine();");
 
-        var project = projectFactory.Create(projectPath);
+        var project = projectFactory.Create(projectReference);
         var success = await project.TryCompileAsync();
         if (!success)
         {
@@ -42,7 +45,7 @@ public class DotNetProjectGenerator(
     
     public async Task<DotNetProject> CreateBlazorServerAppAsync(string name)
     {
-        await workspace.FileSystem.WriteFileAsync(
+        await sourceFiles.WriteFileAsync(
             "global.json", 
             """
             {
@@ -52,11 +55,12 @@ public class DotNetProjectGenerator(
               }
             }
             """);
-        await workspace.CommandLine.RunCommandAsync(
-            $"dotnet new blazor  -o {name} --interactivity server --empty");
+        // await sourceFiles.RunCommandAsync(
+        //     $"dotnet new blazor  -o {name} --interactivity server --empty");
 
-        var path = Path.Combine(workspace.FileSystem.RootDirectoryPath, $"{name}/{name}.csproj");
-        var project = projectFactory.Create(path);
+        var path = Path.Combine(sourceFiles.RootDirectoryPath, $"{name}/{name}.csproj");
+        var pathReference = new DotNetProjectReference(path);
+        var project = projectFactory.Create(pathReference);
         var success = await project.TryCompileAsync();
         if (!success)
         {

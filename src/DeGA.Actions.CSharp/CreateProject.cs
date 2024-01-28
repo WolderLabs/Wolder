@@ -1,7 +1,7 @@
-﻿using DeGA.Core.New;
-using DeGA.CSharp.Compilation;
+﻿using DeGA.Actions.CSharp.Compilation;
+using DeGA.Core.New;
 
-namespace DeGA.CSharp.Actions;
+namespace DeGA.Actions.CSharp.Actions;
 
 public record CreateProject(DotNetProjectReference project, string content)
     : IActionDefinition<CreateProjectAction>;

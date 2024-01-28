@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
-namespace DeGA.CSharp.Compilation;
+namespace DeGA.Actions.CSharp.Compilation;
 
 public class DotNetProjectFactory(IServiceProvider services)
 {

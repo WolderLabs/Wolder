@@ -1,9 +1,4 @@
 ﻿namespace DeGA.Core.Files;
 
-public class SourceFiles : WorkspaceFileSystem
-{
-    public SourceFiles(PipelineRootPath rootPath) 
-        : base(rootPath, "src")
-    {
-    }
-}
+public class SourceFiles(PipelineRootPath rootPath) 
+    : WorkspaceFileSystem(rootPath, "src"), ISourceFiles;

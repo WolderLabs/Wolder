@@ -1,6 +1,6 @@
 ﻿using DeGA.Core.Files;
 
-namespace DeGA.Core.Assistant;
+namespace DeGA.Core.Assistants;
 
 public class AIAssistantCacheStore(ICacheFiles cacheFiles) : IAIAssistantCacheStore
 {

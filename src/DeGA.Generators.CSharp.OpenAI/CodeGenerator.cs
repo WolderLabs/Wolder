@@ -1,21 +1,21 @@
-﻿using DeGA.Core;
-using DeGA.Generator.CSharp.Compilation;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
+using DeGA.Actions.CSharp.Compilation;
+using DeGA.Core.Assistants;
+using DeGA.Core.Files;
+using Microsoft.Extensions.Logging;
 
-namespace DeGA.Generator.CSharp.Generators;
+namespace DeGA.Generators.CSharp.OpenAI;
 
 public class CodeGenerator(
     DotNetProject project,
     IAIAssistant assistant,
     ILogger<CodeGenerator> logger,
-    GeneratorWorkspace workspace)
+    ISourceFiles sourceFiles) 
 {
     public async Task CreateClassesAsync(string baseNamespace, string behaviorPrompt)
     {
-        var tree = GetDirectoryTree(workspace.FileSystem.RootDirectoryPath);
+        var tree = GetDirectoryTree(sourceFiles.RootDirectoryPath);
         var response = await assistant.CompletePromptAsync($$"""
             You are a C# and razor code generator. The code you create will be compiled immediately and tested.
             Output only C# or razor files, your output will be directly written to one or more files. 
@@ -66,7 +66,7 @@ public class CodeGenerator(
                 {
                     if (currentFileName != null)
                     {
-                        await workspace.FileSystem.WriteFileAsync(currentFileName, fileContent.ToString());
+                        await sourceFiles.WriteFileAsync(currentFileName, fileContent.ToString());
                         currentFileName = null;
                     }
                 }
@@ -98,14 +98,14 @@ public class CodeGenerator(
 
         var path = Path.Combine(project.BasePath, $"{className}.cs");
 
-        await workspace.FileSystem.WriteFileAsync(path, sanitized);
+        await sourceFiles.WriteFileAsync(path, sanitized);
 
         await TryCompileAsync();
     }
 
     public async Task TransformAsync(string filePath, string behaviorPrompt)
     {
-        var content = await workspace.FileSystem.ReadFileAsync(filePath);
+        var content = await sourceFiles.ReadFileAsync(filePath);
         var response = await assistant.CompletePromptAsync($"""
             You are a C# code generator. Output only C#, your output will be directly written to a `.cs` file.
             Write terse but helpful explanatory comments.

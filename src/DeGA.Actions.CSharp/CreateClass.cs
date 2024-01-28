@@ -1,8 +1,8 @@
-﻿using DeGA.Core;
+﻿using DeGA.Actions.CSharp.Compilation;
+using DeGA.Core;
 using DeGA.Core.New;
-using DeGA.CSharp.Compilation;
 
-namespace DeGA.CSharp.Actions
+namespace DeGA.Actions.CSharp
 {
     public record CreateClass(DotNetProjectReference Project, string ClassName, string ClassContent)
         : IActionDefinition<CreateClassAction>;
