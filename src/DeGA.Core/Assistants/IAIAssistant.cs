@@ -1,7 +1,6 @@
-﻿namespace DeGA.Core.Assistants
+﻿namespace DeGA.Core.Assistants;
+
+public interface IAIAssistant
 {
-    public interface IAIAssistant
-    {
-        Task<string> CompletePromptAsync(string prompt);
-    }
+    Task<string> CompletePromptAsync(string prompt);
 }

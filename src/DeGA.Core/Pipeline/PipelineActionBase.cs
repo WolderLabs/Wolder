@@ -1,29 +1,28 @@
 ﻿
-namespace DeGA.Core.New
+namespace DeGA.Core.Pipeline;
+
+public abstract class PipelineActionBase<TParameters> : IPipelineAction<TParameters>
+    where TParameters : IActionDefinition
 {
-    public abstract class PipelineActionBase<TParameters> : IPipelineAction<TParameters>
-        where TParameters : IActionDefinition
+    private TParameters? Parameters { get; set; }
+
+    public void SetParameters(TParameters parameters)
     {
-        private TParameters? Parameters { get; set; }
-
-        public void SetParameters(TParameters parameters)
+        if (Parameters is not null)
         {
-            if (Parameters is not null)
-            {
-                throw new InvalidOperationException("Parameters should only be set once for an action.");
-            }
-            Parameters = parameters;
+            throw new InvalidOperationException("Parameters should only be set once for an action.");
         }
-
-        public async Task ExecuteAsync(PipelineActionContext context)
-        {
-            if (Parameters == null)
-            {
-                throw new InvalidOperationException("Execute called before parameters set");
-            }
-            await ExecuteAsync(context, Parameters);
-        }
-
-        protected abstract Task ExecuteAsync(PipelineActionContext context, TParameters parameters);
+        Parameters = parameters;
     }
+
+    public async Task ExecuteAsync(PipelineActionContext context)
+    {
+        if (Parameters == null)
+        {
+            throw new InvalidOperationException("Execute called before parameters set");
+        }
+        await ExecuteAsync(context, Parameters);
+    }
+
+    protected abstract Task ExecuteAsync(PipelineActionContext context, TParameters parameters);
 }

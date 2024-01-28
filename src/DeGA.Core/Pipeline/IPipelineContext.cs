@@ -1,6 +1,5 @@
-﻿namespace DeGA.Core.New
+﻿namespace DeGA.Core.Pipeline;
+
+public interface IPipelineContext
 {
-    public interface IPipelineContext
-    {
-    }
 }

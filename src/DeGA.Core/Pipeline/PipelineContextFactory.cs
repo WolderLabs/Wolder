@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
-namespace DeGA.Core.New;
+namespace DeGA.Core.Pipeline;
 
 internal sealed class PipelineContextFactory(IServiceProvider services)
     : IPipelineContextFactory

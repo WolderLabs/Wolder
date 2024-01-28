@@ -1,10 +1,9 @@
-﻿using DeGA.Actions.CSharp.Compilation;
-using DeGA.Core.Assistants;
+﻿using DeGA.Core.Assistants;
 using DeGA.Core.Files;
-using Microsoft.CodeAnalysis;
+using DeGA.CSharp.Compilation;
 using Microsoft.Extensions.Logging;
 
-namespace DeGA.Generators.CSharp.OpenAI;
+namespace DeGA.CSharp.OpenAI.Generators;
 
 public class DotNetProjectGenerator(
     IAIAssistant assistant,

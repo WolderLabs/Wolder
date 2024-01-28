@@ -1,20 +1,20 @@
 using System;
 using System.Collections.Generic;
 
-namespace TodoListBlazor.Services
+namespace TodoListBlazor.Services;
+
+public class TodoItem
 {
-    public class TodoItem
-    {
-        public string Title { get; set; }
-        public bool IsCompleted { get; set; }
-    }
+    public string Title { get; set; }
+    public bool IsCompleted { get; set; }
+}
 
-    public class TodoService
-    {
-        private List<TodoItem> _todoItems;
+public class TodoService
+{
+    private List<TodoItem> _todoItems;
 
-        public TodoService()
-        {
+    public TodoService()
+    {
             _todoItems = new List<TodoItem>
             {
                 new TodoItem { Title = "Complete assignment", IsCompleted = false },
@@ -23,9 +23,8 @@ namespace TodoListBlazor.Services
             };
         }
 
-        public List<TodoItem> GetTodoItems()
-        {
+    public List<TodoItem> GetTodoItems()
+    {
             return _todoItems;
         }
-    }
 }

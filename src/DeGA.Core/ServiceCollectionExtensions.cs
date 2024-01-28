@@ -1,21 +1,21 @@
 ﻿using DeGA.Core.Assistants;
 using DeGA.Core.Files;
-using DeGA.Core.New;
+using DeGA.Core.Pipeline;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DeGA.Core
+namespace DeGA.Core;
+
+public static class ServiceCollectionExtensions
 {
-    public static class ServiceCollectionExtensions
+    public static DeGAServiceBuilder AddDeGA(this IServiceCollection services, IConfigurationSection config)
     {
-        public static DeGAServiceBuilder AddDeGA(this IServiceCollection services)
-        {
-            services.AddSingleton<GeneratorPipelineBuilder>();
+        services.AddSingleton<GeneratorPipelineBuilder>();
 
-            services.AddScoped<ICacheFiles, CacheFiles>();
-            services.AddScoped<ISourceFiles, SourceFiles>();
-            services.AddSingleton<IAIAssistantCacheStore, AIAssistantCacheStore>();
+        services.AddScoped<ICacheFiles, CacheFiles>();
+        services.AddScoped<ISourceFiles, SourceFiles>();
+        services.AddSingleton<IAIAssistantCacheStore, AIAssistantCacheStore>();
 
-            return new DeGAServiceBuilder(services);
-        }
+        return new DeGAServiceBuilder(services, config);
     }
 }

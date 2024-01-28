@@ -1,4 +1,4 @@
-﻿namespace DeGA.Core.New;
+﻿namespace DeGA.Core.Pipeline;
 
 public class GeneratorPipeline(IPipelineContextFactory contextFactory)
 {

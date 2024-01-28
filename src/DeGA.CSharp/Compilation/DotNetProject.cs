@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
 using Microsoft.Extensions.Logging;
 
-namespace DeGA.Actions.CSharp.Compilation;
+namespace DeGA.CSharp.Compilation;
 
 public class DotNetProject
 {

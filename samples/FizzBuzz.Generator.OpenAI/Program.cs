@@ -3,6 +3,7 @@ using DeGA.Core.Pipeline;
 using DeGA.CSharp;
 using DeGA.CSharp.Actions;
 using DeGA.CSharp.Compilation;
+using DeGA.CSharp.OpenAI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -13,7 +14,7 @@ builder.Logging.AddConsole();
 var services = builder.Services;
 
 services.AddDeGA(builder.Configuration.GetSection("DeGA"))
-    .AddCSharpActions();
+    .AddCSharpGeneration();
 
 var host = builder.Build();
 
@@ -58,8 +59,13 @@ pipeline
                     Console.WriteLine(i);
                 }
             }
-            """))
-    .AddStep(ctx =>
-        new CompileProject(mainProject));
+            """));
 
 await pipeline.RunAsync();
+
+// var projectGenerator = host.Services.GetRequiredService<DotNetProjectGenerator>();
+// var project = await projectGenerator.CreateAsync("FizzBuzz/FizzBuzz.csproj", "Console App");
+// var codeGeneratorFactory = host.Services.GetRequiredService<CodeGeneratorFactory>();
+// var appCodeGenerator = codeGeneratorFactory.Create(project);
+// await appCodeGenerator.CreateClassAsync(
+//     "Program", "A main method that implements the common fizz buzz app.");

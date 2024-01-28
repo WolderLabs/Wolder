@@ -1,23 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace DeGA.Core.Pipeline;
 
-namespace DeGA.Core.New
+public class PipelineActionContext
 {
-    public class PipelineActionContext
+    public Task WriteFileAsync(string path, string content)
     {
-        public Task WriteFileAsync(string path, string content)
-        {
-            return Task.CompletedTask;
-        }
+        return Task.CompletedTask;
+    }
 
-        public void AddAction<TParameters, TAction>(Func<IPipelineContext, TParameters> parametersFactory)
-            where TParameters : IActionDefinition
-            where TAction : IPipelineAction<TParameters>
-        {
+    public void AddAction<TParameters, TAction>(Func<IPipelineContext, TParameters> parametersFactory)
+        where TParameters : IActionDefinition
+        where TAction : IPipelineAction<TParameters>
+    {
 
-        }
     }
 }

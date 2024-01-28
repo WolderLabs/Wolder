@@ -1,7 +1,7 @@
-﻿using DeGA.Actions.CSharp.Compilation;
+﻿using DeGA.CSharp.Compilation;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DeGA.Generators.CSharp.OpenAI;
+namespace DeGA.CSharp.OpenAI.Generators;
 
 public class CodeGeneratorFactory(IServiceProvider services)
 {

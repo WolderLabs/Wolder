@@ -1,11 +1,10 @@
-﻿namespace DeGA.Core.New
+﻿namespace DeGA.Core.Pipeline;
+
+public interface IActionDefinition
 {
-    public interface IActionDefinition
-    {
-    }
+}
     
-    public interface IActionDefinition<TAction> : IActionDefinition
-        where TAction : IPipelineAction
-    {
-    }
+public interface IActionDefinition<TAction> : IActionDefinition
+    where TAction : IPipelineAction
+{
 }
