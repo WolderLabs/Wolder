@@ -14,7 +14,7 @@ namespace DeGA.Core.New
         }
 
         public void AddAction<TParameters, TAction>(Func<IPipelineContext, TParameters> parametersFactory)
-            where TParameters : IActionInputParameters
+            where TParameters : IActionDefinition
             where TAction : IPipelineAction<TParameters>
         {
 

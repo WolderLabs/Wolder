@@ -8,12 +8,11 @@ namespace DeGA.Core
 {
     public interface IWorkspaceFileSystem
     {
-        string SourceDirectoryPath { get; }
-
-        void EnsureRootDirectory();
-        void CleanSourceDirectory();
+        string RootDirectoryPath { get; }
+        
         string GetAbsolutePath(string relativePath);
         Task<string> WriteFileAsync(string name, string text);
-        Task<string> ReadFileAsync(string filePath);
+        Task<string?> ReadFileAsync(string filePath);
+        void CleanDirectory();
     }
 }

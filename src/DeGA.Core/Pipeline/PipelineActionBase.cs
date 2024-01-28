@@ -2,7 +2,7 @@
 namespace DeGA.Core.New
 {
     public abstract class PipelineActionBase<TParameters> : IPipelineAction<TParameters>
-        where TParameters : IActionInputParameters
+        where TParameters : IActionDefinition
     {
         private TParameters? Parameters { get; set; }
 

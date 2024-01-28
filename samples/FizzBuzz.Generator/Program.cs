@@ -36,6 +36,10 @@ await appCodeGenerator.CreateClassAsync(
 
 var mainProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
 
-var pipeline = new GeneratorPipeline();
-pipeline.AddStep<CreateClassParameters, CreateClass>(
-    ctx => new(mainProject, "Program", "Console.WriteLine()"));
+var pipelineBuilder = host.Services.GetRequiredService<GeneratorPipelineBuilder>();
+var pipeline = pipelineBuilder.Build("FizzBuzz.Output");
+pipeline
+    .AddStep(ctx => 
+        new CreateProject(mainProject, ""))
+    .AddStep(ctx => 
+        new CreateClass(mainProject, "Program", "Console.WriteLine()"));

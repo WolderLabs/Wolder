@@ -1,16 +1,18 @@
 ﻿using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;
+using DeGA.Core.Assistant;
 
 namespace DeGA.Core
 {
-    public class AIAssistantCache : IAIAssistant
+    public class AIAssistantCacheProxy : IAIAssistant
     {
-        private readonly IWorkspaceAssistantCache _cache;
+        private readonly IAIAssistantCacheStore _cache;
         private readonly IAIAssistant _wrappedAssistant;
-        private readonly ILogger<AIAssistantCache> _logger;
+        private readonly ILogger<AIAssistantCacheProxy> _logger;
 
-        public AIAssistantCache(GeneratorWorkspace workspace, IAIAssistant wrappedAssistant, ILogger<AIAssistantCache> logger)
+        public AIAssistantCacheProxy(
+            GeneratorWorkspace workspace, IAIAssistant wrappedAssistant, ILogger<AIAssistantCacheProxy> logger)
         {
             _cache = workspace.AssistantCache;
             _wrappedAssistant = wrappedAssistant;

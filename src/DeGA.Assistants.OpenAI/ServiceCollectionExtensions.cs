@@ -12,7 +12,7 @@ namespace DeGA.Assistant.OpenAI
             {
                 var client = new OpenAIClient(openAIApiKey);
                 var assistant = new OpenAIAssistant(client);
-                var cache = ActivatorUtilities.CreateInstance<AIAssistantCache>(s, assistant);
+                var cache = ActivatorUtilities.CreateInstance<AIAssistantCacheProxy>(s, assistant);
                 return cache;
             });
 

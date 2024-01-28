@@ -1,6 +1,6 @@
-﻿namespace DeGA.Core
+﻿namespace DeGA.Core.Assistant
 {
-    public interface IWorkspaceAssistantCache
+    public interface IAIAssistantCacheStore
     {
         Task<string?> TryGetCachedAssistantResultAsync(string key);
         Task SetCachedAssistantResultAsync(string key, string result);

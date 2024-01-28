@@ -1,18 +1,18 @@
-﻿namespace DeGA.Core
+﻿using DeGA.Core.Assistant;
+
+namespace DeGA.Core
 {
     public class GeneratorWorkspace(
         IWorkspaceFileSystem fileSystem, 
         IWorkspaceCommandLine commandLine,
-        IWorkspaceAssistantCache assistantCache)
+        IAIAssistantCacheStore assistantCache)
     {
         public IWorkspaceFileSystem FileSystem => fileSystem;
         public IWorkspaceCommandLine CommandLine => commandLine;
-        public IWorkspaceAssistantCache AssistantCache => assistantCache;
+        public IAIAssistantCacheStore AssistantCache => assistantCache;
 
         public Task InitializeAsync()
         {
-            fileSystem.EnsureRootDirectory();
-            fileSystem.CleanSourceDirectory();
             return Task.CompletedTask;
         }
     }

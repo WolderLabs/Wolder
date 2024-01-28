@@ -1,7 +1,7 @@
 ﻿namespace DeGA.Core.New
 {
     public interface IPipelineAction<TParameters> : IPipelineAction
-        where TParameters : IActionInputParameters
+        where TParameters : IActionDefinition
     {
         void SetParameters(TParameters parameters);
     }

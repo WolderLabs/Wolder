@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using DeGA.Core.Assistant;
+using DeGA.Core.Files;
+using DeGA.Core.New;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DeGA.Core
 {
@@ -6,11 +9,18 @@ namespace DeGA.Core
     {
         public static DeGAServiceBuilder AddDeGA(this IServiceCollection services, string workspaceName)
         {
-            var fs = new WorkspaceFileSystem(workspaceName);
-            services.AddSingleton<IWorkspaceFileSystem>(fs);
-            services.AddSingleton<IWorkspaceAssistantCache>(fs);
+            services.AddScoped<ICacheFiles, CacheFiles>();
+            services.AddScoped<ICacheFiles, CacheFiles>();
+            services.AddSingleton<IAIAssistantCacheStore, WorkspacA>();
             services.AddSingleton<IWorkspaceCommandLine, WorkspaceCommandLine>();
             services.AddSingleton<GeneratorWorkspace>();
+
+            return new DeGAServiceBuilder(services);
+        }
+        
+        public static DeGAServiceBuilder AddDeGA(this IServiceCollection services)
+        {
+            services.AddSingleton<GeneratorPipelineBuilder>();
 
             return new DeGAServiceBuilder(services);
         }

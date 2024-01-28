@@ -2,7 +2,8 @@
 
 namespace DeGA.Core.New;
 
-internal class PipelineContextFactory(IServiceProvider services)
+internal sealed class PipelineContextFactory(IServiceProvider services)
+    : IPipelineContextFactory
 {
     public IPipelineContext Create()
     {

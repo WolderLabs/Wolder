@@ -7,9 +7,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeGA.Core", "DeGA.Core\DeGA
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{574F7457-69C0-4F32-9E27-A64CFF0E5154}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeGA.Assistant.OpenAI", "DeGA.Assistant.OpenAI\DeGA.Assistant.OpenAI.csproj", "{A4F200A3-B02B-4CE2-BA94-2E39566EC317}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeGA.Assistants.OpenAI", "DeGA.Assistants.OpenAI\DeGA.Assistants.OpenAI.csproj", "{A4F200A3-B02B-4CE2-BA94-2E39566EC317}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeGA.Generator.CSharp", "DeGA.Generator.CSharp\DeGA.Generator.CSharp.csproj", "{C2BE94A5-CAE5-497F-8601-492206657B46}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeGA.Generators.CSharp", "DeGA.Generators.CSharp\DeGA.Generators.CSharp.csproj", "{C2BE94A5-CAE5-497F-8601-492206657B46}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FizzBuzz.Generator", "..\samples\FizzBuzz.Generator\FizzBuzz.Generator.csproj", "{8A9CE11B-B392-44B7-858D-3F059EBAADDD}"
 EndProject
@@ -17,7 +17,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TodoList.Blazor.Generator",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TodoListBlazor", "..\samples\TodoList.Blazor.Output\src\TodoListBlazor\TodoListBlazor.csproj", "{78C5358D-DE1C-40DD-96CA-F39B39B9856F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeGA.CSharp", "DeGA.CSharp\DeGA.CSharp.csproj", "{C845DBDC-F4F0-4B4F-816D-47861006EA3C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeGA.Actions.CSharp", "DeGA.Actions.CSharp\DeGA.Actions.CSharp.csproj", "{C845DBDC-F4F0-4B4F-816D-47861006EA3C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

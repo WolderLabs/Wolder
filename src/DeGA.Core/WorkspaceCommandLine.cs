@@ -9,7 +9,7 @@ namespace DeGA.Core
     {
         public async Task RunCommandAsync(string command)
         {
-            var workingDir = fileSystem.SourceDirectoryPath;
+            var workingDir = fileSystem.RootDirectoryPath;
 
             // Create a new process to run the command
             using (var process = new Process())

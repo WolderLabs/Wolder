@@ -1,16 +1,17 @@
-﻿using DeGA.Core.New;
+﻿using DeGA.Core;
+using DeGA.Core.New;
 using DeGA.CSharp.Compilation;
 
 namespace DeGA.CSharp.Actions
 {
-    public record CreateClassParameters(DotNetProjectReference Project, string ClassName, string ClassContent)
-        : IActionInputParameters;
+    public record CreateClass(DotNetProjectReference Project, string ClassName, string ClassContent)
+        : IActionDefinition<CreateClassAction>;
 
-    public class CreateClass(DotNetProjectFactory dotNetProjectFactory) 
-        : PipelineActionBase<CreateClassParameters>
+    public class CreateClassAction(DotNetProjectFactory dotNetProjectFactory, IWorkspaceFileSystem fileSystem) 
+        : PipelineActionBase<CreateClass>
     {
         protected override async Task ExecuteAsync(
-            PipelineActionContext context, CreateClassParameters parameters)
+            PipelineActionContext context, CreateClass parameters)
         {
             // TODO: Fix path
             await context.WriteFileAsync(parameters.ClassName, parameters.ClassContent);

@@ -1,4 +1,5 @@
 ﻿
+using DeGA.Core.Files;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DeGA.Core.New

@@ -55,7 +55,7 @@ public class DotNetProjectGenerator(
         await workspace.CommandLine.RunCommandAsync(
             $"dotnet new blazor  -o {name} --interactivity server --empty");
 
-        var path = Path.Combine(workspace.FileSystem.SourceDirectoryPath, $"{name}/{name}.csproj");
+        var path = Path.Combine(workspace.FileSystem.RootDirectoryPath, $"{name}/{name}.csproj");
         var project = projectFactory.Create(path);
         var success = await project.TryCompileAsync();
         if (!success)

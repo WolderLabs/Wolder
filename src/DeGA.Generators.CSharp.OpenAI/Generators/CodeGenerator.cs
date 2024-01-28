@@ -15,7 +15,7 @@ public class CodeGenerator(
 {
     public async Task CreateClassesAsync(string baseNamespace, string behaviorPrompt)
     {
-        var tree = GetDirectoryTree(workspace.FileSystem.SourceDirectoryPath);
+        var tree = GetDirectoryTree(workspace.FileSystem.RootDirectoryPath);
         var response = await assistant.CompletePromptAsync($$"""
             You are a C# and razor code generator. The code you create will be compiled immediately and tested.
             Output only C# or razor files, your output will be directly written to one or more files. 
