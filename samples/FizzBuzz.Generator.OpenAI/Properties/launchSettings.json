@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "FizzBuzz.Generator.OpenAI": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
