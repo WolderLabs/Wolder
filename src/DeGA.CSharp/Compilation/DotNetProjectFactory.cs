@@ -1,12 +1,14 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using DeGA.Core.Files;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DeGA.CSharp.Compilation;
 
-public class DotNetProjectFactory(IServiceProvider services)
+public class DotNetProjectFactory(IServiceProvider services, ISourceFiles sourceFiles)
 {
     public DotNetProject Create(DotNetProjectReference reference)
     {
         var path = reference.RelativeFilePath;
-        return ActivatorUtilities.CreateInstance<DotNetProject>(services, path);
+        var fullPath = sourceFiles.GetAbsolutePath(path);
+        return ActivatorUtilities.CreateInstance<DotNetProject>(services, fullPath);
     }
 }

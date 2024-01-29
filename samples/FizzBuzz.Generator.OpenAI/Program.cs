@@ -24,6 +24,7 @@ var pipelineBuilder = host.Services.GetRequiredService<GeneratorPipelineBuilder>
 var pipeline = pipelineBuilder.Build("FizzBuzz.Output");
 
 pipeline
+    .AddStep(ctx => new CreateSdkGlobal(DotNetSdkVersion.Net8))
     .AddStep(ctx => 
         new CreateProject(mainProject, """
             <Project Sdk="Microsoft.NET.Sdk">

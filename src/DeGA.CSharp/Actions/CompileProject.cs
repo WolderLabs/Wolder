@@ -7,10 +7,10 @@ namespace DeGA.CSharp.Actions;
 public record CompileProject(DotNetProjectReference Project)
     : IActionDefinition<CompileProjectAction>;
 
-public class CompileProjectAction(DotNetProjectFactory dotNetProjectFactory, IWorkspaceFileSystem fileSystem) 
+public class CompileProjectAction(DotNetProjectFactory dotNetProjectFactory) 
     : PipelineActionBase<CompileProject>
 {
-    protected override async Task ExecuteAsync(PipelineActionContext _, CompileProject parameters)
+    protected override async Task ExecuteAsync(IPipelineActionContext _, CompileProject parameters)
     {
         var project = dotNetProjectFactory.Create(parameters.Project);
         if (!(await project.TryCompileAsync()))

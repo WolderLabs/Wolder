@@ -2,4 +2,5 @@
 
 public interface IPipelineContextFactory
 {
+    IPipelineContext Create();
 }

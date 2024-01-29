@@ -11,7 +11,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeGA.OpenAI", "DeGA.OpenAI\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeGA.CSharp.OpenAI", "DeGA.CSharp.OpenAI\DeGA.CSharp.OpenAI.csproj", "{C2BE94A5-CAE5-497F-8601-492206657B46}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FizzBuzz.Generator", "..\samples\FizzBuzz.Generator\FizzBuzz.Generator.csproj", "{8A9CE11B-B392-44B7-858D-3F059EBAADDD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FizzBuzz.Generator.Basic", "..\samples\FizzBuzz.Generator.Basic\FizzBuzz.Generator.Basic.csproj", "{8A9CE11B-B392-44B7-858D-3F059EBAADDD}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TodoList.Blazor.Generator", "..\samples\TodoList.Blazor.Generator\TodoList.Blazor.Generator.csproj", "{75771AE8-D14E-42DF-B959-790AB9DB71AA}"
 EndProject

@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "FizzBuzz.Generator": {
+    "FizzBuzz.Generator.Basic": {
       "commandName": "Project",
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development"

@@ -2,7 +2,6 @@
 using DeGA.Core.Pipeline;
 using DeGA.CSharp;
 using DeGA.CSharp.Actions;
-using DeGA.CSharp.Compilation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -17,12 +16,14 @@ services.AddDeGA(builder.Configuration.GetSection("DeGA"))
 
 var host = builder.Build();
 
+var pipelineBuilder = host.Services.GetRequiredService<GeneratorPipelineBuilder>();
+
+var pipeline = pipelineBuilder.Build("FizzBuzz.Basic.Output");
+
 var mainProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
 
-var pipelineBuilder = host.Services.GetRequiredService<GeneratorPipelineBuilder>();
-var pipeline = pipelineBuilder.Build("FizzBuzz.Output");
-
 pipeline
+    .AddStep(ctx => new CreateSdkGlobal(DotNetSdkVersion.Net8))
     .AddStep(ctx => 
         new CreateProject(mainProject, """
             <Project Sdk="Microsoft.NET.Sdk">

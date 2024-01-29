@@ -3,10 +3,10 @@
 public interface IPipelineAction<TParameters> : IPipelineAction
     where TParameters : IActionDefinition
 {
-    void SetParameters(TParameters parameters);
 }
 
 public interface IPipelineAction
 {
-    Task ExecuteAsync(PipelineActionContext context);
+    void SetParameters(IActionDefinition parameters);
+    Task ExecuteAsync(IPipelineActionContext context);
 }

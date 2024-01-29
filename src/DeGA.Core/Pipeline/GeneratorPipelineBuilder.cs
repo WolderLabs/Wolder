@@ -7,10 +7,13 @@ public class GeneratorPipelineBuilder(IServiceProvider services)
 {
     public GeneratorPipeline Build(string rootPath)
     {
-        var fileSystem = ActivatorUtilities.CreateInstance<WorkspaceFileSystem>(
-            services, rootPath);
+        var scope = services.CreateScope();
 
-        return ActivatorUtilities.CreateInstance<GeneratorPipeline>(
-            services, fileSystem);
+        var rootPathService = scope.ServiceProvider.GetRequiredService<PipelineRootPath>();
+        rootPathService.SetRootPath(rootPath);
+
+        var pipeline = scope.ServiceProvider.GetRequiredService<GeneratorPipeline>();
+        pipeline.Disposing += () => scope.Dispose();
+        return pipeline;
     }
 }

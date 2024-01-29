@@ -1,16 +1,14 @@
 ﻿namespace DeGA.Core.Pipeline;
 
-public class PipelineActionContext
+public interface IPipelineActionContext
 {
-    public Task WriteFileAsync(string path, string content)
-    {
-        return Task.CompletedTask;
-    }
+}
 
+public class PipelineActionContext : IPipelineActionContext
+{
     public void AddAction<TParameters, TAction>(Func<IPipelineContext, TParameters> parametersFactory)
         where TParameters : IActionDefinition
         where TAction : IPipelineAction<TParameters>
     {
-
     }
 }

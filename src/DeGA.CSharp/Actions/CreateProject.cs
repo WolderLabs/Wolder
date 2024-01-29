@@ -9,7 +9,7 @@ public record CreateProject(DotNetProjectReference Project, string Content)
 public class CreateProjectAction(ISourceFiles sourceFiles) 
     : PipelineActionBase<CreateProject>
 {
-    protected override async Task ExecuteAsync(PipelineActionContext context, CreateProject parameters)
+    protected override async Task ExecuteAsync(IPipelineActionContext context, CreateProject parameters)
     {
         await sourceFiles.WriteFileAsync(
             parameters.Project.RelativeFilePath, parameters.Content);

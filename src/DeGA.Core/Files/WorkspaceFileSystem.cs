@@ -58,7 +58,8 @@ public class WorkspaceFileSystem : IWorkspaceFileSystem
     {
         name = name.Trim().TrimStart('/', '\\');
         string filePath = Path.Combine(RootDirectoryPath, name);
-        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        var directory = Path.GetDirectoryName(filePath)!;
+        Directory.CreateDirectory(directory);
         return filePath;
     }
 }

@@ -1,19 +1,48 @@
-﻿namespace DeGA.Core.Pipeline;
+﻿using DeGA.Core.Files;
 
-public class GeneratorPipeline(IPipelineContextFactory contextFactory)
+namespace DeGA.Core.Pipeline;
+
+public class GeneratorPipeline(
+    ISourceFiles sourceFiles,
+    IPipelineContextFactory contextFactory,
+    IPipelineActionContextFactory actionContextFactory,
+    ActionFactory actionFactory)
+    : IDisposable
 {
-    private readonly List<IPipelineStep> _actions = new();
+    private readonly List<IPipelineStep> _steps = new();
+    private bool _isDisposed;
+    
+    internal event Action? Disposing;
 
     public GeneratorPipeline AddStep<TDefinition>(
         Func<IPipelineContext, TDefinition> parametersFactory)
         where TDefinition : IActionDefinition
     {
-        _actions.Add(new PipelineStep<TDefinition>(parametersFactory));
+        _steps.Add(new PipelineStep<TDefinition>(parametersFactory));
         return this;
     }
 
-    public Task RunAsync()
+    public async Task RunAsync()
     {
-        return Task.CompletedTask;
+        sourceFiles.CleanDirectory();
+        foreach (var step in _steps)
+        {
+            var action = actionFactory.Create(step.DefinitionType);
+            var context = contextFactory.Create();
+            var definition = step.GetDefinition(context);
+            action.SetParameters(definition);
+            var actionContext = actionContextFactory.Create();
+            
+            await action.ExecuteAsync(actionContext);
+        }
+    }
+
+    public void Dispose()
+    {
+        if (!_isDisposed)
+        {
+            _isDisposed = true;
+            Disposing?.Invoke();
+        }
     }
 }

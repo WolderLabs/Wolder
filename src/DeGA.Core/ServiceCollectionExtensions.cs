@@ -12,10 +12,21 @@ public static class ServiceCollectionExtensions
     {
         services.AddSingleton<GeneratorPipelineBuilder>();
 
+        services.AddScoped<PipelineRootPath>();
         services.AddScoped<ICacheFiles, CacheFiles>();
         services.AddScoped<ISourceFiles, SourceFiles>();
-        services.AddSingleton<IAIAssistantCacheStore, AIAssistantCacheStore>();
+        services.AddScoped<GeneratorPipeline>();
+        services.AddScoped<IAIAssistantCacheStore, AIAssistantCacheStore>();
+        
+        services.AddTransient<IPipelineContext, PipelineContext>();
+        services.AddTransient<IPipelineActionContext, PipelineActionContext>();
+        services.AddScoped<IPipelineContextFactory, PipelineContextFactory>();
+        services.AddScoped<IPipelineActionContextFactory, PipelineActionContextFactory>();
+        
+        var builder = new DeGAServiceBuilder(services, config);
+        services.AddScoped<ActionFactory>(s => 
+            ActivatorUtilities.CreateInstance<ActionFactory>(s, builder.DefinitionToActionTypeMap));
 
-        return new DeGAServiceBuilder(services, config);
+        return builder;
     }
 }
