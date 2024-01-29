@@ -3,15 +3,9 @@ using DeGA.Core.Assistants;
 
 namespace DeGA.OpenAI;
 
-public class OpenAIAssistant : IAIAssistant
+public class OpenAIAssistant(OpenAIClient client) 
+    : IOpenAIAssistant
 {
-    private readonly OpenAIClient _client;
-
-    public OpenAIAssistant(OpenAIClient client)
-    {
-        _client = client;
-    }
-
     public async Task<string> CompletePromptAsync(string prompt)
     {
         var options = new ChatCompletionsOptions()
@@ -24,7 +18,7 @@ public class OpenAIAssistant : IAIAssistant
                 new ChatRequestUserMessage(prompt)
             }
         };
-        var response = await _client.GetChatCompletionsAsync(options);
+        var response = await client.GetChatCompletionsAsync(options);
         return response.Value.Choices.FirstOrDefault()?.Message.Content ?? "";
     }
 }

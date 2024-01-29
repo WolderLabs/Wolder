@@ -1,4 +1,5 @@
 ﻿using DeGA.Core;
+using DeGA.CSharp.OpenAI.Actions;
 using DeGA.CSharp.OpenAI.Generators;
 using DeGA.OpenAI;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,8 +13,7 @@ public static class ServiceCollectionExtensions
         builder.AddOpenAIAssistant();
         builder.AddCSharpActions();
         
-        builder.Services.AddTransient<CodeGeneratorFactory>();
-        builder.Services.AddTransient<DotNetProjectGenerator>();
+        builder.AddAction<GenerateClass>();
         
         return builder;
     }

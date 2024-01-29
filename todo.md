@@ -13,4 +13,6 @@
 ## Later
 
 - [ ] Manual edit layers
+- [ ] Vector search
+- [ ] Include connected code in context
 - [ ] Context information that store prompts for how the code in the project should be written.

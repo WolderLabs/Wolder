@@ -11,7 +11,7 @@ public static class ServiceCollectionExtensions
 {
     public static DeGAServiceBuilder AddOpenAIAssistant(this DeGAServiceBuilder builder)
     {
-        builder.Services.TryAddSingleton<IAIAssistant>(s =>
+        builder.Services.AddScoped<IAIAssistant>(s =>
         {
             var client = new OpenAIClient(builder.Config["OpenAIApiKey"]
                 ?? throw new InvalidOperationException("No OpenAI API key has been set."));

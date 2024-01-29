@@ -15,14 +15,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\DeGA.Actions.CSharp\DeGA.Actions.CSharp.csproj" />
-    <ProjectReference Include="..\..\src\DeGA.Assistants.OpenAI\DeGA.Assistants.OpenAI.csproj" />
     <ProjectReference Include="..\..\src\DeGA.Core\DeGA.Core.csproj" />
     <ProjectReference Include="..\..\src\DeGA.CSharp.OpenAI\DeGA.CSharp.OpenAI.csproj" />
     <ProjectReference Include="..\..\src\DeGA.CSharp\DeGA.CSharp.csproj" />
-    <ProjectReference Include="..\..\src\DeGA.Generator.CSharp\DeGA.Generator.CSharp.csproj" />
-    <ProjectReference Include="..\..\src\DeGA.Assistant.OpenAI\DeGA.Assistant.OpenAI.csproj" />
-    <ProjectReference Include="..\..\src\DeGA.Generators.CSharp.OpenAI\DeGA.Generators.CSharp.OpenAI.csproj" />
     <ProjectReference Include="..\..\src\DeGA.OpenAI\DeGA.OpenAI.csproj" />
   </ItemGroup>
 

@@ -45,6 +45,10 @@ public class WorkspaceFileSystem : IWorkspaceFileSystem
     public async Task<string?> ReadFileAsync(string name)
     {
         string filePath = NormalizePath(name);
+        if (!File.Exists(filePath))
+        {
+            return null;
+        }
         return await File.ReadAllTextAsync(filePath);
     }
 

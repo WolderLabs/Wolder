@@ -2,8 +2,8 @@
 using DeGA.Core.Pipeline;
 using DeGA.CSharp;
 using DeGA.CSharp.Actions;
-using DeGA.CSharp.Compilation;
 using DeGA.CSharp.OpenAI;
+using DeGA.CSharp.OpenAI.Actions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -18,10 +18,11 @@ services.AddDeGA(builder.Configuration.GetSection("DeGA"))
 
 var host = builder.Build();
 
-var mainProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
-
 var pipelineBuilder = host.Services.GetRequiredService<GeneratorPipelineBuilder>();
-var pipeline = pipelineBuilder.Build("FizzBuzz.Output");
+
+var pipeline = pipelineBuilder.Build("FizzBuzz.OpenAI.Output");
+
+var mainProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
 
 pipeline
     .AddStep(ctx => new CreateSdkGlobal(DotNetSdkVersion.Net8))
@@ -40,33 +41,11 @@ pipeline
             </Project>
             """))
     .AddStep(ctx => 
-        new CreateClass(mainProject, "Program", """
-            for (int i = 1; i <= 100; i++)
-            {
-                if (i % 3 == 0 && i % 5 == 0)
-                {
-                    Console.WriteLine("FizzBuzz");
-                }
-                else if (i % 3 == 0)
-                {
-                    Console.WriteLine("Fizz");
-                }
-                else if (i % 5 == 0)
-                {
-                    Console.WriteLine("Buzz");
-                }
-                else
-                {
-                    Console.WriteLine(i);
-                }
-            }
-            """));
+        new GenerateClass(
+            mainProject,
+            "Program", 
+            "A main method that implements the common fizz buzz app."))
+    .AddStep(ctx =>
+        new CompileProject(mainProject));
 
 await pipeline.RunAsync();
-
-// var projectGenerator = host.Services.GetRequiredService<DotNetProjectGenerator>();
-// var project = await projectGenerator.CreateAsync("FizzBuzz/FizzBuzz.csproj", "Console App");
-// var codeGeneratorFactory = host.Services.GetRequiredService<CodeGeneratorFactory>();
-// var appCodeGenerator = codeGeneratorFactory.Create(project);
-// await appCodeGenerator.CreateClassAsync(
-//     "Program", "A main method that implements the common fizz buzz app.");
