@@ -2,26 +2,35 @@
 using System.Text.RegularExpressions;
 using DeGA.Core.Assistants;
 using DeGA.Core.Files;
+using DeGA.Core.Pipeline;
 using DeGA.CSharp.Compilation;
 using Microsoft.Extensions.Logging;
 
-namespace DeGA.CSharp.OpenAI.Generators;
+namespace DeGA.CSharp.OpenAI.Actions;
 
-public class CodeGenerator(
-    DotNetProject project,
+public record GenerateClasses(DotNetProjectReference project, string filePath, string behaviorPrompt)
+    : IActionDefinition<CreateClassesAction>;
+
+public class CreateClassesAction(
     IAIAssistant assistant,
-    ILogger<CodeGenerator> logger,
+    ILogger<CreateClassesAction> logger,
+    DotNetProjectFactory projectFactory,
     ISourceFiles sourceFiles) 
+    : PipelineActionBase<GenerateClasses>
 {
-    public async Task CreateClassesAsync(string baseNamespace, string behaviorPrompt)
+    protected override async Task ExecuteAsync(IPipelineActionContext context, GenerateClasses parameters)
     {
+        var (projectRef, filePath, behaviorPrompt) = parameters;
         var tree = GetDirectoryTree(sourceFiles.RootDirectoryPath);
         var response = await assistant.CompletePromptAsync($$"""
             You are a C# and razor code generator. The code you create will be compiled immediately and tested.
             Output only C# or razor files, your output will be directly written to one or more files. 
-            Make sure using statements are added where necessary.
+            When you generate services you must also generate an interface i.e. TestService should implement
+            ITestService.
+            Generate any new types needed (i.e. Models, Interfaces).
+            Generate `using {namespace};` for any referenced types. Usings are not automatically resolved.
             Assume the files will be added to a single dotnet 8.0 project. The base namespace of the
-            project is `{{baseNamespace}}`. 
+            project is `{{projectRef.Name}}`. 
             Each file should always have a delimiter header like this:
 
             // === START FILE: ProjectName/Namespace/Namespace/ClassName.cs
@@ -40,9 +49,16 @@ public class CodeGenerator(
 
         await SplitAndSaveFilesAsync(response);
 
-        await TryCompileAsync();
-    }
+        logger.LogInformation(response);
 
+        await SplitAndSaveFilesAsync(response);
+
+        var project = projectFactory.Create(projectRef);
+        var compiles = await project.TryCompileAsync();
+        if (!compiles)
+            throw new("No compile");
+    }
+    
     private async Task SplitAndSaveFilesAsync(string input)
     {
         var sanitized = Sanitize(input);
@@ -82,76 +98,15 @@ public class CodeGenerator(
     {
         return line.Split(new string[] { "=== START FILE:" }, StringSplitOptions.None).Last().Trim();
     }
-
-    public async Task CreateClassAsync(string className, string behaviorPrompt)
-    {
-        var response = await assistant.CompletePromptAsync($"""
-            You are a C# code generator. Output only C#, your output will be directly written to a `.cs` file.
-            Write terse but helpful explanatory comments.
-
-            Create a class named `{className}` with the following behavior:
-            {behaviorPrompt}
-            """);
-        var sanitized = Sanitize(response);
-
-        logger.LogInformation(sanitized);
-
-        var path = Path.Combine(project.BasePath, $"{className}.cs");
-
-        await sourceFiles.WriteFileAsync(path, sanitized);
-
-        await TryCompileAsync();
-    }
-
-    public async Task TransformAsync(string filePath, string behaviorPrompt)
-    {
-        var content = await sourceFiles.ReadFileAsync(filePath);
-        var response = await assistant.CompletePromptAsync($"""
-            You are a C# code generator. Output only C#, your output will be directly written to a `.cs` file.
-            Write terse but helpful explanatory comments.
-            Each file should always have a delimiter header like this:
-            // === START FILE: ProjectName/Namespace/Namespace/ClassName.cs
-            File contents
-            // === END FILE: ProjectName/Namespace/Namespace/ClassName.cs
-
-            Using the code from this file:
-            === START FILE: {filePath}
-            {content}
-            === END FILE: {filePath}
-
-            Update the code with the following behavior:
-            {behaviorPrompt}
-            """);
-
-        logger.LogInformation(response);
-
-        await SplitAndSaveFilesAsync(response);
-
-        await TryCompileAsync();
-    }
-
-    private async Task TryCompileAsync()
-    {
-        var success = await project.TryCompileAsync();
-        if (success)
-        {
-            logger.LogInformation("Can be compiled.");
-        }
-        else
-        {
-            logger.LogInformation("Can not be compiled.");
-            throw new InvalidOperationException("Can't compile");
-        }
-    }
-
-    private string Sanitize(string input)
+    
+    private static string Sanitize(string input)
     {
         string pattern = @"^\s*```\s*csharp|^\s*```|^\s*```\s*html";
         string result = Regex.Replace(input, pattern, "", RegexOptions.Multiline);
 
         return result;
     }
-
+    
     private string GetDirectoryTree(string rootPath)
     {
         StringBuilder treeBuilder = new StringBuilder();

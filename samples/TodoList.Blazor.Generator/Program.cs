@@ -1,42 +1,68 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using DeGA.CommandLine;
+using DeGA.CommandLine.Actions;
+using DeGA.Core;
+using DeGA.Core.Pipeline;
+using DeGA.CSharp;
+using DeGA.CSharp.Actions;
+using DeGA.CSharp.OpenAI;
+using DeGA.CSharp.OpenAI.Actions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-
-using DeGA.Core;
 
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole();
 
 var services = builder.Services;
 
-// var openAiKey = builder.Configuration["OpenAIApiKey"]
-//         ?? throw new InvalidOperationException("No OpenAI API key has been set.");
-//
-// services.AddDeGA("TodoList.Blazor.Output")
-//     .AddOpenAIAssistant(openAiKey)
-//     .AddCSharpGeneration();
-//
-// var host = builder.Build();
-//
-// var workspace = host.Services.GetRequiredService<GeneratorWorkspace>();
-// await workspace.InitializeAsync();
-//
-// var projectGenerator = host.Services.GetRequiredService<DotNetProjectGenerator>();
-// var project = await projectGenerator.CreateBlazorServerAppAsync("TodoListBlazor");
-//
-// var codeGeneratorFactory = host.Services.GetRequiredService<CodeGeneratorFactory>();
-// var appCodeGenerator = codeGeneratorFactory.Create(project);
-// await appCodeGenerator.TransformAsync("TodoListBlazor/Program.cs",
-//     """
-//     Use reflection to register any classes in the current assembly 
-//     that have a name that ends in `Service`, register them as scoped services.
-//     Make sure the services are registered before the app containter is built.
-//     """);
-//
-// await appCodeGenerator.CreateClassesAsync(
-//     "TodoListBlazor",
-//     """
-//     A razor page with route '/todo' that shows a listing of todo items and the supporting 
-//     service that holds the todo items in memory.
-//     """);
-//
+services.AddDeGA(builder.Configuration.GetSection("DeGA"))
+    .AddCommandLineActions()
+    .AddCSharpGeneration();
+
+var host = builder.Build();
+
+var pipelineBuilder = host.Services.GetRequiredService<GeneratorPipelineBuilder>();
+var pipeline = pipelineBuilder.Build("TodoList.Blazor.Output");
+
+var webProject = new DotNetProjectReference("TodoList.Web/TodoList.Web.csproj");
+
+pipeline
+    .AddStep(ctx => new CreateSdkGlobal(DotNetSdkVersion.Net8))
+    .AddStep(ctx => 
+        new RunCommand(
+            $"dotnet new blazor -o {webProject.Name} --interactivity server --empty"))
+    .AddStep(ctx => 
+        new TransformClass(
+            webProject,
+            "TodoList.Web/Program.cs",
+            """
+            Use reflection to register any classes in the current assembly 
+            that have a name that ends in `Service`, register them as scoped services.
+            Register the default interface if possible. For example if TestService implements 
+            ITestService it should be registered as `services.AddScoped<ITestService, TestService>()`
+            Make sure the services are registered before the app container is built.
+            """))
+    .AddStep(ctx => 
+        new GenerateClasses(
+            webProject,
+            "TodoList.Web",
+            """
+            A Blazor page component with route '/todo' that shows a listing of todo items and the supporting 
+            service that holds the todo items in memory.
+            """))
+    .AddStep(ctx => 
+        new GenerateClasses(
+            webProject,
+            "TodoList.Web",
+            """
+            A single Blazor page component at Components/Pages/Home.razor.
+            Don't generate any other pages.
+            The page contents should be:
+            A basic heading.
+            A link to "ToDo Items" at URL /todo. 
+            """))
+    .AddStep(ctx =>
+        new RunCommand("dotnet run", webProject.RelativeRoot, Interactive: true));
+
+await pipeline.RunAsync();
+

@@ -14,6 +14,7 @@ public class GeneratorPipelineBuilder(IServiceProvider services)
 
         var pipeline = scope.ServiceProvider.GetRequiredService<GeneratorPipeline>();
         pipeline.Disposing += () => scope.Dispose();
+        
         return pipeline;
     }
 }

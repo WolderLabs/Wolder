@@ -3,7 +3,6 @@ using DeGA.Core.Assistants;
 using DeGA.Core.Files;
 using DeGA.Core.Pipeline;
 using DeGA.CSharp.Compilation;
-using DeGA.CSharp.OpenAI.Generators;
 using Microsoft.Extensions.Logging;
 
 namespace DeGA.CSharp.OpenAI.Actions;
@@ -13,7 +12,7 @@ public record GenerateClass(DotNetProjectReference project, string classFullName
 
 public class GenerateClassAction(
     IAIAssistant assistant,
-    ILogger<CodeGenerator> logger,
+    ILogger<GenerateClassAction> logger,
     DotNetProjectFactory projectFactory,
     ISourceFiles sourceFiles) 
     : PipelineActionBase<GenerateClass>
