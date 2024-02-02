@@ -5,21 +5,13 @@ using Microsoft.Extensions.Logging;
 
 namespace DeGA.CSharp.Compilation;
 
-public class DotNetProject
+public class DotNetProject(string path, ILogger<DotNetProject> logger)
 {
     private static bool s_isInitialized; // TODO: thread safety, with lazy?
-    private readonly string _projectPath;
-    private readonly ILogger<DotNetProject> _logger;
 
-    public DotNetProject(string path, ILogger<DotNetProject> logger)
-    {
-        _projectPath = path;
-        _logger = logger;
-    }
+    public string BasePath => Path.GetDirectoryName(path)!;
 
-    public string BasePath => Path.GetDirectoryName(_projectPath)!;
-
-    public async Task<bool> TryCompileAsync()
+    public async Task<CompilationResult> TryCompileAsync()
     {
         if (!s_isInitialized)
         {
@@ -31,32 +23,40 @@ public class DotNetProject
         var workspace = MSBuildWorkspace.Create();
 
         // Open the project
-        var project = await workspace.OpenProjectAsync(_projectPath);
+        var project = await workspace.OpenProjectAsync(path);
 
         // Compile the project
         var compilation = await project.GetCompilationAsync()
             ?? throw new InvalidOperationException("No compilation");
 
         // Handle errors and warnings
-        foreach (var diagnostic in compilation.GetDiagnostics())
+        var compilationDiagnostics = compilation.GetDiagnostics();
+        foreach (var diagnostic in compilationDiagnostics)
         {
             if (diagnostic.Severity == DiagnosticSeverity.Error)
             {
-                _logger.LogInformation($"Error: {diagnostic.GetMessage()}");
+                logger.LogInformation("Error: {error}", diagnostic.GetMessage());
             }
             else if (diagnostic.Severity == DiagnosticSeverity.Warning)
             {
-                _logger.LogInformation($"Warning: {diagnostic.GetMessage()}");
+                logger.LogInformation("Warning: {warning}", diagnostic.GetMessage());
             }
         }
 
-        // Emit the compilation to a DLL or an executable
-        var projectRoot = Path.GetDirectoryName(_projectPath)!;
-        var binDirectory = Path.Combine(projectRoot, "bin", "generate");
-        Directory.CreateDirectory(binDirectory);
-        var dllPath = Path.Combine(binDirectory, Path.GetFileNameWithoutExtension(_projectPath) + ".dll");
-        var result = compilation.Emit(dllPath);
+        if (compilationDiagnostics
+            .Any(d => d.Severity == DiagnosticSeverity.Error)
+            || compilationDiagnostics
+                .Any(d => d.Severity == DiagnosticSeverity.Warning))
+        {
+            return new CompilationResult.Failure(compilationDiagnostics);
+        }
+        return new CompilationResult.Success(compilationDiagnostics);
 
-        return result.Success;
+        // // Emit the compilation to a DLL or an executable
+        // var projectRoot = Path.GetDirectoryName(path)!;
+        // var binDirectory = Path.Combine(projectRoot, "bin", "generate");
+        // Directory.CreateDirectory(binDirectory);
+        // var dllPath = Path.Combine(binDirectory, Path.GetFileNameWithoutExtension(path) + ".dll");
+        // var result = compilation.Emit(dllPath);
     }
 }

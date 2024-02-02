@@ -1,4 +1,6 @@
-﻿using DeGA.Core;
+﻿using DeGA.CommandLine;
+using DeGA.CommandLine.Actions;
+using DeGA.Core;
 using DeGA.Core.Pipeline;
 using DeGA.CSharp;
 using DeGA.CSharp.Actions;
@@ -14,6 +16,7 @@ builder.Logging.AddConsole();
 var services = builder.Services;
 
 services.AddDeGA(builder.Configuration.GetSection("DeGA"))
+    .AddCommandLineActions()
     .AddCSharpGeneration();
 
 var host = builder.Build();
@@ -46,6 +49,8 @@ pipeline
             "Program", 
             "A main method that implements the common fizz buzz app."))
     .AddStep(ctx =>
-        new CompileProject(mainProject));
+        new CompileProject(mainProject))
+    .AddStep(ctx =>
+        new RunCommand("dotnet run", mainProject.RelativeRoot, Interactive: true));
 
 await pipeline.RunAsync();

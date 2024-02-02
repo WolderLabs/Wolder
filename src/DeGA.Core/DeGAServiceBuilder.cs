@@ -1,10 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using DeGA.Core.Pipeline;
+﻿using DeGA.Core.Pipeline;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 
 namespace DeGA.Core;
@@ -27,7 +22,9 @@ public sealed record DeGAServiceBuilder(IServiceCollection Services, IConfigurat
             ?.GetGenericArguments()[0]
             ?? throw new InvalidOperationException("Unable to get pipeline action type.");
         _definitionToActionTypeMap[typeof(TActionDefinition)] = actionType;
+        
         Services.AddTransient(actionType);
+        
         return this;
     }
 }

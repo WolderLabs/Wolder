@@ -24,7 +24,6 @@ public class GeneratorPipeline(
 
     public async Task RunAsync()
     {
-        sourceFiles.CleanDirectory();
         foreach (var step in _steps)
         {
             var action = actionFactory.Create(step.DefinitionType);

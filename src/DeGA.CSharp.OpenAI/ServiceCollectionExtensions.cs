@@ -1,8 +1,6 @@
 ﻿using DeGA.Core;
 using DeGA.CSharp.OpenAI.Actions;
-using DeGA.CSharp.OpenAI.Generators;
 using DeGA.OpenAI;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DeGA.CSharp.OpenAI;
 
@@ -14,6 +12,8 @@ public static class ServiceCollectionExtensions
         builder.AddCSharpActions();
         
         builder.AddAction<GenerateClass>();
+        builder.AddAction<GenerateClasses>();
+        builder.AddAction<TransformClass>();
         
         return builder;
     }
