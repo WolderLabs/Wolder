@@ -55,7 +55,7 @@ public class CreateClassesAction(
 
         var project = projectFactory.Create(projectRef);
         var compiles = await project.TryCompileAsync();
-        if (!compiles)
+        if (compiles is CompilationResult.Failure)
             throw new("No compile");
     }
     

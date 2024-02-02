@@ -28,41 +28,60 @@ var webProject = new DotNetProjectReference("TodoList.Web/TodoList.Web.csproj");
 
 pipeline
     .AddStep(ctx => new CreateSdkGlobal(DotNetSdkVersion.Net8))
-    .AddStep(ctx => 
+    .AddStep(ctx =>
         new RunCommand(
             $"dotnet new blazor -o {webProject.Name} --interactivity server --empty"))
-    .AddStep(ctx => 
+    .AddStep(ctx =>
         new TransformClass(
             webProject,
             "TodoList.Web/Program.cs",
             """
-            Use reflection to register any classes in the current assembly 
+            Use reflection to register any classes in the current assembly
             that have a name that ends in `Service`, register them as scoped services.
-            Register the default interface if possible. For example if TestService implements 
+            Register the default interface if possible. For example if TestService implements
             ITestService it should be registered as `services.AddScoped<ITestService, TestService>()`
             Make sure the services are registered before the app container is built.
             """))
-    .AddStep(ctx => 
-        new GenerateClasses(
+    .AddStep(ctx =>
+        new GenerateClass(
             webProject,
-            "TodoList.Web",
+            "TodoList.Web.Models.TodoItem",
             """
-            A Blazor page component with route '/todo' that shows a listing of todo items and the supporting 
-            service that holds the todo items in memory.
-            """))
-    .AddStep(ctx => 
-        new GenerateClasses(
-            webProject,
-            "TodoList.Web",
-            """
-            A single Blazor page component at Components/Pages/Home.razor.
-            Don't generate any other pages.
-            The page contents should be:
-            A basic heading.
-            A link to "ToDo Items" at URL /todo. 
+            A model that represents a todo item. It should have the following properties:
+            Id (guid)
+            Title
+            Completed
+            Notes
             """))
     .AddStep(ctx =>
-        new RunCommand("dotnet run", webProject.RelativeRoot, Interactive: true));
+        new GenerateClass(
+            webProject,
+            "TodoList.Web.Service.TodoService",
+            """
+            A service that provides CRUD actions for todo list items. Assume todo list items are of type 
+            TodoList.Web.Models.TodoItem. The items should be stored in a dictionary. Getting all items should return a list.
+            """));
+    // .AddStep(ctx => 
+    //     new GenerateClasses(
+    //         webProject,
+    //         "TodoList.Web",
+    //         """
+    //         A Blazor page component with route '/todo' that shows a listing of todo items and the supporting 
+    //         service that holds the todo items in memory.
+    //         """))
+    // .AddStep(ctx => 
+    //     new GenerateClasses(
+    //         webProject,
+    //         "TodoList.Web",
+    //         """
+    //         A single Blazor page component at Components/Pages/Home.razor.
+    //         Don't generate any other pages.
+    //         The page contents should be:
+    //         A basic heading.
+    //         A link to "ToDo Items" at URL /todo. 
+    //         """))
+    // .AddStep(ctx =>
+    //     new RunCommand("dotnet run", webProject.RelativeRoot, Interactive: true));
 
 await pipeline.RunAsync();
 

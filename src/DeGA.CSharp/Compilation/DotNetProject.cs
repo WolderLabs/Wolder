@@ -11,7 +11,7 @@ public class DotNetProject(string path, ILogger<DotNetProject> logger)
 
     public string BasePath => Path.GetDirectoryName(path)!;
 
-    public async Task<bool> TryCompileAsync()
+    public async Task<CompilationResult> TryCompileAsync()
     {
         if (!s_isInitialized)
         {
@@ -30,7 +30,8 @@ public class DotNetProject(string path, ILogger<DotNetProject> logger)
             ?? throw new InvalidOperationException("No compilation");
 
         // Handle errors and warnings
-        foreach (var diagnostic in compilation.GetDiagnostics())
+        var compilationDiagnostics = compilation.GetDiagnostics();
+        foreach (var diagnostic in compilationDiagnostics)
         {
             if (diagnostic.Severity == DiagnosticSeverity.Error)
             {
@@ -42,13 +43,20 @@ public class DotNetProject(string path, ILogger<DotNetProject> logger)
             }
         }
 
-        // Emit the compilation to a DLL or an executable
-        var projectRoot = Path.GetDirectoryName(path)!;
-        var binDirectory = Path.Combine(projectRoot, "bin", "generate");
-        Directory.CreateDirectory(binDirectory);
-        var dllPath = Path.Combine(binDirectory, Path.GetFileNameWithoutExtension(path) + ".dll");
-        var result = compilation.Emit(dllPath);
+        if (compilationDiagnostics
+            .Any(d => d.Severity == DiagnosticSeverity.Error)
+            || compilationDiagnostics
+                .Any(d => d.Severity == DiagnosticSeverity.Warning))
+        {
+            return new CompilationResult.Failure(compilationDiagnostics);
+        }
+        return new CompilationResult.Success(compilationDiagnostics);
 
-        return result.Success;
+        // // Emit the compilation to a DLL or an executable
+        // var projectRoot = Path.GetDirectoryName(path)!;
+        // var binDirectory = Path.Combine(projectRoot, "bin", "generate");
+        // Directory.CreateDirectory(binDirectory);
+        // var dllPath = Path.Combine(binDirectory, Path.GetFileNameWithoutExtension(path) + ".dll");
+        // var result = compilation.Emit(dllPath);
     }
 }
