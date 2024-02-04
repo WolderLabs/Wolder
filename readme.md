@@ -1,5 +1,6 @@
 
-# DeGA
+# Wolder
 
-Declarative Generated Architecture for .NET
+A Polyglot Structured Code Generator Built on .NET
+
 

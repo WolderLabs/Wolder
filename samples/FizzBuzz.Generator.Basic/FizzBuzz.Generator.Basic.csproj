@@ -15,9 +15,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\DeGA.CommandLine\DeGA.CommandLine.csproj" />
-    <ProjectReference Include="..\..\src\DeGA.Core\DeGA.Core.csproj" />
-    <ProjectReference Include="..\..\src\DeGA.CSharp\DeGA.CSharp.csproj" />
+    <ProjectReference Include="..\..\src\Wolder.CommandLine\Wolder.CommandLine.csproj" />
+    <ProjectReference Include="..\..\src\Wolder.Core\Wolder.Core.csproj" />
+    <ProjectReference Include="..\..\src\Wolder.CSharp\Wolder.CSharp.csproj" />
   </ItemGroup>
 
 </Project>

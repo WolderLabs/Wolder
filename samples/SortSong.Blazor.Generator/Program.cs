@@ -61,25 +61,6 @@ pipeline
             A service that provides CRUD actions for todo list items. Assume todo list items are of type 
             TodoList.Web.Models.TodoItem. The items should be stored in a dictionary. Getting all items should return a list.
             """));
-    // .AddStep(ctx => 
-    //     new GenerateClasses(
-    //         webProject,
-    //         "TodoList.Web",
-    //         """
-    //         A Blazor page component with route '/todo' that shows a listing of todo items and the supporting 
-    //         service that holds the todo items in memory.
-    //         """))
-    // .AddStep(ctx => 
-    //     new GenerateClasses(
-    //         webProject,
-    //         "TodoList.Web",
-    //         """
-    //         A single Blazor page component at Components/Pages/Home.razor.
-    //         Don't generate any other pages.
-    //         The page contents should be:
-    //         A basic heading.
-    //         A link to "ToDo Items" at URL /todo. 
-    //         """))
     // .AddStep(ctx =>
     //     new RunCommand("dotnet run", webProject.RelativeRoot, Interactive: true));
 
