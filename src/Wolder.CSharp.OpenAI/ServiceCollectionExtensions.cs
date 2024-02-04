@@ -6,7 +6,7 @@ namespace Wolder.CSharp.OpenAI;
 
 public static class ServiceCollectionExtensions
 {
-    public static DeGAServiceBuilder AddCSharpGeneration(this DeGAServiceBuilder builder)
+    public static WolderServiceBuilder AddCSharpGeneration(this WolderServiceBuilder builder)
     {
         builder.AddOpenAIAssistant();
         builder.AddCSharpActions();

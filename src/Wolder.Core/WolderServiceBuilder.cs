@@ -4,14 +4,14 @@ using Wolder.Core.Pipeline;
 
 namespace Wolder.Core;
 
-public sealed record DeGAServiceBuilder(IServiceCollection Services, IConfigurationSection Config)
+public sealed record WolderServiceBuilder(IServiceCollection Services, IConfigurationSection Config)
 {
     private readonly Dictionary<Type, Type> _definitionToActionTypeMap = new();
     
     internal IReadOnlyDictionary<Type, Type> DefinitionToActionTypeMap => 
         _definitionToActionTypeMap.AsReadOnly();
     
-    public DeGAServiceBuilder AddAction<TActionDefinition>()
+    public WolderServiceBuilder AddAction<TActionDefinition>()
         where TActionDefinition : class, IActionDefinition
     {
         var actionType = typeof(TActionDefinition)

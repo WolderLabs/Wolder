@@ -13,7 +13,7 @@ builder.Logging.AddConsole();
 
 var services = builder.Services;
 
-services.AddDeGA(builder.Configuration.GetSection("Wolder"))
+services.AddWolder(builder.Configuration.GetSection("Wolder"))
     .AddCommandLineActions()
     .AddCSharpActions();
 

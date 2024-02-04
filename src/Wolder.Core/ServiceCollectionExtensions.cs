@@ -8,7 +8,7 @@ namespace Wolder.Core;
 
 public static class ServiceCollectionExtensions
 {
-    public static DeGAServiceBuilder AddDeGA(this IServiceCollection services, IConfigurationSection config)
+    public static WolderServiceBuilder AddWolder(this IServiceCollection services, IConfigurationSection config)
     {
         services.AddSingleton<GeneratorPipelineBuilder>();
 
@@ -23,7 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPipelineContextFactory, PipelineContextFactory>();
         services.AddScoped<IPipelineActionContextFactory, PipelineActionContextFactory>();
         
-        var builder = new DeGAServiceBuilder(services, config);
+        var builder = new WolderServiceBuilder(services, config);
         services.AddScoped<ActionFactory>(s => 
             ActivatorUtilities.CreateInstance<ActionFactory>(s, builder.DefinitionToActionTypeMap));
 

@@ -5,7 +5,7 @@ namespace Wolder.CommandLine;
 
 public static class ServiceCollectionExtensions
 {
-    public static DeGAServiceBuilder AddCommandLineActions(this DeGAServiceBuilder builder)
+    public static WolderServiceBuilder AddCommandLineActions(this WolderServiceBuilder builder)
     {
         builder.AddAction<RunCommand>();
         

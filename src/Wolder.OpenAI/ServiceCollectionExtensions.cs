@@ -9,7 +9,7 @@ namespace Wolder.OpenAI;
 
 public static class ServiceCollectionExtensions
 {
-    public static DeGAServiceBuilder AddOpenAIAssistant(this DeGAServiceBuilder builder)
+    public static WolderServiceBuilder AddOpenAIAssistant(this WolderServiceBuilder builder)
     {
         builder.Services.AddScoped<IAIAssistant>(s =>
         {

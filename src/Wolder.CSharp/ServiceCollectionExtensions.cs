@@ -7,7 +7,7 @@ namespace Wolder.CSharp;
 
 public static class ServiceCollectionExtensions
 {
-    public static DeGAServiceBuilder AddCSharpActions(this DeGAServiceBuilder builder)
+    public static WolderServiceBuilder AddCSharpActions(this WolderServiceBuilder builder)
     {
         builder.Services.AddScoped<DotNetProjectFactory>();
         builder.AddAction<CreateSdkGlobal>();
