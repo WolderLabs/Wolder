@@ -1,9 +1,9 @@
-﻿using DeGA.CommandLine;
-using DeGA.CommandLine.Actions;
-using DeGA.Core;
-using DeGA.Core.Pipeline;
-using DeGA.CSharp;
-using DeGA.CSharp.Actions;
+﻿using Wolder.CommandLine;
+using Wolder.CommandLine.Actions;
+using Wolder.Core;
+using Wolder.Core.Pipeline;
+using Wolder.CSharp;
+using Wolder.CSharp.Actions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -13,7 +13,7 @@ builder.Logging.AddConsole();
 
 var services = builder.Services;
 
-services.AddDeGA(builder.Configuration.GetSection("DeGA"))
+services.AddDeGA(builder.Configuration.GetSection("Wolder"))
     .AddCommandLineActions()
     .AddCSharpActions();
 

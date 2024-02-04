@@ -14,9 +14,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\DeGA.CommandLine\DeGA.CommandLine.csproj" />
-    <ProjectReference Include="..\..\src\DeGA.Core\DeGA.Core.csproj" />
-    <ProjectReference Include="..\..\src\DeGA.CSharp.OpenAI\DeGA.CSharp.OpenAI.csproj" />
+    <ProjectReference Include="..\..\src\Wolder.CommandLine\Wolder.CommandLine.csproj" />
+    <ProjectReference Include="..\..\src\Wolder.Core\Wolder.Core.csproj" />
+    <ProjectReference Include="..\..\src\Wolder.CSharp.OpenAI\Wolder.CSharp.OpenAI.csproj" />
   </ItemGroup>
 
 </Project>
