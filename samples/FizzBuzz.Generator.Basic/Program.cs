@@ -3,7 +3,6 @@ using Wolder.CommandLine;
 using Wolder.CommandLine.Actions;
 using Wolder.Core;
 using Wolder.CSharp;
-using Wolder.CSharp.Actions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -19,24 +18,18 @@ builder.Services.AddWolder(builder.Configuration.GetSection("Wolder"));
 
 var host = builder.Build();
 
-var workspace = host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
+await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
     .AddCommandLineActions()
     .AddCSharpActions()
-    .Build("FizzBuzz.Basic.Output");
+    .RunAsync<FizzBuzzGenerator>("FizzBuzz.Basic.Output");
 
-var output = await workspace.RunOrchestrationAsync<FizzBuzzGenerator>();
-
-await workspace.SetOutputStateAsync(output);
-
-class FizzBuzzGenerator
+class FizzBuzzGenerator : IOrchestration
 {
-    public async Task RunTask(OrchestrationContext context)
+    public async Task<IOrchestrationWorkspaceState> RunAsync(IOrchestrationWorkspaceState initialState)
     {
         var webProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
-        await context.ScheduleTask<string>(
-            typeof(RunCommandActivity),
+        return await initialState.RunActivityAsync<RunCommandActivity, RunCommand>(
             new RunCommand($"dotnet new blazor -o {webProject.Name} --interactivity server --empty"));
-        return "";
     }
 }
 

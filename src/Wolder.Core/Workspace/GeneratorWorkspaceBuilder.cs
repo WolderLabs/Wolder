@@ -60,10 +60,12 @@ public class GeneratorWorkspaceBuilder
         return this;
     }
 
-    public GeneratorWorkspace Build(string rootPath)
+    public async Task RunAsync<TRootOrchestration>(string rootPath)
+        where TRootOrchestration : IOrchestration
     {
         var serviceProvider = _services.BuildServiceProvider();
 
-        return ActivatorUtilities.CreateInstance<GeneratorWorkspace>(serviceProvider, rootPath);
+        var workspace = ActivatorUtilities.CreateInstance<GeneratorWorkspace>(serviceProvider, rootPath);
+        await workspace.RunOrchestrationAsync<TRootOrchestration>();
     }
 }
