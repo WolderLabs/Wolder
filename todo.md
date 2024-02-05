@@ -4,11 +4,12 @@
 Rough notes for initial development
 
 - [ ] Move to durable task model
-    - [I] Install package in core (emulator storage for now)
-    - [ ] Create orchestrator subclass
-    - [ ] Create action subclass
+    - [X] Install package in core (emulator storage for now)
+    - [X] Create orchestrator subclass
+    - [X] Create action subclass
+    - [I] Setup context
     - [ ] Implement command line action (to create a test project)
-    - [ ] Exercize in fizz buzz sample.
+    - [ ] Exercise in fizz buzz sample.
 - [ ] Implement local state persistence in hub
 - [ ] Implement file layering in hub
 
