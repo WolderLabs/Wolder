@@ -1,4 +1,4 @@
-﻿namespace Wolder.Core.Pipeline;
+﻿namespace Wolder.Core.Workspace;
 
 internal record PipelineStep<TDefinition>(
     Func<IPipelineContext, TDefinition> DefinitionFactory) : IPipelineStep

@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Wolder.Core.Files;
 
-namespace Wolder.Core.Pipeline;
+namespace Wolder.Core.Workspace;
 
 public class GeneratorPipelineBuilder(IServiceProvider services)
 {

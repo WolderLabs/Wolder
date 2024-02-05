@@ -1,6 +1,6 @@
 ﻿using DurableTask.Core;
 
-namespace Wolder.Core.Pipeline;
+namespace Wolder.Core.Workspace;
 
 public abstract class PipelineActivity<TInput, TResult> : TaskActivity<TInput, TResult>
 {

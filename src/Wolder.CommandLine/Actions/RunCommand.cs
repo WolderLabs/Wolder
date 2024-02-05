@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using Wolder.Core.Files;
-using Wolder.Core.Pipeline;
 using Microsoft.Extensions.Logging;
+using Wolder.Core.Workspace;
 
 namespace Wolder.CommandLine.Actions;
 

@@ -1,4 +1,4 @@
-﻿namespace Wolder.Core.Pipeline;
+﻿namespace Wolder.Core.Workspace;
 
 public interface IPipelineAction<TParameters> : IPipelineAction
     where TParameters : IActionDefinition

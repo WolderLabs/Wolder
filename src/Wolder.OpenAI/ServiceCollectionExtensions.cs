@@ -4,12 +4,13 @@ using Wolder.Core.Assistants;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Wolder.Core.Workspace;
 
 namespace Wolder.OpenAI;
 
 public static class ServiceCollectionExtensions
 {
-    public static WolderServiceBuilder AddOpenAIAssistant(this WolderServiceBuilder builder)
+    public static GeneratorWorkspaceBuilder AddOpenAIAssistant(this GeneratorWorkspaceBuilder builder)
     {
         builder.Services.AddScoped<IAIAssistant>(s =>
         {

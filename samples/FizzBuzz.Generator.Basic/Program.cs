@@ -2,35 +2,35 @@
 using Wolder.CommandLine;
 using Wolder.CommandLine.Actions;
 using Wolder.Core;
-using Wolder.Core.Pipeline;
 using Wolder.CSharp;
 using Wolder.CSharp.Actions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Wolder.Core.Workspace;
 
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole();
 
-// var services = builder.Services;
-
+builder.Services.AddWolder(builder.Configuration.GetSection("Wolder"));
 // services.AddWolder(builder.Configuration.GetSection("Wolder"))
 //     .AddCommandLineActions()
 //     .AddCSharpActions();
 
 var host = builder.Build();
 
-var pipeline = new GeneratorActivityPipelineBuilder(
-    builder.Configuration.GetSection("Wolder"));
-pipeline.Services
+var workspace = host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
     .AddCommandLineActions()
-    .AddCSharpActions();
-pipeline.AddActivity<RunCommandActivity>();
-await pipeline.RunAsync<FizzBuzzGenerator>("FizzBuzz.Basic.Output");
+    .AddCSharpActions()
+    .Build("FizzBuzz.Basic.Output");
 
-class FizzBuzzGenerator : PipelineOrchestration<string, string>
+var output = await workspace.RunOrchestrationAsync<FizzBuzzGenerator>();
+
+await workspace.SetOutputStateAsync(output);
+
+class FizzBuzzGenerator
 {
-    public override async Task<string> RunTask(OrchestrationContext context, string input)
+    public async Task RunTask(OrchestrationContext context)
     {
         var webProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
         await context.ScheduleTask<string>(

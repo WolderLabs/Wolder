@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
-namespace Wolder.Core.Pipeline;
+namespace Wolder.Core.Workspace;
 
 public class ActionFactory(
     IReadOnlyDictionary<Type, Type> typeMap,

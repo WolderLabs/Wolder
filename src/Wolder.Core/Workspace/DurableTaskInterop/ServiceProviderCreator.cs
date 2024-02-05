@@ -1,7 +1,7 @@
 ﻿using DurableTask.Core;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Wolder.Core.Pipeline.DurableTaskInterop;
+namespace Wolder.Core.Workspace.DurableTaskInterop;
 
 class ServiceProviderCreator<T> : ObjectCreator<T>
 {

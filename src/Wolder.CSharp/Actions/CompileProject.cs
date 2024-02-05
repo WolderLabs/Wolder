@@ -1,5 +1,5 @@
 ﻿using Wolder.Core.Files;
-using Wolder.Core.Pipeline;
+using Wolder.Core.Workspace;
 using Wolder.CSharp.Compilation;
 
 namespace Wolder.CSharp.Actions;

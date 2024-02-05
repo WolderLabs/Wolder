@@ -1,6 +1,6 @@
 ﻿using Wolder.Core.Files;
 
-namespace Wolder.Core.Pipeline;
+namespace Wolder.Core.Workspace;
 
 public class GeneratorPipeline(
     ISourceFiles sourceFiles,

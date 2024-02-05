@@ -1,9 +1,9 @@
 ﻿using System.Text.RegularExpressions;
 using Wolder.Core.Assistants;
 using Wolder.Core.Files;
-using Wolder.Core.Pipeline;
 using Wolder.CSharp.Compilation;
 using Microsoft.Extensions.Logging;
+using Wolder.Core.Workspace;
 
 namespace Wolder.CSharp.OpenAI.Actions;
 

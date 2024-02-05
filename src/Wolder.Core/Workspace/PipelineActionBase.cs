@@ -1,5 +1,5 @@
 ﻿
-namespace Wolder.Core.Pipeline;
+namespace Wolder.Core.Workspace;
 
 public abstract class PipelineActionBase<TParameters> : IPipelineAction<TParameters>
     where TParameters : IActionDefinition
