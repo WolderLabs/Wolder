@@ -12,9 +12,6 @@ var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole();
 
 builder.Services.AddWolder(builder.Configuration.GetSection("Wolder"));
-// services.AddWolder(builder.Configuration.GetSection("Wolder"))
-//     .AddCommandLineActions()
-//     .AddCSharpActions();
 
 var host = builder.Build();
 
