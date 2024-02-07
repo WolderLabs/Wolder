@@ -1,18 +1,4 @@
 
-## TODO
-
-Rough notes for initial development
-
-- [ ] Move to durable task model
-    - [X] Install package in core (emulator storage for now)
-    - [X] Create orchestrator subclass
-    - [X] Create action subclass
-    - [I] Setup context
-    - [ ] Implement command line action (to create a test project)
-    - [ ] Exercise in fizz buzz sample.
-- [ ] Implement local state persistence in hub
-- [ ] Implement file layering in hub
-
 ## Later
 
 - [ ] Expectations and context symbols
