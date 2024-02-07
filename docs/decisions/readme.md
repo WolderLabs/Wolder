@@ -1,7 +1,5 @@
 # Decisions
 
-This directory contains decision records for Wolder.
+This directory contains decision records for Wolder. These are not meant to be overly formal. The point is to help document development choices, people forget things and new contributors might need the context. 
 
-For new ADRs, please use [adr-template.md](adr-template.md) as starting point.
-More information on MADR is available at <https://adr.github.io/madr/>.
-General information about architectural decision records is available at <https://adr.github.io/>.
+There is a [decision-template.md](decision-template.md) available, if helpful.
