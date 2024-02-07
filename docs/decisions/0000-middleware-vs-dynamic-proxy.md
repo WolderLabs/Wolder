@@ -2,7 +2,7 @@
 date: 2024-02-06
 author: rebelzach using ChatGPT for feedback and revision
 ---
-# ADR Revision: Caching and State Tracking in Action Calls
+# Caching and State Tracking in Action Calls
 
 ## Context
 
