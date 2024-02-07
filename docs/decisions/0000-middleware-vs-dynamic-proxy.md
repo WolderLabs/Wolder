@@ -6,7 +6,7 @@ author: rebelzach using ChatGPT for feedback and revision
 
 ## Context
 
-Wolder aims to facilitate changes in generator plans through state caching optimization. It's assumed that Wolder implements caching during action dispatch, creating a consistent caching interface. This approach is influenced by Microsoft's durable task library. The challenge lies in selecting a dispatch and caching method that offers clarity and ease of use for developers.
+A primary goal of Wolder is to allow easily changing the generator code, and then quickly re-running the generator to see what influence that change has on the output. State caching of action inputs and outputs is an important optimization so that only actions affected by a data or code change need to be re-run. It's assumed that Wolder implements caching during action invocation, creating a consistent caching interface. This approach is influenced by Microsoft's durable task library. The challenge lies in selecting an invocation and caching method that offers clarity and ease of use for developers.
 
 ## Decision Drivers
 
