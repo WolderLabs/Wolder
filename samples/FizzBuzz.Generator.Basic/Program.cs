@@ -22,7 +22,7 @@ await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
 
 class FizzBuzzGenerator : IActionPlan
 {
-    public async Task<IOrchestrationWorkspaceState> RunAsync(IOrchestrationWorkspaceState initialState)
+    public async Task InvokeAsync(IActionPlanContext context)
     {
         var webProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
         // return await initialState.RunActivityAsync<RunCommandActivity, RunCommand>(

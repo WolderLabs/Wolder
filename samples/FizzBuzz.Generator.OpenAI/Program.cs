@@ -15,9 +15,7 @@ builder.Logging.AddConsole();
 
 var services = builder.Services;
 
-services.AddWolder(builder.Configuration.GetSection("Wolder"))
-    .AddCommandLineActions()
-    .AddCSharpGeneration();
+services.AddWolder(builder.Configuration.GetSection("Wolder"));
 
 var host = builder.Build();
 
