@@ -8,9 +8,9 @@ public interface IActionPlanContext
     Task<TOutput> InvokeActionAsync<TAction, TOutput>()
         where TAction : IAction<TOutput>;
 
-    Task<TOutput> InvokeActionAsync<TAction, TInput, TOutput>(
-        TInput options)
-        where TAction : IAction<TInput, TOutput>;
+    Task<TOutput> InvokeActionAsync<TAction, TParameter, TOutput>(
+        TParameter options)
+        where TAction : IAction<TParameter, TOutput>;
     
     Task InvokeVoidActionPlanAsync<TActionPlan>()
         where TActionPlan : IActionPlan;
@@ -18,7 +18,7 @@ public interface IActionPlanContext
     Task<TOutput> InvokeActionPlanAsync<TAction, TOutput>()
         where TAction : IActionPlan<TOutput>;
 
-    Task<TOutput> InvokeActionPlanAsync<TAction, TInput, TOutput>(
-        TInput options)
-        where TAction : IActionPlan<TInput, TOutput>;
+    Task<TOutput> InvokeActionPlanAsync<TAction, TParameter, TOutput>(
+        TParameter options)
+        where TAction : IActionPlan<TParameter, TOutput>;
 }
