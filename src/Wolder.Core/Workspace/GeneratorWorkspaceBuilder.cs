@@ -61,7 +61,7 @@ public class GeneratorWorkspaceBuilder
     }
 
     public async Task RunAsync<TRootOrchestration>(string rootPath)
-        where TRootOrchestration : IOrchestration
+        where TRootOrchestration : IActionPlan
     {
         var serviceProvider = _services.BuildServiceProvider();
 

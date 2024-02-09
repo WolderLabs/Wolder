@@ -20,13 +20,13 @@ await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
     .AddCSharpActions()
     .RunAsync<FizzBuzzGenerator>("FizzBuzz.Basic.Output");
 
-class FizzBuzzGenerator : IOrchestration
+class FizzBuzzGenerator : IActionPlan
 {
     public async Task<IOrchestrationWorkspaceState> RunAsync(IOrchestrationWorkspaceState initialState)
     {
         var webProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
-        return await initialState.RunActivityAsync<RunCommandActivity, RunCommand>(
-            new RunCommand($"dotnet new blazor -o {webProject.Name} --interactivity server --empty"));
+        // return await initialState.RunActivityAsync<RunCommandActivity, RunCommand>(
+        //     new RunCommand($"dotnet new blazor -o {webProject.Name} --interactivity server --empty"));
     }
 }
 

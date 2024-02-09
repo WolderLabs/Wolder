@@ -11,7 +11,7 @@ public class GeneratorWorkspace : IDisposable
     }
     
     public async Task RunOrchestrationAsync<TOrchestration>()
-        where TOrchestration : IOrchestration
+        where TOrchestration : IActionPlan
     {
         throw new NotImplementedException();
     }
