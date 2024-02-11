@@ -1,17 +1,13 @@
 ﻿namespace Wolder.Core.Workspace;
 
-public interface IActionPlan
+public interface IActionPlan : IRunnable
 {
-    Task InvokeAsync(IActionPlanContext context);
 }
 
-public interface IActionPlan<TOutput>
+public interface IActionPlan<TOutput> : IRunnable<TOutput>
 {
-    Task<TOutput> InvokeAsync(IActionPlanContext initialState);
 }
 
-public interface IActionPlan<in TParameter, TOutput>
+public interface IActionPlan<in TParameter, TOutput> : IRunnable<TOutput>
 {
-    Task<TOutput> InvokeAsync(
-        IActionPlanContext initialState, TParameter options);
 }

@@ -1,5 +1,4 @@
-﻿using DurableTask.Core;
-using Wolder.CommandLine;
+﻿using Wolder.CommandLine;
 using Wolder.CommandLine.Actions;
 using Wolder.Core;
 using Wolder.CSharp;
@@ -18,15 +17,18 @@ var host = builder.Build();
 await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
     .AddCommandLineActions()
     .AddCSharpActions()
-    .RunAsync<FizzBuzzGenerator>("FizzBuzz.Basic.Output");
+    .RunAsync<CreateFizzBuzz>("FizzBuzz.Basic.Output");
 
-class FizzBuzzGenerator : IActionPlan
+class CreateFizzBuzz(
+    IExecuteCommandLine executeCommandLine
+    ) : IActionPlan
 {
-    public async Task InvokeAsync(IActionPlanContext context)
+    public async Task InvokeAsync()
     {
         var webProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
-        // return await initialState.RunActivityAsync<RunCommandActivity, RunCommand>(
-        //     new RunCommand($"dotnet new blazor -o {webProject.Name} --interactivity server --empty"));
+        await executeCommandLine.InvokeAsync(
+            new ExecuteCommandLineParameters(
+                $"dotnet new blazor -o {webProject.Name} --interactivity server --empty"));
     }
 }
 

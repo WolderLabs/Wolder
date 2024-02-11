@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FizzBuzz.Generator.OpenAI",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SortSong.Blazor.Generator", "..\samples\SortSong.Blazor.Generator\SortSong.Blazor.Generator.csproj", "{65272BFD-50BB-4AD9-BC97-E514EADD44E5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wolder.Core.Tools", "Wolder.Core.Tools\Wolder.Core.Tools.csproj", "{FFE8D105-2484-4CE5-8BA9-3CACB2A617A6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -65,6 +67,10 @@ Global
 		{65272BFD-50BB-4AD9-BC97-E514EADD44E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{65272BFD-50BB-4AD9-BC97-E514EADD44E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{65272BFD-50BB-4AD9-BC97-E514EADD44E5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FFE8D105-2484-4CE5-8BA9-3CACB2A617A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FFE8D105-2484-4CE5-8BA9-3CACB2A617A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FFE8D105-2484-4CE5-8BA9-3CACB2A617A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FFE8D105-2484-4CE5-8BA9-3CACB2A617A6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
