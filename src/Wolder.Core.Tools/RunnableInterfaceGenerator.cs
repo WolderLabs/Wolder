@@ -1,4 +1,6 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System.Linq;
+using System.Reflection.Metadata.Ecma335;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp;
 
@@ -11,7 +13,7 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
     {
         var classDeclarations = context.SyntaxProvider
             .CreateSyntaxProvider(
-                predicate: static (s, _) => s is ClassDeclarationSyntax cds && cds.BaseList != null,
+                predicate: static (s, _) => s is ClassDeclarationSyntax { BaseList: not null },
                 transform: static (ctx, _) => ctx.Node as ClassDeclarationSyntax)
             .Where(static m => m != null);
 
@@ -27,7 +29,15 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
                 var model = compilation.GetSemanticModel(classDeclaration.SyntaxTree);
                 var classSymbol = model.GetDeclaredSymbol(classDeclaration);
                 if (classSymbol == null) continue;
+                
+                var attribute = classSymbol.GetAttributes()
+                    .FirstOrDefault(ad => ad.AttributeClass.Name == "GenerateTypedWorkspaceInterfaceAttribute");
+                if (attribute is null) continue;
 
+                if (attribute.AttributeClass == null || attribute.AttributeClass?.TypeArguments.Length != 1)
+                    continue;
+                var interfaceName = attribute.AttributeClass.TypeArguments[0].Name;
+                
                 foreach (var iface in classSymbol.AllInterfaces)
                 {
                     if (!iface.Name.StartsWith("IRunnable"))
@@ -37,7 +47,6 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
                     var name = iface.ToDisplayString();
                     if (name.StartsWith("Wolder.Core.Workspace.IRunnable"))
                     {
-                        var interfaceName = $"I{classSymbol.Name}";
                         var namespaceName = classSymbol.ContainingNamespace.IsGlobalNamespace ? "" : classSymbol.ContainingNamespace.ToDisplayString();
 
                         string? sourceCode = null;

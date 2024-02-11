@@ -12,6 +12,7 @@ public record ExecuteCommandLineParameters(
 
 public record ExecuteCommandLineOutput(string? output);
 
+[GenerateTypedWorkspaceInterface<IExecuteCommandLine>]
 public class ExecuteCommandLine(
     ExecuteCommandLineParameters parameters,
     ILogger<RunCommandAction> logger,
