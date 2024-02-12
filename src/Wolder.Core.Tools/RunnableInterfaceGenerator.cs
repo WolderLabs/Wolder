@@ -156,6 +156,9 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
                  }
                  """);
          }
+         a
+         // LEFT OFF, need to add some kind of shim class that implements the given Invoke interface
+         //           and find a way for AddAction to detect it
 
          return builder.ToString();
     }

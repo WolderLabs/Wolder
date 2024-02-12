@@ -1,26 +1,49 @@
-﻿namespace Wolder.Core.Workspace;
+﻿using Microsoft.Extensions.DependencyInjection;
 
-internal class Invoke<TRunnable> : IInvokeVoid<TRunnable> 
-    where TRunnable : IVoidInvokable
+namespace Wolder.Core.Workspace;
+
+internal class InvokeVoid<TInvokable>(IServiceProvider provider) : IInvokeVoid<TInvokable> 
+    where TInvokable : IVoidInvokable
 {
-    public Task InvokeAsync()
+    public async Task InvokeAsync()
     {
-        return Task.CompletedTask;
+        var scope = provider.CreateScope();
+        var invokable = ActivatorUtilities.CreateInstance<TInvokable>(scope.ServiceProvider);
+        await invokable.InvokeAsync();
     }
 }
 
-internal class Invoke<TRunnable, TParameter, TOutput> : IInvoke<TRunnable, TParameter, TOutput>
-    where TRunnable : IInvokable<TParameter, TOutput>
+internal class Invoke<TInvokable, TParameter, TOutput>(IServiceProvider provider) : IInvoke<TInvokable, TParameter, TOutput>
+    where TInvokable : IInvokable<TParameter, TOutput>
+    where TParameter : notnull
 {
-    public Task<TOutput> InvokeAsync(TParameter parameter)
+    public async Task<TOutput> InvokeAsync(TParameter parameter)
     {
-        throw new NotImplementedException();
+        var scope = provider.CreateScope();
+        var invokable = ActivatorUtilities.CreateInstance<TInvokable>(scope.ServiceProvider, parameter);
+        return await invokable.InvokeAsync();
     }
 }
 
-internal class Invoke<TRunnable, TOutput> : IInvoke<TRunnable, TOutput>
-    where TRunnable : IInvokable<TOutput>
+internal class InvokeVoid<TInvokable, TParameter>(IServiceProvider provider) : IInvokeVoid<TInvokable, TParameter>
+    where TInvokable : IVoidInvokable<TParameter>
+    where TParameter : notnull
 {
-    public Task<TOutput> InvokeAsync() => 
-        throw new NotImplementedException();
+    public async Task InvokeAsync(TParameter parameter)
+    {
+        var scope = provider.CreateScope();
+        var invokable = ActivatorUtilities.CreateInstance<TInvokable>(scope.ServiceProvider, parameter);
+        await invokable.InvokeAsync();
+    }
+}
+
+internal class Invoke<TInvokable, TOutput>(IServiceProvider provider) : IInvoke<TInvokable, TOutput>
+    where TInvokable : IInvokable<TOutput>
+{
+    public async Task<TOutput> InvokeAsync()
+    {
+        var scope = provider.CreateScope();
+        var invokable = ActivatorUtilities.CreateInstance<TInvokable>(scope.ServiceProvider);
+        return await invokable.InvokeAsync();
+    }
 }

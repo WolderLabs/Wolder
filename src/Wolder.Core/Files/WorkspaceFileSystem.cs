@@ -5,7 +5,7 @@ public class WorkspaceFileSystem : IWorkspaceFileSystem
     private readonly Lazy<string> _lazyRootPath;
     
     public WorkspaceFileSystem(
-        PipelineRootPath pipelineRootPath, string relativePath = "")
+       WorkspaceRootPath pipelineRootPath, string relativePath = "")
     {
         var workingDirectory = Environment.CurrentDirectory;
         var workspaceDirectory = Directory.GetParent(workingDirectory)?.Parent?.Parent?.Parent?.FullName;

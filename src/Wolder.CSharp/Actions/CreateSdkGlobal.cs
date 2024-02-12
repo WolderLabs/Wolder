@@ -8,14 +8,15 @@ public enum DotNetSdkVersion
     Net8
 }
 
-public record CreateSdkGlobal(DotNetSdkVersion Version);
+public record CreateSdkGlobalParameters(DotNetSdkVersion Version);
 
 [GenerateTypedActionInvokeInterface<ICreateSdkGlobal>]
-public class CreateSdkGlobalAction(ISourceFiles sourceFiles, CreateSdkGlobal _) 
-    : IVoidAction<CreateSdkGlobal>
+public class CreateSdkGlobal(ISourceFiles sourceFiles, CreateSdkGlobalParameters parameters) 
+    : IVoidAction<CreateSdkGlobalParameters>
 {
     public async Task InvokeAsync()
     {
+        _ = parameters;
         await sourceFiles.WriteFileAsync(
             "global.json",
             """

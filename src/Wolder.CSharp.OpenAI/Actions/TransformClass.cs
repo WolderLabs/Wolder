@@ -8,16 +8,16 @@ using Wolder.Core.Workspace;
 
 namespace Wolder.CSharp.OpenAI.Actions;
 
-public record TransformClass(DotNetProjectReference project, string filePath, string behaviorPrompt);
+public record TransformClassParameters(DotNetProjectReference project, string filePath, string behaviorPrompt);
 
-[GenerateTypedActionInvokeInterface<ITransoformClass>]
-public class TransformClassAction(
+[GenerateTypedActionInvokeInterface<ITransformClass>]
+public class TransformClass(
     IAIAssistant assistant,
-    ILogger<TransformClassAction> logger,
+    ILogger<TransformClass> logger,
     DotNetProjectFactory projectFactory,
     ISourceFiles sourceFiles,
-    TransformClass parameters) 
-    : IVoidAction<TransformClass>
+    TransformClassParameters parameters) 
+    : IVoidAction<TransformClassParameters>
 {
     public async Task InvokeAsync()
     {

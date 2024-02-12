@@ -10,14 +10,16 @@ public interface IInvokeVoid<TRunnable> : IInvoke
     Task InvokeAsync();
 }
 
-public interface IInvokeVoid<TRunnable, in TParameters> : IInvoke
-    where TRunnable : IVoidInvokable<TParameters>
+public interface IInvokeVoid<TRunnable, in TParameter> : IInvoke
+    where TRunnable : IVoidInvokable<TParameter>
+    where TParameter : notnull
 {
-    Task InvokeAsync(TParameters parameters);
+    Task InvokeAsync(TParameter parameters);
 }
 
 public interface IInvoke<TRunnable, in TParameter, TOutput> : IInvoke
     where TRunnable : IInvokable<TParameter, TOutput>
+    where TParameter : notnull
 {
     Task<TOutput> InvokeAsync(TParameter parameter);
 }

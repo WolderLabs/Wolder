@@ -9,7 +9,7 @@ public static class ServiceCollectionExtensions
     public static GeneratorWorkspaceBuilder AddCommandLineActions(
         this GeneratorWorkspaceBuilder builder)
     {
-        builder.AddTypedActionInvoker<IExecuteCommandLine>();
+        builder.AddAction<ExecuteCommandLine>();
         
         return builder;
     }
