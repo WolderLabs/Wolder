@@ -1,6 +1,6 @@
 ﻿namespace Wolder.Core.Workspace;
 
-internal class Runner<TRunnable> : IInvokeVoid<TRunnable> 
+internal class Invoke<TRunnable> : IInvokeVoid<TRunnable> 
     where TRunnable : IVoidInvokable
 {
     public Task InvokeAsync()
@@ -9,7 +9,7 @@ internal class Runner<TRunnable> : IInvokeVoid<TRunnable>
     }
 }
 
-internal class Runner<TRunnable, TParameter, TOutput> : IInvoke<TRunnable, TParameter, TOutput>
+internal class Invoke<TRunnable, TParameter, TOutput> : IInvoke<TRunnable, TParameter, TOutput>
     where TRunnable : IInvokable<TParameter, TOutput>
 {
     public Task<TOutput> InvokeAsync(TParameter parameter)
@@ -18,7 +18,7 @@ internal class Runner<TRunnable, TParameter, TOutput> : IInvoke<TRunnable, TPara
     }
 }
 
-internal class Runner<TRunnable, TOutput> : IInvoke<TRunnable, TOutput>
+internal class Invoke<TRunnable, TOutput> : IInvoke<TRunnable, TOutput>
     where TRunnable : IInvokable<TOutput>
 {
     public Task<TOutput> InvokeAsync() => 

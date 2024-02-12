@@ -11,7 +11,6 @@ public class GeneratorWorkspaceBuilder
     private readonly ILoggerFactory _loggerFactory;
     private readonly IConfigurationSection _rootConfiguration;
     private readonly ServiceCollection _services;
-    private readonly WolderServiceBuilder _serviceBuilder;
 
     public GeneratorWorkspaceBuilder(ILoggerFactory loggerFactory, IConfigurationSection rootConfiguration)
     {
@@ -21,17 +20,7 @@ public class GeneratorWorkspaceBuilder
         _services.AddScoped<PipelineRootPath>();
         _services.AddScoped<ICacheFiles, CacheFiles>();
         _services.AddScoped<ISourceFiles, SourceFiles>();
-        _services.AddScoped<GeneratorPipeline>();
         _services.AddScoped<IAIAssistantCacheStore, AIAssistantCacheStore>();
-        
-        _services.AddTransient<IPipelineContext, PipelineContext>();
-        _services.AddTransient<IPipelineActionContext, PipelineActionContext>();
-        _services.AddScoped<IPipelineContextFactory, PipelineContextFactory>();
-        _services.AddScoped<IPipelineActionContextFactory, PipelineActionContextFactory>();
-        
-        _services.AddScoped<ActionFactory>(s => 
-            ActivatorUtilities.CreateInstance<ActionFactory>(
-                s, _definitionToActionTypeMap));
     }
 
     public IServiceCollection Services => _services;
@@ -53,34 +42,17 @@ public class GeneratorWorkspaceBuilder
     public GeneratorWorkspaceBuilder AddAction<TAction, TParameters, TOutput>()
         where TAction : IAction<TParameters, TOutput>
     {
-        Services.AddScoped<IInvoke<TAction, TParameters, TOutput>, Runner<TAction, TParameters, TOutput>>();
-        
-        return this;
-    }
-    
-    public GeneratorWorkspaceBuilder AddAction<TActionDefinition>()
-        where TActionDefinition : class, IActionDefinition
-    {
-        var actionType = typeof(TActionDefinition)
-            .GetInterfaces()
-            .FirstOrDefault(i => 
-                i.IsGenericType 
-                && i.GetGenericTypeDefinition() == typeof(IActionDefinition<>))
-            ?.GetGenericArguments()[0]
-            ?? throw new InvalidOperationException("Unable to get pipeline action type.");
-        _definitionToActionTypeMap[typeof(TActionDefinition)] = actionType;
-        
-        Services.AddTransient(actionType);
+        Services.AddScoped<IInvoke<TAction, TParameters, TOutput>, Invoke<TAction, TParameters, TOutput>>();
         
         return this;
     }
 
-    public async Task RunAsync<TRootOrchestration>(string rootPath)
-        where TRootOrchestration : IActionPlan
+    public async Task RunAsync<TRootAction>(string rootPath)
+        where TRootAction : IVoidAction
     {
         var serviceProvider = _services.BuildServiceProvider();
 
-        var workspace = ActivatorUtilities.CreateInstance<GeneratorWorkspace>(serviceProvider, rootPath);
-        await workspace.RunOrchestrationAsync<TRootOrchestration>();
+        // var workspace = ActivatorUtilities.CreateInstance<GeneratorWorkspace>(serviceProvider, rootPath);
+        // await workspace.RunOrchestrationAsync<TRootAction>();
     }
 }

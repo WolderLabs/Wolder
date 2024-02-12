@@ -21,7 +21,7 @@ await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
 
 class CreateFizzBuzz(
     IExecuteCommandLine executeCommandLine
-    ) : IActionPlan
+    ) : IVoidAction
 {
     public async Task InvokeAsync()
     {

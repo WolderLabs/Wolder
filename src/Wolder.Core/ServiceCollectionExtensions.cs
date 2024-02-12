@@ -10,8 +10,6 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddWolder(this IServiceCollection services, IConfigurationSection config)
     {
-        services.AddTransient<GeneratorPipelineBuilder>(s =>
-            ActivatorUtilities.CreateInstance<GeneratorPipelineBuilder>(s, config));
 
         return services;
     }
