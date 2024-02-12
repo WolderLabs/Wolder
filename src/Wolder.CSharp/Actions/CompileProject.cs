@@ -4,18 +4,17 @@ using Wolder.CSharp.Compilation;
 
 namespace Wolder.CSharp.Actions;
 
-public record CompileProject(DotNetProjectReference Project)
-    : IActionDefinition<CompileProjectAction>;
+public record CompileProjectParameters(DotNetProjectReference Project);
 
-public class CompileProjectAction(DotNetProjectFactory dotNetProjectFactory) 
-    : PipelineActionBase<CompileProject>
+[GenerateTypedActionInvokeInterface<ICompileProject>]
+public class CompileProject(
+    DotNetProjectFactory dotNetProjectFactory, CompileProjectParameters parameters) 
+    : IAction<CompileProjectParameters, CompilationResult>
 {
-    protected override async Task ExecuteAsync(IPipelineActionContext _, CompileProject parameters)
+    public async Task<CompilationResult> InvokeAsync()
     {
         var project = dotNetProjectFactory.Create(parameters.Project);
-        if ((await project.TryCompileAsync()) is CompilationResult.Failure)
-        {
-            throw new InvalidOperationException($"Couldn't compile {project.BasePath}");
-        }
+        var result = await project.TryCompileAsync();
+        return result;
     }
 }

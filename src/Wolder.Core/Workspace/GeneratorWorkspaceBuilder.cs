@@ -43,6 +43,21 @@ public class GeneratorWorkspaceBuilder
     internal IReadOnlyDictionary<Type, Type> DefinitionToActionTypeMap => 
         _definitionToActionTypeMap.AsReadOnly();
     
+    public GeneratorWorkspaceBuilder AddTypedActionInvoker<TGeneratedRunner>()
+        where TGeneratedRunner : IGeneratedRunner
+    {
+        throw new NotImplementedException();
+        return this;
+    }
+    
+    public GeneratorWorkspaceBuilder AddAction<TAction, TParameters, TOutput>()
+        where TAction : IAction<TParameters, TOutput>
+    {
+        Services.AddScoped<IInvoke<TAction, TParameters, TOutput>, Runner<TAction, TParameters, TOutput>>();
+        
+        return this;
+    }
+    
     public GeneratorWorkspaceBuilder AddAction<TActionDefinition>()
         where TActionDefinition : class, IActionDefinition
     {

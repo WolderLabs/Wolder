@@ -12,10 +12,10 @@ public record ExecuteCommandLineParameters(
 
 public record ExecuteCommandLineOutput(string? output);
 
-[GenerateTypedWorkspaceInterface<IExecuteCommandLine>]
+[GenerateTypedActionInvokeInterface<IExecuteCommandLine>]
 public class ExecuteCommandLine(
     ExecuteCommandLineParameters parameters,
-    ILogger<RunCommandAction> logger,
+    ILogger<ExecuteCommandLine> logger,
     ISourceFiles sourceFiles)
     : IAction<ExecuteCommandLineParameters, ExecuteCommandLineOutput>
 {

@@ -1,13 +1,17 @@
 ﻿namespace Wolder.Core.Workspace;
 
-public interface IAction<TOutput> : IRunnable<TOutput>
+public interface IVoidAction<in TParameter> : IVoidInvokable<TParameter>
 {
 }
 
-public interface IAction<in TParameter, TOutput> : IRunnable<TParameter, TOutput>
+public interface IAction<TOutput> : IInvokable<TOutput>
 {
 }
 
-public interface IAction : IRunnable
+public interface IAction<in TParameter, TOutput> : IInvokable<TParameter, TOutput>
+{
+}
+
+public interface IVoidAction : IVoidInvokable
 {
 }

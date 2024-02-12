@@ -7,17 +7,18 @@ using Wolder.Core.Workspace;
 
 namespace Wolder.CSharp.OpenAI.Actions;
 
-public record GenerateClass(DotNetProjectReference project, string classFullName, string behaviorPrompt)
-    : IActionDefinition<GenerateClassAction>;
+public record GenerateClassParameters(DotNetProjectReference project, string classFullName, string behaviorPrompt);
 
-public class GenerateClassAction(
+[GenerateTypedActionInvokeInterface<IGenerateClass>]
+public class GenerateClass(
     IAIAssistant assistant,
-    ILogger<GenerateClassAction> logger,
+    ILogger<GenerateClass> logger,
     DotNetProjectFactory projectFactory,
-    ISourceFiles sourceFiles) 
-    : PipelineActionBase<GenerateClass>
+    ISourceFiles sourceFiles,
+    GenerateClassParameters parameters) 
+    : IVoidAction<GenerateClassParameters>
 {
-    protected override async Task ExecuteAsync(IPipelineActionContext context, GenerateClass parameters)
+    public async Task InvokeAsync()
     {
         var (projectRef, className, behaviorPrompt) = parameters;
         var response = await assistant.CompletePromptAsync($"""
@@ -48,7 +49,7 @@ public class GenerateClassAction(
     }
 
     private async Task<CompilationResult> TryResolveFailedCompilationAsync(
-        GenerateClass parameters, DotNetProject project, string fileContent, CompilationResult lastResult)
+        GenerateClassParameters parameters, DotNetProject project, string fileContent, CompilationResult lastResult)
     {
         var (projectRef, className, behaviorPrompt) = parameters;
         var maxAttempts = 2;

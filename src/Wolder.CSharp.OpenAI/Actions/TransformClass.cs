@@ -8,17 +8,18 @@ using Wolder.Core.Workspace;
 
 namespace Wolder.CSharp.OpenAI.Actions;
 
-public record TransformClass(DotNetProjectReference project, string filePath, string behaviorPrompt)
-    : IActionDefinition<TransformClassAction>;
+public record TransformClass(DotNetProjectReference project, string filePath, string behaviorPrompt);
 
+[GenerateTypedActionInvokeInterface<ITransoformClass>]
 public class TransformClassAction(
     IAIAssistant assistant,
     ILogger<TransformClassAction> logger,
     DotNetProjectFactory projectFactory,
-    ISourceFiles sourceFiles) 
-    : PipelineActionBase<TransformClass>
+    ISourceFiles sourceFiles,
+    TransformClass parameters) 
+    : IVoidAction<TransformClass>
 {
-    protected override async Task ExecuteAsync(IPipelineActionContext context, TransformClass parameters)
+    public async Task InvokeAsync()
     {
         var (projectRef, filePath, behaviorPrompt) = parameters;
         var content = await sourceFiles.ReadFileAsync(filePath);

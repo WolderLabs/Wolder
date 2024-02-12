@@ -3,7 +3,7 @@
 public interface IActionPlanContext
 {
     Task InvokeVoidActionAsync<TAction>()
-        where TAction : IAction;
+        where TAction : IVoidAction;
     
     Task<TOutput> InvokeActionAsync<TAction, TOutput>()
         where TAction : IAction<TOutput>;

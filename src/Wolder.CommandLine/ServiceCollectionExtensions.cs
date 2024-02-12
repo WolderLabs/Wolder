@@ -6,9 +6,10 @@ namespace Wolder.CommandLine;
 
 public static class ServiceCollectionExtensions
 {
-    public static GeneratorWorkspaceBuilder AddCommandLineActions(this GeneratorWorkspaceBuilder builder)
+    public static GeneratorWorkspaceBuilder AddCommandLineActions(
+        this GeneratorWorkspaceBuilder builder)
     {
-        builder.AddAction<RunCommand>();
+        builder.AddTypedActionInvoker<IExecuteCommandLine>();
         
         return builder;
     }

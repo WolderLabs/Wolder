@@ -8,13 +8,13 @@ public enum DotNetSdkVersion
     Net8
 }
 
-public record CreateSdkGlobal(DotNetSdkVersion Version)
-    : IActionDefinition<CreateSdkGlobalAction>;
+public record CreateSdkGlobal(DotNetSdkVersion Version);
 
-public class CreateSdkGlobalAction(ISourceFiles sourceFiles) 
-    : PipelineActionBase<CreateSdkGlobal>
+[GenerateTypedActionInvokeInterface<ICreateSdkGlobal>]
+public class CreateSdkGlobalAction(ISourceFiles sourceFiles, CreateSdkGlobal _) 
+    : IVoidAction<CreateSdkGlobal>
 {
-    protected override async Task ExecuteAsync(IPipelineActionContext context, CreateSdkGlobal parameters)
+    public async Task InvokeAsync()
     {
         await sourceFiles.WriteFileAsync(
             "global.json",

@@ -8,17 +8,18 @@ using Wolder.Core.Workspace;
 
 namespace Wolder.CSharp.OpenAI.Actions;
 
-public record GenerateClasses(DotNetProjectReference project, string filePath, string behaviorPrompt)
-    : IActionDefinition<CreateClassesAction>;
+public record GenerateClassesParameters(DotNetProjectReference project, string filePath, string behaviorPrompt);
 
-public class CreateClassesAction(
+[GenerateTypedActionInvokeInterface<IGenerateClasses>]
+public class GenerateClasses(
     IAIAssistant assistant,
-    ILogger<CreateClassesAction> logger,
+    ILogger<GenerateClasses> logger,
     DotNetProjectFactory projectFactory,
-    ISourceFiles sourceFiles) 
-    : PipelineActionBase<GenerateClasses>
+    ISourceFiles sourceFiles,
+    GenerateClassesParameters parameters) 
+    : IVoidAction<GenerateClassesParameters>
 {
-    protected override async Task ExecuteAsync(IPipelineActionContext context, GenerateClasses parameters)
+    public async Task InvokeAsync()
     {
         var (projectRef, filePath, behaviorPrompt) = parameters;
         var tree = GetDirectoryTree(sourceFiles.RootDirectoryPath);

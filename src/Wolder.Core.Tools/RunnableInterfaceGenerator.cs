@@ -129,7 +129,6 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
              builder.AppendLine($$"""
                  public interface {{interfaceName}} : IInvokeVoid<{{runnableName}}>, IGeneratedRunner
                  {
-                     Task InvokeAsync();
                  }
                  """);
          }
@@ -138,7 +137,6 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
              builder.AppendLine($$"""
                  public interface {{interfaceName}} : IInvokeVoid<{{runnableName}}, {{parametersTypeName}}>, IGeneratedRunner
                  {
-                     Task InvokeAsync({{parametersTypeName}} parameters);
                  }
                  """);
          }
@@ -147,7 +145,6 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
              builder.AppendLine($$"""
                  public interface {{interfaceName}} : IInvoke<{{runnableName}}, {{outputTypeName}}>, IGeneratedRunner
                  {
-                     Task<{{outputTypeName}}> InvokeAsync();
                  }
                  """);
          }
@@ -156,7 +153,6 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
              builder.AppendLine($$"""
                  public interface {{interfaceName}} : IInvoke<{{runnableName}}, {{parametersTypeName}}, {{outputTypeName}}>, IGeneratedRunner
                  {
-                     Task<{{outputTypeName}}> InvokeAsync({{parametersTypeName}} parameters);
                  }
                  """);
          }
