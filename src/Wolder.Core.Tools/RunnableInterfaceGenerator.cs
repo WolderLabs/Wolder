@@ -154,11 +154,16 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
                  public interface {{interfaceName}} : IInvoke<{{runnableName}}, {{parametersTypeName}}, {{outputTypeName}}>, IGeneratedRunner
                  {
                  }
+                 
+                 internal class {{interfaceName}}_Impl : Invoke<{{runnableName}}, {{parametersTypeName}}, {{outputTypeName}}>, {{interfaceName}}
+                 {
+                 }
                  """);
          }
          a
          // LEFT OFF, need to add some kind of shim class that implements the given Invoke interface
-         //           and find a way for AddAction to detect it
+         //           and find a way for AddAction to detect it so it can be registered
+         //           see initial example above on line 158
 
          return builder.ToString();
     }
