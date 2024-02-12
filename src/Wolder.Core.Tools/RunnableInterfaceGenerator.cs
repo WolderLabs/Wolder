@@ -1,5 +1,5 @@
 ﻿using System.Linq;
-using System.Reflection.Metadata.Ecma335;
+using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.CSharp;
@@ -17,7 +17,8 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
                 transform: static (ctx, _) => ctx.Node as ClassDeclarationSyntax)
             .Where(static m => m != null);
 
-        var compilationAndClasses = context.CompilationProvider.Combine(classDeclarations.Collect());
+        var compilationAndClasses = 
+            context.CompilationProvider.Combine(classDeclarations.Collect());
 
         context.RegisterSourceOutput(compilationAndClasses, (spc, source) =>
         {
@@ -29,9 +30,12 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
                 var model = compilation.GetSemanticModel(classDeclaration.SyntaxTree);
                 var classSymbol = model.GetDeclaredSymbol(classDeclaration);
                 if (classSymbol == null) continue;
+
+                var runnableName = classSymbol.ToDisplayString();
                 
                 var attribute = classSymbol.GetAttributes()
-                    .FirstOrDefault(ad => ad.AttributeClass.Name == "GenerateTypedWorkspaceInterfaceAttribute");
+                    .FirstOrDefault(ad => 
+                        ad.AttributeClass.Name == "GenerateTypedActionInvokeInterfaceAttribute");
                 if (attribute is null) continue;
 
                 if (attribute.AttributeClass == null || attribute.AttributeClass?.TypeArguments.Length != 1)
@@ -40,131 +44,123 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
                 
                 foreach (var iface in classSymbol.AllInterfaces)
                 {
-                    if (!iface.Name.StartsWith("IRunnable"))
+                    if (!iface.Name.StartsWith("IInvokable") && !iface.Name.StartsWith("IVoidInvokable"))
                     {
                         continue;
                     }
                     var name = iface.ToDisplayString();
-                    if (name.StartsWith("Wolder.Core.Workspace.IRunnable"))
+                    var isInvokable = name.StartsWith("Wolder.Core.Workspace.IInvokable");
+                    var isVoidInvokable = name.StartsWith("Wolder.Core.Workspace.IVoidInvokable");
+                    if (isInvokable || isVoidInvokable)
                     {
-                        var namespaceName = classSymbol.ContainingNamespace.IsGlobalNamespace ? "" : classSymbol.ContainingNamespace.ToDisplayString();
+                        var namespaceName = classSymbol.ContainingNamespace.IsGlobalNamespace 
+                            ? null 
+                            : classSymbol.ContainingNamespace.ToDisplayString();
 
-                        string? sourceCode = null;
-                        if (iface.IsGenericType)
+                        ITypeSymbol? parametersType = null;
+                        ITypeSymbol? outputType = null;
+
+                        if (isVoidInvokable)
                         {
-                            var typeArguments = iface.TypeArguments;
-                            if (typeArguments.Length == 1)
+                            if (iface.IsGenericType)
                             {
-                                var outputType = typeArguments[0];
-                                sourceCode = GenerateGenericOutputInterfaceSource(namespaceName, interfaceName, outputType, classSymbol.ContainingNamespace.IsGlobalNamespace);
-                            }
-                            else if (typeArguments.Length == 2)
-                            {
-                                var parametersType = typeArguments[0];
-                                var outputType = typeArguments[1];
-                                sourceCode = GenerateGenericInterfaceSource(namespaceName, interfaceName, parametersType, outputType, classSymbol.ContainingNamespace.IsGlobalNamespace);
+                                var typeArguments = iface.TypeArguments;
+                                if (typeArguments.Length == 1)
+                                {
+                                    parametersType = typeArguments[0];
+                                }
                             }
                         }
                         else
                         {
-                            sourceCode = GenerateInterfaceSource(namespaceName, interfaceName, classSymbol.ContainingNamespace.IsGlobalNamespace);
+                            if (iface.IsGenericType)
+                            {
+                                var typeArguments = iface.TypeArguments;
+                                if (typeArguments.Length == 1)
+                                {
+                                    outputType = typeArguments[0];
+                                }
+                                else if (typeArguments.Length == 2)
+                                {
+                                    parametersType = typeArguments[0];
+                                    outputType = typeArguments[1];
+                                }
+                            }
                         }
 
-                        if (sourceCode != null)
-                        {
-                            spc.AddSource($"{interfaceName}.g.cs", sourceCode);
-                            break; // Assuming only one IRunnable or IRunnable<TParameters, TOutput> per class
-                        }
+                        var sourceCode = GenerateInterfaceSource(
+                            namespaceName, interfaceName, runnableName, parametersType, outputType);
+                        spc.AddSource($"{interfaceName}.g.cs", sourceCode);
+                        break; // Assuming only one IInvokable per class
                     }
                 }
             }
         });
     }
 
-    private static string GenerateInterfaceSource(string namespaceName, string interfaceName, bool isGlobalNamespace)
+    private static string GenerateInterfaceSource(
+        string? namespaceName, 
+        string interfaceName, 
+        string runnableName,
+        ITypeSymbol? parametersType, 
+        ITypeSymbol? outputType
+        )
     {
-        if (isGlobalNamespace)
-        {
-            return $@"
-public interface {interfaceName}
-{{
-}}
-";
-        }
-        else
-        {
-            return $@"
-namespace {namespaceName}
-{{
-    public interface {interfaceName}
-    {{
-    }}
-}}
-";
-        }
-    }
+         var parametersTypeName = parametersType?.ToDisplayString();
+         var outputTypeName = outputType?.ToDisplayString();
 
-    private static string GenerateGenericOutputInterfaceSource(string namespaceName, string interfaceName,
-        ITypeSymbol outputType, bool isGlobalNamespace)
-    {
-        var outputTypeName = outputType.ToDisplayString();
+         var builder = new StringBuilder();
 
-        if (isGlobalNamespace)
-        {
-            return $@"
-using System.Threading.Tasks;
+         builder.AppendLine("""
+             using System.Threading.Tasks;
+             using Wolder.Core.Workspace;
+             
+             """);
+         if (namespaceName is not null)
+         {
+             builder.AppendLine($"""
+                 namespace {namespaceName};
+                 
+                 """);
+         }
 
-public interface {interfaceName}
-{{
-    Task<{outputTypeName}> InvokeAsync();
-}}
-";
-        }
-        else
-        {
-            return $@"
-using System.Threading.Tasks;
+         if (parametersTypeName is null && outputTypeName is null)
+         {
+             builder.AppendLine($$"""
+                 public interface {{interfaceName}} : IInvokeVoid<{{runnableName}}>, IGeneratedRunner
+                 {
+                     Task InvokeAsync();
+                 }
+                 """);
+         }
+         else if (parametersTypeName is not null && outputTypeName is null)
+         {
+             builder.AppendLine($$"""
+                 public interface {{interfaceName}} : IInvokeVoid<{{runnableName}}, {{parametersTypeName}}>, IGeneratedRunner
+                 {
+                     Task InvokeAsync({{parametersTypeName}} parameters);
+                 }
+                 """);
+         }
+         else if (parametersTypeName is null && outputTypeName is not null)
+         {
+             builder.AppendLine($$"""
+                 public interface {{interfaceName}} : IInvoke<{{runnableName}}, {{outputTypeName}}>, IGeneratedRunner
+                 {
+                     Task<{{outputTypeName}}> InvokeAsync();
+                 }
+                 """);
+         }
+         else
+         {
+             builder.AppendLine($$"""
+                 public interface {{interfaceName}} : IInvoke<{{runnableName}}, {{parametersTypeName}}, {{outputTypeName}}>, IGeneratedRunner
+                 {
+                     Task<{{outputTypeName}}> InvokeAsync({{parametersTypeName}} parameters);
+                 }
+                 """);
+         }
 
-namespace {namespaceName}
-{{
-    public interface {interfaceName}
-    {{
-        Task<{outputTypeName}> InvokeAsync();
-    }}
-}}
-";
-        }
-    }
-
-    private static string GenerateGenericInterfaceSource(string namespaceName, string interfaceName, ITypeSymbol parametersType, ITypeSymbol outputType, bool isGlobalNamespace)
-    {
-        var parametersTypeName = parametersType.ToDisplayString();
-        var outputTypeName = outputType.ToDisplayString();
-
-        if (isGlobalNamespace)
-        {
-            return $@"
-using System.Threading.Tasks;
-
-public interface {interfaceName}
-{{
-    Task<{outputTypeName}> InvokeAsync({parametersTypeName} parameters);
-}}
-";
-        }
-        else
-        {
-            return $@"
-using System.Threading.Tasks;
-
-namespace {namespaceName}
-{{
-    public interface {interfaceName}
-    {{
-        Task<{outputTypeName}> InvokeAsync({parametersTypeName} parameters);
-    }}
-}}
-";
-        }
+         return builder.ToString();
     }
 }
