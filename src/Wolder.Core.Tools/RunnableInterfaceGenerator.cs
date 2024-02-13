@@ -35,7 +35,7 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
                 
                 var attribute = classSymbol.GetAttributes()
                     .FirstOrDefault(ad => 
-                        ad.AttributeClass.Name == "GenerateTypedActionInvokeInterfaceAttribute");
+                        ad.AttributeClass?.Name == "GenerateTypedActionInvokeInterfaceAttribute");
                 if (attribute is null) continue;
 
                 if (attribute.AttributeClass == null || attribute.AttributeClass?.TypeArguments.Length != 1)
@@ -155,15 +155,14 @@ public class RunnableInterfaceGenerator : IIncrementalGenerator
                  {
                  }
                  
-                 internal class {{interfaceName}}_Impl : Invoke<{{runnableName}}, {{parametersTypeName}}, {{outputTypeName}}>, {{interfaceName}}
-                 {
-                 }
                  """);
          }
-         a
          // LEFT OFF, need to add some kind of shim class that implements the given Invoke interface
          //           and find a way for AddAction to detect it so it can be registered
          //           see initial example above on line 158
+         // internal class {{interfaceName}}_Impl : Invoke<{{runnableName}}, {{parametersTypeName}}, {{outputTypeName}}>, {{interfaceName}}
+         // {
+         // }
 
          return builder.ToString();
     }

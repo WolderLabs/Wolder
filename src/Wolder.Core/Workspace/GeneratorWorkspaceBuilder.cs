@@ -28,6 +28,15 @@ public class GeneratorWorkspaceBuilder
     
     public IConfiguration Config => _rootConfiguration;
     
+    public GeneratorWorkspaceBuilder AddActions<TActionCollection>()
+        where TActionCollection : ITypedActionCollection
+    {
+        // TODO: Register actions based on attributes
+        
+        return this;
+    }
+    
+    // TODO: Remove and replace with action collections
     public GeneratorWorkspaceBuilder AddAction<TAction>()
         where TAction : IInvokableAction
     {

@@ -10,6 +10,7 @@ public static class ServiceCollectionExtensions
         this GeneratorWorkspaceBuilder builder)
     {
         builder.AddAction<ExecuteCommandLine>();
+        builder.AddActions<CommandLineActions>();
         
         return builder;
     }

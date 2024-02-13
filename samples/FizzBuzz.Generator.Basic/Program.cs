@@ -20,13 +20,13 @@ await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
     .InvokeAsync<CreateFizzBuzz>("FizzBuzz.Basic.Output");
 
 class CreateFizzBuzz(
-    IExecuteCommandLine executeCommandLine
+    CommandLineActions commandLineActions
     ) : IVoidAction
 {
     public async Task InvokeAsync()
     {
         var webProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
-        await executeCommandLine.InvokeAsync(
+        await commandLineActions.ExecuteCommandLineAsync(
             new ExecuteCommandLineParameters(
                 $"dotnet new blazor -o {webProject.Name} --interactivity server --empty"));
     }
