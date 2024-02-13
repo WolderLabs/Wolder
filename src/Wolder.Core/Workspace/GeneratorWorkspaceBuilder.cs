@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Wolder.Core.Assistants;
@@ -33,6 +32,7 @@ public class GeneratorWorkspaceBuilder
     {
         // TODO: Register actions based on attributes
         
+        
         return this;
     }
     
@@ -40,72 +40,72 @@ public class GeneratorWorkspaceBuilder
     public GeneratorWorkspaceBuilder AddAction<TAction>()
         where TAction : IInvokableAction
     {
-        var actionType = typeof(TAction);
-
-        var generatedAttributeType = actionType.GetCustomAttributes(inherit: false)
-            .Select(attr => attr.GetType())
-            .FirstOrDefault(attr =>
-                attr.IsGenericType &&
-                attr.GetGenericTypeDefinition() == typeof(GenerateTypedActionInvokeInterfaceAttribute<>));
-        Type? runInterfaceType = null;
-        if (generatedAttributeType is not null)
-        {
-            runInterfaceType = generatedAttributeType.GetGenericArguments()[0];
-        }
-        
-        var interfaces = actionType.GetInterfaces();
-        foreach (var @interface in interfaces)
-        {
-            if (!@interface.IsGenericType)
-            {
-                if (@interface == typeof(IVoidAction))
-                {
-                    _services.AddScoped(
-                        typeof(IInvokeVoid<>).MakeGenericType(typeof(TAction)),
-                        typeof(InvokeVoid<>).MakeGenericType(typeof(TAction)));
-                    if (runInterfaceType is not null)
-                        _services.AddScoped(
-                            runInterfaceType,
-                            typeof(InvokeVoid<>).MakeGenericType(typeof(TAction)));
-                }
-                continue;
-            }
-            if (@interface.GetGenericTypeDefinition() == typeof(IAction<>))
-            {
-                var outputType = @interface.GetGenericArguments()[0];
-                _services.AddScoped(
-                    typeof(IInvoke<,>).MakeGenericType(actionType, outputType),
-                    typeof(Invoke<,>).MakeGenericType(actionType, outputType));
-                if (runInterfaceType is not null)
-                    _services.AddScoped(
-                        runInterfaceType,
-                        typeof(Invoke<,>).MakeGenericType(actionType, outputType));
-            }
-            else if (@interface.GetGenericTypeDefinition() == typeof(IAction<,>))
-            {
-                var parameterType = @interface.GetGenericArguments()[0];
-                var outputType = @interface.GetGenericArguments()[1];
-                _services.AddScoped(
-                    typeof(IInvoke<,,>).MakeGenericType(actionType, parameterType, outputType),
-                    typeof(Invoke<,,>).MakeGenericType(actionType, parameterType, outputType));
-                if (runInterfaceType is not null)
-                    _services.AddScoped(
-                        runInterfaceType,
-                        typeof(Invoke<,,>).MakeGenericType(actionType, parameterType, outputType));
-            }
-            else if (@interface.GetGenericTypeDefinition() == typeof(IVoidAction<>))
-            {
-                var outputType = @interface.GetGenericArguments()[0];
-                _services.AddScoped(
-                    typeof(IInvokeVoid<,>).MakeGenericType(actionType, outputType),
-                    typeof(InvokeVoid<,>).MakeGenericType(actionType, outputType));
-                if (runInterfaceType is not null)
-                    _services.AddScoped(
-                        runInterfaceType,
-                        typeof(InvokeVoid<,>).MakeGenericType(actionType, outputType));
-            }
-        }
-        
+        // var actionType = typeof(TAction);
+        //
+        // var generatedAttributeType = actionType.GetCustomAttributes(inherit: false)
+        //     .Select(attr => attr.GetType())
+        //     .FirstOrDefault(attr =>
+        //         attr.IsGenericType &&
+        //         attr.GetGenericTypeDefinition() == typeof(GenerateTypedActionInvokeInterfaceAttribute<>));
+        // Type? runInterfaceType = null;
+        // if (generatedAttributeType is not null)
+        // {
+        //     runInterfaceType = generatedAttributeType.GetGenericArguments()[0];
+        // }
+        //
+        // var interfaces = actionType.GetInterfaces();
+        // foreach (var @interface in interfaces)
+        // {
+        //     if (!@interface.IsGenericType)
+        //     {
+        //         if (@interface == typeof(IVoidAction))
+        //         {
+        //             _services.AddScoped(
+        //                 typeof(IInvokeVoid<>).MakeGenericType(typeof(TAction)),
+        //                 typeof(InvokeVoid<>).MakeGenericType(typeof(TAction)));
+        //             if (runInterfaceType is not null)
+        //                 _services.AddScoped(
+        //                     runInterfaceType,
+        //                     typeof(InvokeVoid<>).MakeGenericType(typeof(TAction)));
+        //         }
+        //         continue;
+        //     }
+        //     if (@interface.GetGenericTypeDefinition() == typeof(IAction<>))
+        //     {
+        //         var outputType = @interface.GetGenericArguments()[0];
+        //         _services.AddScoped(
+        //             typeof(IInvoke<,>).MakeGenericType(actionType, outputType),
+        //             typeof(Invoke<,>).MakeGenericType(actionType, outputType));
+        //         if (runInterfaceType is not null)
+        //             _services.AddScoped(
+        //                 runInterfaceType,
+        //                 typeof(Invoke<,>).MakeGenericType(actionType, outputType));
+        //     }
+        //     else if (@interface.GetGenericTypeDefinition() == typeof(IAction<,>))
+        //     {
+        //         var parameterType = @interface.GetGenericArguments()[0];
+        //         var outputType = @interface.GetGenericArguments()[1];
+        //         _services.AddScoped(
+        //             typeof(IInvoke<,,>).MakeGenericType(actionType, parameterType, outputType),
+        //             typeof(Invoke<,,>).MakeGenericType(actionType, parameterType, outputType));
+        //         if (runInterfaceType is not null)
+        //             _services.AddScoped(
+        //                 runInterfaceType,
+        //                 typeof(Invoke<,,>).MakeGenericType(actionType, parameterType, outputType));
+        //     }
+        //     else if (@interface.GetGenericTypeDefinition() == typeof(IVoidAction<>))
+        //     {
+        //         var outputType = @interface.GetGenericArguments()[0];
+        //         _services.AddScoped(
+        //             typeof(IInvokeVoid<,>).MakeGenericType(actionType, outputType),
+        //             typeof(InvokeVoid<,>).MakeGenericType(actionType, outputType));
+        //         if (runInterfaceType is not null)
+        //             _services.AddScoped(
+        //                 runInterfaceType,
+        //                 typeof(InvokeVoid<,>).MakeGenericType(actionType, outputType));
+        //     }
+        // }
+        //
         return this;
     }
 
