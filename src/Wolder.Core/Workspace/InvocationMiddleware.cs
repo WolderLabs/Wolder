@@ -2,7 +2,7 @@
 
 namespace Wolder.Core.Workspace;
 
-internal class InvocationMiddleware(IServiceProvider provider) : IInvoker
+internal class InvocationMiddleware(IServiceProvider provider) : IInvoke
 {
     public async Task InvokeVoidAsync<TInvokable>()
         where TInvokable : IVoidInvokable

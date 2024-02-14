@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Wolder.Core.Assistants;
 using Wolder.Core.Files;
@@ -18,6 +19,9 @@ public class GeneratorWorkspaceBuilder
         _rootConfiguration = rootConfiguration;
         _services = new ServiceCollection();
         _services.AddSingleton<WorkspaceRootPath>();
+        _services.AddSingleton(loggerFactory);
+        _services.Add(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(Logger<>)));
+        _services.AddScoped<IInvoke, InvocationMiddleware>();
         _services.AddScoped<ICacheFiles, CacheFiles>();
         _services.AddScoped<ISourceFiles, SourceFiles>();
         _services.AddScoped<IAIAssistantCacheStore, AIAssistantCacheStore>();
@@ -28,11 +32,9 @@ public class GeneratorWorkspaceBuilder
     public IConfiguration Config => _rootConfiguration;
     
     public GeneratorWorkspaceBuilder AddActions<TActionCollection>()
-        where TActionCollection : ITypedActionCollection
+        where TActionCollection : class, ITypedActionCollection
     {
-        // TODO: Register actions based on attributes
-        
-        
+        _services.AddScoped<TActionCollection>();
         return this;
     }
     
@@ -116,8 +118,9 @@ public class GeneratorWorkspaceBuilder
         
         var serviceProvider = _services.BuildServiceProvider();
         var rootPathService = serviceProvider.GetRequiredService<WorkspaceRootPath>();
+        rootPathService.SetRootPath(rootPath);
 
-        var invokeRootAction = serviceProvider.GetRequiredService<IInvokeVoid<TRootAction>>();
-        await invokeRootAction.InvokeAsync();
+        var invokeRootAction = serviceProvider.GetRequiredService<IInvoke>();
+        await invokeRootAction.InvokeVoidAsync<TRootAction>();
     }
 }

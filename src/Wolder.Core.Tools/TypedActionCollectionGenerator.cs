@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -65,12 +64,10 @@ public class TypedActionCollectionGenerator : IIncrementalGenerator
             
             public partial class {{classSymbol.Name}} : ITypedActionCollection
             {
-                private readonly {{string.Join(";\n private readonly ", actionCalls.Select(c => c?.declaration))}};
-                public {{classSymbol.Name}}(
-                    {{string.Join(",\n", actionCalls.Select(c => c?.declaration))}}
-                )
+                private readonly IInvoke _invoke;
+                public {{classSymbol.Name}}(IInvoke invoke)
                 {
-                    {{string.Join(";\n", actionCalls.Select(c => c?.assignemnt))}};
+                    _invoke = invoke;
                 }
                 
             {{string.Join("\n\n", actionCalls.Select(c => c?.call))}}
@@ -151,7 +148,7 @@ public class TypedActionCollectionGenerator : IIncrementalGenerator
                  $$"""
                      public async Task {{actionName}}Async()
                      {
-                         await this.{{actionName}}.InvokeAsync();
+                         await _invoke.InvokeVoidAsync<{{fullActionName}}>()
                      }
                  """);
          }
@@ -164,7 +161,7 @@ public class TypedActionCollectionGenerator : IIncrementalGenerator
                      public async Task {{actionName}}Async(
                          {{parametersTypeName}} parameters)
                      {
-                         await this.{{actionName}}.InvokeAsync(parameters);
+                         await _invoke.InvokeVoidAsync<{{fullActionName}}, {{parametersTypeName}}>(parameters);
                      }
                  """);
          }
@@ -177,7 +174,7 @@ public class TypedActionCollectionGenerator : IIncrementalGenerator
                      public async Task<{{outputTypeName}}> 
                          {{actionName}}Async()
                      {
-                         return await this.{{actionName}}.InvokeAsync();
+                         return await _invoke.InvokeAsync<{{fullActionName}}, {{outputTypeName}}>();
                      }
                  """);
          }
@@ -191,7 +188,7 @@ public class TypedActionCollectionGenerator : IIncrementalGenerator
                          {{actionName}}Async(
                              {{parametersTypeName}} parameters)
                      {
-                         return await this.{{actionName}}.InvokeAsync(parameters);
+                         return await _invoke.InvokeAsync<{{fullActionName}}, {{parametersTypeName}}, {{outputTypeName}}>(parameters);
                      }
                  """);
          }

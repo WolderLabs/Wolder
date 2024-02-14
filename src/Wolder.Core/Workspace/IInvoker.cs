@@ -1,6 +1,6 @@
 ﻿namespace Wolder.Core.Workspace;
 
-public interface IInvoker // I don't love this name
+public interface IInvoke
 {
     Task InvokeVoidAsync<TInvokable>()
         where TInvokable : IVoidInvokable;
