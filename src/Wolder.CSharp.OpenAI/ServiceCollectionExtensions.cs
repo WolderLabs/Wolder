@@ -11,10 +11,7 @@ public static class ServiceCollectionExtensions
     {
         builder.AddOpenAIAssistant();
         builder.AddCSharpActions();
-        
-        builder.AddAction<GenerateClasses>();
-        builder.AddAction<GenerateClass>();
-        builder.AddAction<TransformClass>();
+        builder.AddActions<CSharpGenerator>();
         
         return builder;
     }

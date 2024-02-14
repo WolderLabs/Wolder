@@ -5,7 +5,7 @@ public interface IInvoke
     Task InvokeVoidAsync<TInvokable>()
         where TInvokable : IVoidInvokable;
 
-    Task InvokeAsync<TInvokable, TParameter>(TParameter parameter)
+    Task InvokeVoidAsync<TInvokable, TParameter>(TParameter parameter)
         where TInvokable : IVoidInvokable<TParameter>
         where TParameter : notnull;
 

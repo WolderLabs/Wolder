@@ -12,7 +12,7 @@ internal class InvocationMiddleware(IServiceProvider provider) : IInvoke
         await invokable.InvokeAsync();
     }
     
-    public async Task InvokeAsync<TInvokable, TParameter>(TParameter parameter)
+    public async Task InvokeVoidAsync<TInvokable, TParameter>(TParameter parameter)
         where TInvokable : IVoidInvokable<TParameter>
         where TParameter : notnull
     {

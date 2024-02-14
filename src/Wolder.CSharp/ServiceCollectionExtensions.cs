@@ -11,10 +11,7 @@ public static class ServiceCollectionExtensions
     public static GeneratorWorkspaceBuilder AddCSharpActions(this GeneratorWorkspaceBuilder builder)
     {
         builder.Services.AddScoped<DotNetProjectFactory>();
-        builder.AddAction<CreateSdkGlobal>();
-        builder.AddAction<CreateProject>();
-        builder.AddAction<CreateClass>();
-        builder.AddAction<CompileProject>();
+        builder.AddActions<CSharpActions>();
         
         return builder;
     }
