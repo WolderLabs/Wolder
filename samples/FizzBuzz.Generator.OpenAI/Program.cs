@@ -1,6 +1,4 @@
-﻿using Wolder.CommandLine;
-using Wolder.CommandLine.Actions;
-using Wolder.Core;
+﻿using Wolder.Core;
 using Wolder.CSharp;
 using Wolder.CSharp.Actions;
 using Wolder.CSharp.OpenAI;
@@ -8,6 +6,8 @@ using Wolder.CSharp.OpenAI.Actions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Wolder.CommandLine;
+using Wolder.CommandLine.Actions;
 using Wolder.Core.Workspace;
 
 var builder = Host.CreateApplicationBuilder();
@@ -19,36 +19,35 @@ services.AddWolder(builder.Configuration.GetSection("Wolder"));
 
 var host = builder.Build();
 
-var pipelineBuilder = host.Services.GetRequiredService<GeneratorPipelineBuilder>();
+await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
+    .AddCommandLineActions()
+    .AddCSharpGeneration()
+    .InvokeAsync<GenerateFizzBuzz>("FizzBuzz.OpenAI.Output");
 
-var pipeline = pipelineBuilder.Build("FizzBuzz.OpenAI.Output");
+class GenerateFizzBuzz(
+    CommandLineActions commandLine,
+    CSharpActions csharp,
+    CSharpGenerator csharpGenerator) : IVoidAction
+{
+    public async Task InvokeAsync()
+    {
+        await csharp.CreateSdkGlobalAsync(
+            new CreateSdkGlobalParameters(DotNetSdkVersion.Net8));
+        
+        var mainProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
+        
+        await commandLine.ExecuteCommandLineAsync(
+            new ExecuteCommandLineParameters(
+                $"dotnet new console -n {mainProject.Name}"));
 
-var mainProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
+        await csharpGenerator.GenerateClassAsync(
+            new GenerateClassParameters(
+                mainProject,
+                "Program",
+                "A main method that implements the common fizz buzz app."));
 
-pipeline
-    .AddStep(ctx => new CreateSdkGlobal(DotNetSdkVersion.Net8))
-    .AddStep(ctx => 
-        new CreateProject(mainProject, """
-            <Project Sdk="Microsoft.NET.Sdk">
-            
-              <PropertyGroup>
-                <OutputType>Exe</OutputType>
-                <TargetFramework>net8.0</TargetFramework>
-                <LangVersion>latest</LangVersion>
-                <Nullable>enable</Nullable>
-                <ImplicitUsings>enable</ImplicitUsings>
-              </PropertyGroup>
-            
-            </Project>
-            """))
-    .AddStep(ctx => 
-        new GenerateClass(
-            mainProject,
-            "Program", 
-            "A main method that implements the common fizz buzz app."))
-    .AddStep(ctx =>
-        new CompileProject(mainProject))
-    .AddStep(ctx =>
-        new RunCommand("dotnet run", mainProject.RelativeRoot, Interactive: true));
-
-await pipeline.RunAsync();
+        await commandLine.ExecuteCommandLineAsync(
+            new ExecuteCommandLineParameters(
+                "dotnet run", mainProject.RelativeRoot, Interactive: true));
+    }
+}
