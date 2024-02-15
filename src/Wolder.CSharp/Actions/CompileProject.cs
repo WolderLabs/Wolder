@@ -6,7 +6,6 @@ namespace Wolder.CSharp.Actions;
 
 public record CompileProjectParameters(DotNetProjectReference Project);
 
-[GenerateTypedActionInvokeInterface<ICompileProject>]
 public class CompileProject(
     DotNetProjectFactory dotNetProjectFactory, CompileProjectParameters parameters) 
     : IAction<CompileProjectParameters, CompilationResult>

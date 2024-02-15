@@ -7,20 +7,22 @@ using Wolder.Core.Workspace;
 
 namespace Wolder.CSharp.OpenAI.Actions;
 
-public record GenerateClassParameters(
-    DotNetProjectReference Project, string ClassFullName, string BehaviorPrompt)
+public record GenerateRazorComponentParameters(
+    DotNetProjectReference project,
+    string classFullName,
+    string behaviorPrompt)
 {
-    public IEnumerable<FileMemoryItem> ContextMemoryItems { get; init; } = 
+    public IEnumerable<FileMemoryItem> ContextMemoryItems { get; set; } = 
         Enumerable.Empty<FileMemoryItem>();
 }
 
-public class GenerateClass(
+public class GenerateRazorComponent(
     IAIAssistant assistant,
-    ILogger<GenerateClass> logger,
+    ILogger<GenerateRazorComponentParameters> logger,
     DotNetProjectFactory projectFactory,
     ISourceFiles sourceFiles,
-    GenerateClassParameters parameters) 
-    : IAction<GenerateClassParameters, FileMemoryItem>
+    GenerateRazorComponentParameters parameters) 
+    : IAction<GenerateRazorComponentParameters, FileMemoryItem>
 {
     public async Task<FileMemoryItem> InvokeAsync()
     {
@@ -33,31 +35,32 @@ public class GenerateClass(
                     .Select(i => $"File: {i.RelativePath}\n{i.Content}" ));
         }
         var response = await assistant.CompletePromptAsync($"""
-            You are a C# code generator. Output only C#, your output will be directly written to a `.cs` file.
-            Write terse but helpful explanatory comments.
+            You are a C# razor component generator. Output only C# and razor, your output will be directly written to a `.razor` file.
+            Write terse but helpful comments.
             {context}
 
-            Create a class named `{className}` with the following behavior:
+            Create a razor component named `{className}` with the following behavior:
             {behaviorPrompt}
             """);
         var sanitized = Sanitize(response);
 
         logger.LogInformation(sanitized);
 
-        var path = Path.Combine(projectRef.RelativeRoot, $"{className}.cs");
+        var path = Path.Combine(projectRef.RelativeRoot, $"{className}.razor");
 
         await sourceFiles.WriteFileAsync(path, sanitized);
 
         var project = projectFactory.Create(projectRef);
-        var result = await project.TryCompileAsync();
-        if (result is CompilationResult.Failure failure)
-        {
-            var resolutionResult = await TryResolveFailedCompilationAsync(project, sanitized, failure, context);
-            if (resolutionResult is CompilationResult.Failure)
-            {
-                throw new("Resolution failed");
-            }
-        }
+        // TODO: Not working with razor for some reason
+        // var result = await project.TryCompileAsync();
+        // if (result is CompilationResult.Failure failure)
+        // {
+        //     var resolutionResult = await TryResolveFailedCompilationAsync(project, sanitized, failure, context);
+        //     if (resolutionResult is CompilationResult.Failure)
+        //     {
+        //         throw new("Resolution failed");
+        //     }
+        // }
 
         return new FileMemoryItem(path, sanitized);
     }
@@ -72,7 +75,7 @@ public class GenerateClass(
             var diagnosticMessages = lastResult.Diagnostics.Select(d => d.GetMessage());
             var messagesText = string.Join(Environment.NewLine, diagnosticMessages);
             var response = await assistant.CompletePromptAsync($"""
-                You are a helpful assistant that writes C# code to complete any task specified by me. Your output will be directly written to a file where it will be compiled as part of a larger C# project.
+                You are a helpful assistant that writes C# razor component code to complete any task specified by me. Your output will be directly written to a file where it will be compiled as part of a larger C# project.
                 {context}
 
                 Given the following compilation diagnostic messages transform the following file to resolve the messages:

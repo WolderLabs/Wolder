@@ -5,7 +5,6 @@ namespace Wolder.CSharp.Actions;
 
 public record CreateClassParameters(DotNetProjectReference Project, string ClassName, string ClassContent);
 
-[GenerateTypedActionInvokeInterface<ICreateClass>]
 public class CreateClass(
     ISourceFiles sourceFiles,
     CreateClassParameters parameters) 

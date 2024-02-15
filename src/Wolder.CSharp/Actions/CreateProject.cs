@@ -5,7 +5,6 @@ namespace Wolder.CSharp.Actions;
 
 public record CreateProjectParameters(DotNetProjectReference Project, string Content);
 
-[GenerateTypedActionInvokeInterface<ICreateProject>]
 public class CreateProject(ISourceFiles sourceFiles, CreateProjectParameters parameters) 
     : IVoidAction<CreateProjectParameters>
 {

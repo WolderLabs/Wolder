@@ -12,7 +12,6 @@ public record ExecuteCommandLineParameters(
 
 public record ExecuteCommandLineOutput(string? output);
 
-[GenerateTypedActionInvokeInterface<IExecuteCommandLine>]
 public class ExecuteCommandLine(
     ExecuteCommandLineParameters parameters,
     ILogger<ExecuteCommandLine> logger,

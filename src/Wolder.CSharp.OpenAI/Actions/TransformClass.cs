@@ -10,7 +10,6 @@ namespace Wolder.CSharp.OpenAI.Actions;
 
 public record TransformClassParameters(DotNetProjectReference project, string filePath, string behaviorPrompt);
 
-[GenerateTypedActionInvokeInterface<ITransformClass>]
 public class TransformClass(
     IAIAssistant assistant,
     ILogger<TransformClass> logger,

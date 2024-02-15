@@ -56,9 +56,11 @@ public class TypedActionCollectionGenerator : IIncrementalGenerator
             .Where(c => c.HasValue)
             .ToList();
         
+        // TODO: FileMemoryItem's namespace is not being included in the type name
         return $$"""
             using System;
             using Wolder.Core.Workspace;
+            using Wolder.Core.Files;
 
             namespace {{classSymbol.ContainingNamespace.ToDisplayString()}};
             

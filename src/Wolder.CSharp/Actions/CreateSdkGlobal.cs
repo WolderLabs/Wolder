@@ -10,7 +10,6 @@ public enum DotNetSdkVersion
 
 public record CreateSdkGlobalParameters(DotNetSdkVersion Version);
 
-[GenerateTypedActionInvokeInterface<ICreateSdkGlobal>]
 public class CreateSdkGlobal(ISourceFiles sourceFiles, CreateSdkGlobalParameters parameters) 
     : IVoidAction<CreateSdkGlobalParameters>
 {

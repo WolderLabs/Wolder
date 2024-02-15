@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.CodeAnalysis;
 using Wolder.Core.Assistants;
 using Wolder.Core.Files;
 using Wolder.CSharp.Compilation;
@@ -10,7 +11,6 @@ namespace Wolder.CSharp.OpenAI.Actions;
 
 public record GenerateClassesParameters(DotNetProjectReference project, string filePath, string behaviorPrompt);
 
-[GenerateTypedActionInvokeInterface<IGenerateClasses>]
 public class GenerateClasses(
     IAIAssistant assistant,
     ILogger<GenerateClasses> logger,
@@ -32,7 +32,7 @@ public class GenerateClasses(
             Generate `using {namespace};` for any referenced types. Usings are not automatically resolved.
             Assume the files will be added to a single dotnet 8.0 project. The base namespace of the
             project is `{{projectRef.Name}}`. 
-            Each file should always have a delimiter header like this:
+            Each file should always have a delimited header like this:
 
             // === START FILE: ProjectName/Namespace/Namespace/ClassName.cs
             File contents
@@ -48,11 +48,9 @@ public class GenerateClasses(
             {{behaviorPrompt}}
             """);
 
-        await SplitAndSaveFilesAsync(response);
-
         logger.LogInformation(response);
 
-        await SplitAndSaveFilesAsync(response);
+        await SplitAndSaveFilesAsync(parameters, response);
 
         var project = projectFactory.Create(projectRef);
         var compiles = await project.TryCompileAsync();
@@ -60,12 +58,14 @@ public class GenerateClasses(
             throw new("No compile");
     }
     
-    private async Task SplitAndSaveFilesAsync(string input)
+    private async Task SplitAndSaveFilesAsync(GenerateClassesParameters parameters, string input)
     {
         var sanitized = Sanitize(input);
 
         logger.LogInformation(sanitized);
 
+        var (projectRef, filePath, _) = parameters;
+        var rootPath = Path.Combine(projectRef.RelativeRoot, filePath);
         using (StringReader reader = new StringReader(sanitized))
         {
             StringBuilder fileContent = new StringBuilder();
@@ -83,7 +83,7 @@ public class GenerateClasses(
                 {
                     if (currentFileName != null)
                     {
-                        await sourceFiles.WriteFileAsync(currentFileName, fileContent.ToString());
+                        await sourceFiles.WriteFileAsync(Path.Combine(rootPath, currentFileName), fileContent.ToString());
                         currentFileName = null;
                     }
                 }
