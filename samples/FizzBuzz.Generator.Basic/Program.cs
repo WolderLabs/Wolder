@@ -21,21 +21,21 @@ await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
     .InvokeAsync<CreateFizzBuzz>("FizzBuzz.Basic.Output");
 
 class CreateFizzBuzz(
-    CommandLineActions commandLineActions,
-    CSharpActions cSharpActions) : IVoidAction
+    CommandLineActions commandLine,
+    CSharpActions csharp) : IVoidAction
 {
     public async Task InvokeAsync()
     {
-        await cSharpActions.CreateSdkGlobalAsync(
+        await csharp.CreateSdkGlobalAsync(
             new CreateSdkGlobalParameters(DotNetSdkVersion.Net8));
         
         var mainProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
         
-        await commandLineActions.ExecuteCommandLineAsync(
+        await commandLine.ExecuteCommandLineAsync(
             new ExecuteCommandLineParameters(
                 $"dotnet new console -n {mainProject.Name}"));
 
-        await cSharpActions.CreateClassAsync(
+        await csharp.CreateClassAsync(
             new CreateClassParameters(
                 mainProject, 
                 "Program",
@@ -60,9 +60,9 @@ class CreateFizzBuzz(
                     }
                 }
                 """));
-        await cSharpActions.CompileProjectAsync(new CompileProjectParameters(mainProject));
+        await csharp.CompileProjectAsync(new CompileProjectParameters(mainProject));
         
-        await commandLineActions.ExecuteCommandLineAsync(
+        await commandLine.ExecuteCommandLineAsync(
             new ExecuteCommandLineParameters(
                 "dotnet run", mainProject.RelativeRoot, Interactive: true));
     }
