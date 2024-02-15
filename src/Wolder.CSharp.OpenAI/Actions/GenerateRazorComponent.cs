@@ -37,6 +37,10 @@ public class GenerateRazorComponent(
         var response = await assistant.CompletePromptAsync($"""
             You are a C# razor component generator. Output only C# and razor, your output will be directly written to a `.razor` file.
             Write terse but helpful comments.
+            Make sure this directive is included at the top of generated components to enable interactive rendering
+            ``` razor
+            @rendermode InteractiveServer
+            ```
             {context}
 
             Create a razor component named `{className}` with the following behavior:
@@ -101,7 +105,7 @@ public class GenerateRazorComponent(
     
     private static string Sanitize(string input)
     {
-        string pattern = @"^\s*```\s*csharp|^\s*```|^\s*```\s*html";
+        string pattern = @"^\s*```\s*razor|^\s*```\s*csharp|^\s*```|^\s*```\s*html";
         string result = Regex.Replace(input, pattern, "", RegexOptions.Multiline);
 
         return result;

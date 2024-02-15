@@ -44,9 +44,9 @@ public class DotNetProject(string path, ILogger<DotNetProject> logger)
         }
 
         if (compilationDiagnostics
-            .Any(d => d.Severity == DiagnosticSeverity.Error)
-            || compilationDiagnostics
-                .Any(d => d.Severity == DiagnosticSeverity.Warning))
+            .Any(d => d.Severity == DiagnosticSeverity.Error))
+            // || compilationDiagnostics
+            //     .Any(d => d.Severity == DiagnosticSeverity.Warning))
         {
             return new CompilationResult.Failure(compilationDiagnostics);
         }

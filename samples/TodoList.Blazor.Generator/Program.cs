@@ -64,16 +64,28 @@ class GenerateTodoListApp(
                 Notes
                 """));
         
+        var todoServiceInterface = await csharpGenerator.GenerateClassAsync(
+            new GenerateClassParameters(
+                webProject,
+                "TodoList.Web.Service.ITodoService",
+                """
+                An interface for a service that provides CRUD actions for todo list items.
+                Assume todo list items are of type TodoList.Web.Models.TodoItem.
+                """)
+            {
+                ContextMemoryItems = [todoItem]
+            });
+        
         var todoService = await csharpGenerator.GenerateClassAsync(
             new GenerateClassParameters(
                 webProject,
                 "TodoList.Web.Service.TodoService",
                 """
-                A service that provides CRUD actions for todo list items. Assume todo list items are of type 
+                A service that implements ITodoService and provides CRUD actions for todo list items. Assume todo list items are of type 
                 TodoList.Web.Models.TodoItem. The items should be stored in a dictionary. Getting all items should return a list.
                 """)
             {
-                ContextMemoryItems = [todoItem]
+                ContextMemoryItems = [todoItem, todoServiceInterface]
             });
 
         await csharpGenerator.GenerateRazorComponentAsync(
@@ -81,11 +93,12 @@ class GenerateTodoListApp(
                 webProject,
                 "Components/Pages/TodoPage",
                 """
-                A Blazor page component with route '/todo' that Injects TodoList.Web.Service.TodoService and 
+                A interactive render mode Blazor page with route '/todo' that Injects TodoList.Web.Service.ITodoService and 
                 shows a listing of TodoList.Web.Models.TodoItem items.
+                Add interactive controls to the bottom of the page to add new todo items by calling the todo service.
                 """)
             {
-                ContextMemoryItems = [todoItem, todoService]
+                ContextMemoryItems = [todoItem, todoServiceInterface]
             });
         
         await csharpGenerator.GenerateRazorComponentAsync(

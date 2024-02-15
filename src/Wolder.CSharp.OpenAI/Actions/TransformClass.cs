@@ -16,24 +16,19 @@ public class TransformClass(
     DotNetProjectFactory projectFactory,
     ISourceFiles sourceFiles,
     TransformClassParameters parameters) 
-    : IVoidAction<TransformClassParameters>
+    : IAction<TransformClassParameters, FileMemoryItem>
 {
-    public async Task InvokeAsync()
+    public async Task<FileMemoryItem> InvokeAsync()
     {
         var (projectRef, filePath, behaviorPrompt) = parameters;
         var content = await sourceFiles.ReadFileAsync(filePath);
         var response = await assistant.CompletePromptAsync($"""
-            You are a C# code generator. Output only C#, your output will be directly written to a `.cs` file.
-            Write terse but helpful explanatory comments.
-            Each file should always have a delimiter header like this:
-            // === START FILE: ProjectName/Namespace/Namespace/ClassName.cs
-            File contents
-            // === END FILE: ProjectName/Namespace/Namespace/ClassName.cs
+            You are a helpful C# code generator. Output only C#, your output will be directly written to a `.cs` file.
+            Write terse but helpful comments.
 
             Using the code from this file:
-            === START FILE: {filePath}
+            File: {filePath}
             {content}
-            === END FILE: {filePath}
 
             Update the code with the following behavior:
             {behaviorPrompt}
@@ -41,10 +36,17 @@ public class TransformClass(
 
         logger.LogInformation(response);
 
-        await SplitAndSaveFilesAsync(response);
+        var sanitized = Sanitize(response);
+
+        logger.LogInformation(sanitized);
+
+        await sourceFiles.WriteFileAsync(filePath, sanitized);
+
 
         var project = projectFactory.Create(projectRef);
         await project.TryCompileAsync();
+        
+        return new FileMemoryItem(filePath, sanitized);
     }
     
     private async Task SplitAndSaveFilesAsync(string input)
