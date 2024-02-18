@@ -10,7 +10,7 @@ public record ExecuteCommandLineParameters(
     string relativeWorkingDirectory = "",
     bool Interactive = false);
 
-public record ExecuteCommandLineOutput(string? output);
+public record ExecuteCommandLineOutput(string? Output, string? Errors, int ExitCode);
 
 public class ExecuteCommandLine(
     ExecuteCommandLineParameters parameters,
@@ -43,6 +43,7 @@ public class ExecuteCommandLine(
         process.Start();
 
         string? output = null;
+        string? error = null;
 
         // Read the output (or errors)
         if (!interactive)
@@ -53,7 +54,7 @@ public class ExecuteCommandLine(
                 logger.LogInformation("ShellOut: {output}", output);
             }
 
-            string error = await process.StandardError.ReadToEndAsync();
+            error = await process.StandardError.ReadToEndAsync();
             if (!string.IsNullOrWhiteSpace(error))
             {
                 logger.LogError("ShellError: {error}", error);
@@ -62,6 +63,6 @@ public class ExecuteCommandLine(
 
         await process.WaitForExitAsync();
 
-        return new ExecuteCommandLineOutput(output);
+        return new ExecuteCommandLineOutput(output, error, process.ExitCode);
     }
 }

@@ -34,7 +34,7 @@ class GenerateTodoListApp(
         await csharp.CreateSdkGlobalAsync(
             new CreateSdkGlobalParameters(DotNetSdkVersion.Net8));
         
-        var webProject = new DotNetProjectReference("TodoList.Web/TodoList.Web.csproj");
+        var webProject = new DotNetProjectReference("TodoList.Web/TodoList.Web.csproj", "TodoList.Web");
         
         await commandLine.ExecuteCommandLineAsync(
             new ExecuteCommandLineParameters(
@@ -45,7 +45,7 @@ class GenerateTodoListApp(
                 webProject,
                 "TodoList.Web/Program.cs",
                 """
-                Use reflection to register any classes in the current assembly
+                Use reflection to register any types that are classes in the current assembly
                 that have a name that ends in `Service`, register them as scoped services.
                 Register the default interface if possible. For example if TestService implements
                 ITestService it should be registered as `services.AddScoped<ITestService, TestService>()`
@@ -55,7 +55,8 @@ class GenerateTodoListApp(
         var todoItem = await csharpGenerator.GenerateClassAsync(
             new GenerateClassParameters(
                 webProject,
-                "TodoList.Web.Models.TodoItem",
+                "Models",
+                "TodoItem",
                 """
                 A model that represents a todo item. It should have the following properties:
                 Id (guid)
@@ -67,10 +68,10 @@ class GenerateTodoListApp(
         var todoServiceInterface = await csharpGenerator.GenerateClassAsync(
             new GenerateClassParameters(
                 webProject,
-                "TodoList.Web.Service.ITodoService",
+                "Services",
+                "ITodoService",
                 """
-                An interface for a service that provides CRUD actions for todo list items.
-                Assume todo list items are of type TodoList.Web.Models.TodoItem.
+                An interface for a service that provides CRUD actions for todo list items. Getting all items should return a list.
                 """)
             {
                 ContextMemoryItems = [todoItem]
@@ -79,16 +80,17 @@ class GenerateTodoListApp(
         var todoService = await csharpGenerator.GenerateClassAsync(
             new GenerateClassParameters(
                 webProject,
-                "TodoList.Web.Service.TodoService",
+                "Services",
+                "TodoService",
                 """
-                A service that implements ITodoService and provides CRUD actions for todo list items. Assume todo list items are of type 
-                TodoList.Web.Models.TodoItem. The items should be stored in a dictionary. Getting all items should return a list.
+                A service that implements ITodoService and provides CRUD actions for todo list items. 
+                The items should be stored in a dictionary. 
                 """)
             {
                 ContextMemoryItems = [todoItem, todoServiceInterface]
             });
 
-        await csharpGenerator.GenerateRazorComponentAsync(
+        await csharpGenerator.GenerateBlazorComponentAsync(
             new GenerateRazorComponentParameters(
                 webProject,
                 "Components/Pages/TodoPage",
@@ -101,12 +103,12 @@ class GenerateTodoListApp(
                 ContextMemoryItems = [todoItem, todoServiceInterface]
             });
         
-        await csharpGenerator.GenerateRazorComponentAsync(
+        await csharpGenerator.GenerateBlazorComponentAsync(
             new GenerateRazorComponentParameters(
                 webProject,
                 "Components/Pages/Home",
                 """
-                A Blazor page component
+                A Blazor page component with the route "/"
                 The page contents should be:
                 A basic heading with a creative todo related title.
                 A link to "Todo Items" at URL /todo.

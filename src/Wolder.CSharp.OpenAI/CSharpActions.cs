@@ -5,7 +5,7 @@ namespace Wolder.CSharp.OpenAI;
 
 [GenerateActionCall<GenerateClass>]
 [GenerateActionCall<GenerateClasses>]
-[GenerateActionCall<GenerateRazorComponent>]
+[GenerateActionCall<GenerateBlazorComponent>]
 [GenerateActionCall<TransformClass>]
 public partial class CSharpGenerator
 {

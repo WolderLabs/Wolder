@@ -3,12 +3,15 @@ using Wolder.Core.Assistants;
 using Wolder.Core.Files;
 using Wolder.CSharp.Compilation;
 using Microsoft.Extensions.Logging;
+using Wolder.CommandLine;
+using Wolder.CommandLine.Actions;
 using Wolder.Core.Workspace;
+using Wolder.CSharp.Actions;
 
 namespace Wolder.CSharp.OpenAI.Actions;
 
 public record GenerateClassParameters(
-    DotNetProjectReference Project, string ClassFullName, string BehaviorPrompt)
+    DotNetProjectReference Project, string Namespace, string ClassName, string BehaviorPrompt)
 {
     public IEnumerable<FileMemoryItem> ContextMemoryItems { get; init; } = 
         Enumerable.Empty<FileMemoryItem>();
@@ -17,56 +20,69 @@ public record GenerateClassParameters(
 public class GenerateClass(
     IAIAssistant assistant,
     ILogger<GenerateClass> logger,
-    DotNetProjectFactory projectFactory,
+    CSharpActions csharp,
     ISourceFiles sourceFiles,
     GenerateClassParameters parameters) 
     : IAction<GenerateClassParameters, FileMemoryItem>
 {
     public async Task<FileMemoryItem> InvokeAsync()
     {
-        var (projectRef, className, behaviorPrompt) = parameters;
-        var context = "";
+        var (project, classNamespace, className, behaviorPrompt) = parameters;
+        // Normalize the namespace to be relative to the project base namespace
+        if (classNamespace.StartsWith(project.BaseNamespace))
+        {
+            classNamespace = classNamespace.Substring(project.BaseNamespace.Length);
+        }
+        
+        var tree = sourceFiles.GetDirectoryTree();
+        var context = $$"""
+            Directory Tree:
+            {{tree}}
+            """;
         if (parameters.ContextMemoryItems.Any())
         {
-            context = "\nUsing the following for context:\n" + 
+            context = "\nThe items may also provide helpful context:\n" + 
                 string.Join("\n", parameters.ContextMemoryItems
                     .Select(i => $"File: {i.RelativePath}\n{i.Content}" ));
         }
+
+        var namespaceEnd = string.IsNullOrEmpty(classNamespace)
+            ? ""
+            : $".{classNamespace}";
         var response = await assistant.CompletePromptAsync($"""
             You are a C# code generator. Output only C#, your output will be directly written to a `.cs` file.
             Write terse but helpful explanatory comments.
             {context}
 
-            Create a class named `{className}` with the following behavior:
+            Create a class named `{className}` with namespace `{project.BaseNamespace}{namespaceEnd}` with the following behavior:
             {behaviorPrompt}
             """);
-        var sanitized = Sanitize(response);
+        
+        var classMemoryItem = await SanitizeAndWriteClassAsync(response);
 
-        logger.LogInformation(sanitized);
-
-        var path = Path.Combine(projectRef.RelativeRoot, $"{className}.cs");
-
-        await sourceFiles.WriteFileAsync(path, sanitized);
-
-        var project = projectFactory.Create(projectRef);
-        var result = await project.TryCompileAsync();
+        var result = await csharp.CompileProjectAsync(new(project));
         if (result is CompilationResult.Failure failure)
         {
-            var resolutionResult = await TryResolveFailedCompilationAsync(project, sanitized, failure, context);
+            var (resolutionResult, fixedMemoryItem) = await TryResolveFailedCompilationAsync(project, classMemoryItem, failure, context);
             if (resolutionResult is CompilationResult.Failure)
             {
                 throw new("Resolution failed");
             }
+            else
+            {
+                return fixedMemoryItem ?? throw new NullReferenceException(nameof(fixedMemoryItem));
+            }
         }
 
-        return new FileMemoryItem(path, sanitized);
+        return classMemoryItem;
     }
 
-    private async Task<CompilationResult> TryResolveFailedCompilationAsync(
-        IDotNetProject project, string fileContent, CompilationResult lastResult, string context)
+    private async Task<(CompilationResult, FileMemoryItem?)> TryResolveFailedCompilationAsync(
+        DotNetProjectReference project, FileMemoryItem lastFile, CompilationResult lastResult, string context)
     {
-        var (projectRef, className, behaviorPrompt) = parameters;
+        var (projectRef, classNamespace, className, behaviorPrompt) = parameters;
         var maxAttempts = 2;
+        FileMemoryItem? classMemoryItem = null;
         for (int i = 0; i < maxAttempts; i++)
         {
             var diagnosticMessages = lastResult.Output.Errors;
@@ -79,21 +95,33 @@ public class GenerateClass(
                 {messagesText}
                 
                 File Content:
-                {fileContent}
+                {lastFile.Content}
                 """);
             
-            var sanitized = Sanitize(response);
-            logger.LogInformation(sanitized);
-            var path = Path.Combine(projectRef.RelativeRoot, $"{className}.cs");
-            await sourceFiles.WriteFileAsync(path, sanitized);
+            classMemoryItem = await SanitizeAndWriteClassAsync(response);
             
-            lastResult = await project.TryCompileAsync();
+            lastResult = await csharp.CompileProjectAsync(new(project));
             if (lastResult is CompilationResult.Success)
             {
                 break;
             }
         }
-        return lastResult;
+        return (lastResult, classMemoryItem);
+    }
+
+    private async Task<FileMemoryItem> SanitizeAndWriteClassAsync(string response)
+    {
+        var (project, classNamespace, className, behaviorPrompt) = parameters;
+        var sanitized = Sanitize(response);
+
+        logger.LogInformation(sanitized);
+
+        var relativePath = classNamespace.Replace('.', Path.PathSeparator);
+        var path = Path.Combine(project.RelativeRoot, relativePath,  $"{className}.cs");
+            
+        await sourceFiles.WriteFileAsync(path, sanitized);
+        
+        return new FileMemoryItem(path, sanitized);
     }
     
     private static string Sanitize(string input)

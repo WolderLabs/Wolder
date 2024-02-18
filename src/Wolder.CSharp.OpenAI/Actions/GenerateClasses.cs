@@ -22,7 +22,7 @@ public class GenerateClasses(
     public async Task InvokeAsync()
     {
         var (projectRef, filePath, behaviorPrompt) = parameters;
-        var tree = GetDirectoryTree(sourceFiles.RootDirectoryPath);
+        var tree = sourceFiles.GetDirectoryTree();
         var response = await assistant.CompletePromptAsync($$"""
             You are a C# and razor code generator. The code you create will be compiled immediately and tested.
             Output only C# or razor files, your output will be directly written to one or more files. 
@@ -106,52 +106,5 @@ public class GenerateClasses(
         string result = Regex.Replace(input, pattern, "", RegexOptions.Multiline);
 
         return result;
-    }
-    
-    private string GetDirectoryTree(string rootPath)
-    {
-        StringBuilder treeBuilder = new StringBuilder();
-
-        // Start the recursive method to build the directory tree string
-        BuildDirectoryTree(rootPath, "", treeBuilder);
-
-        // Print the entire tree at once
-        string tree = treeBuilder.ToString();
-        logger.LogInformation(tree);
-        return tree;
-    }
-
-    static void BuildDirectoryTree(string directoryPath, string indent, StringBuilder treeBuilder)
-    {
-        try
-        {
-            // Get all directories in the current directory
-            string[] directories = Directory.GetDirectories(directoryPath);
-
-            foreach (string directory in directories)
-            {
-                // Skip bin and obj directories
-                if (directory.EndsWith("\\bin") || directory.EndsWith("\\obj"))
-                {
-                    continue;
-                }
-
-                treeBuilder.AppendLine($"{indent}+ {new DirectoryInfo(directory).Name}");
-                // Recursively build the string for the contents of this directory
-                BuildDirectoryTree(directory, indent + "  ", treeBuilder);
-            }
-
-            // Get all files in the current directory
-            string[] files = Directory.GetFiles(directoryPath);
-
-            foreach (string file in files)
-            {
-                treeBuilder.AppendLine($"{indent}- {Path.GetFileName(file)}");
-            }
-        }
-        catch (UnauthorizedAccessException)
-        {
-            treeBuilder.AppendLine($"{indent}! Access Denied");
-        }
     }
 }

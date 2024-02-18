@@ -34,7 +34,7 @@ class GenerateFizzBuzz(
         await csharp.CreateSdkGlobalAsync(
             new CreateSdkGlobalParameters(DotNetSdkVersion.Net8));
         
-        var mainProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
+        var mainProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj", "FizzBuzz");
         
         await commandLine.ExecuteCommandLineAsync(
             new ExecuteCommandLineParameters(
@@ -43,11 +43,12 @@ class GenerateFizzBuzz(
         await csharpGenerator.GenerateClassAsync(
             new GenerateClassParameters(
                 mainProject,
+                "",
                 "Program",
                 "A main method that implements the common fizz buzz app."));
 
         await commandLine.ExecuteCommandLineAsync(
             new ExecuteCommandLineParameters(
-                "dotnet run", mainProject.RelativeRoot, Interactive: true));
+                "dotnet run", mainProject.RelativeRoot));
     }
 }

@@ -29,7 +29,7 @@ class CreateFizzBuzz(
         await csharp.CreateSdkGlobalAsync(
             new CreateSdkGlobalParameters(DotNetSdkVersion.Net8));
         
-        var mainProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj");
+        var mainProject = new DotNetProjectReference("FizzBuzz/FizzBuzz.csproj", "FizzBuzz");
         
         await commandLine.ExecuteCommandLineAsync(
             new ExecuteCommandLineParameters(

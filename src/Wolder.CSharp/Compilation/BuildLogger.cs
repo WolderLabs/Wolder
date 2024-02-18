@@ -1,6 +1,8 @@
 ﻿using Microsoft.Build.Framework;
 using System;
 using System.Text;
+using Microsoft.Extensions.Logging;
+using ILogger = Microsoft.Build.Framework.ILogger;
 
 namespace Wolder.CSharp.Compilation;
 
@@ -34,18 +36,21 @@ public class BuildLogger : ILogger
     {
         // Log message events
         _messages.AppendLine(e.Message);
+        _logger.LogInformation("Build Message: {message}", e.Message);
     }
 
     private void OnWarningRaised(object sender, BuildWarningEventArgs e)
     {
         // Log warning events
         _warnings.AppendLine(e.Message);
+        _logger.LogInformation("Build Warning: {message}", e.Message);
     }
 
     private void OnErrorRaised(object sender, BuildErrorEventArgs e)
     {
         // Log error events
         _errors.AppendLine(e.Message);
+        _logger.LogInformation("Build Error: {message}", e.Message);
     }
 
     public void Shutdown()
@@ -53,8 +58,8 @@ public class BuildLogger : ILogger
         // Perform any necessary cleanup or final logging here
     }
 
-    public string Parameters { get; set; }
+    public string? Parameters { get; set; }
 
-    public LoggerVerbosity Verbosity { get; set; } = LoggerVerbosity.Minimal;
+    public LoggerVerbosity Verbosity { get; set; } = LoggerVerbosity.Detailed;
 }
 

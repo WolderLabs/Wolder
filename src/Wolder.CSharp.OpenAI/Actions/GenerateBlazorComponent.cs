@@ -16,18 +16,30 @@ public record GenerateRazorComponentParameters(
         Enumerable.Empty<FileMemoryItem>();
 }
 
-public class GenerateRazorComponent(
+public class GenerateBlazorComponent(
     IAIAssistant assistant,
     ILogger<GenerateRazorComponentParameters> logger,
     DotNetProjectFactory projectFactory,
+    CSharpActions csharp,
     ISourceFiles sourceFiles,
     GenerateRazorComponentParameters parameters) 
     : IAction<GenerateRazorComponentParameters, FileMemoryItem>
 {
+    private const string BlazorAssistantPrompt = 
+        "You are a C# Blazor component/page generator. Your output will be directly " +
+        "written to a `.razor` file. Write terse but helpful comments to explain the code and its structure. " +
+        "Add any usings for items used from the context. Ensure all comments use razor style comments @* comment *@. " +
+        "It is crucial that the `@rendermode InteractiveServer` directive is included at the top of an interactive component/page " +
+        "so that it works correctly in an interactive server scenario.";
+    
     public async Task<FileMemoryItem> InvokeAsync()
     {
-        var (projectRef, className, behaviorPrompt) = parameters;
-        var context = "";
+        var (project, className, behaviorPrompt) = parameters;
+        var tree = sourceFiles.GetDirectoryTree();
+        var context = $$"""
+            Directory tree of current project:
+            {{tree}}
+            """;
         if (parameters.ContextMemoryItems.Any())
         {
             context = "\nUsing the following for context:\n" + 
@@ -35,38 +47,38 @@ public class GenerateRazorComponent(
                     .Select(i => $"File: {i.RelativePath}\n{i.Content}" ));
         }
         var response = await assistant.CompletePromptAsync($"""
-            You are a C# Blazor component generator. Output only razor, your output will be directly written to a `.razor` file. Write terse but helpful comments to explain the code and its structure. 
+            {BlazorAssistantPrompt}
             
-            Based on the following context
             {context}
             
-            Create a razor component named `{className}` that adheres to the behavior described in `{behaviorPrompt}`. It is crucial that the `@rendermode InteractiveServer` directive is included for the component to function correctly in an interactive server scenario. Add any usings for items used from the context. ref Ensure all comments use razor style comments @* comment *@
+            Create a Blazor component for the file `{className}.razor` that adheres to the behavior described here:
+            {behaviorPrompt}  
             """);
         var sanitized = Sanitize(response);
 
         logger.LogInformation(sanitized);
 
-        var path = Path.Combine(projectRef.RelativeRoot, $"{className}.razor");
+        var path = Path.Combine(project.RelativeRoot, $"{className}.razor");
 
         await sourceFiles.WriteFileAsync(path, sanitized);
 
-        var project = projectFactory.Create(projectRef);
-        // TODO: Not working with razor for some reason
-        // var result = await project.TryCompileAsync();
-        // if (result is CompilationResult.Failure failure)
-        // {
-        //     var resolutionResult = await TryResolveFailedCompilationAsync(project, sanitized, failure, context);
-        //     if (resolutionResult is CompilationResult.Failure)
-        //     {
-        //         throw new("Resolution failed");
-        //     }
-        // }
+        var result = await csharp.CompileProjectAsync(
+            new(project));
+        
+        if (result is CompilationResult.Failure failure)
+        {
+            var resolutionResult = await TryResolveFailedCompilationAsync(project, sanitized, failure, context);
+            if (resolutionResult is CompilationResult.Failure)
+            {
+                throw new("Resolution failed");
+            }
+        }
 
         return new FileMemoryItem(path, sanitized);
     }
 
     private async Task<CompilationResult> TryResolveFailedCompilationAsync(
-        DotNetProject project, string fileContent, CompilationResult lastResult, string context)
+        DotNetProjectReference project, string fileContent, CompilationResult lastResult, string context)
     {
         var (projectRef, className, behaviorPrompt) = parameters;
         var maxAttempts = 2;
@@ -74,22 +86,28 @@ public class GenerateRazorComponent(
         {
             var messagesText = lastResult.Output.Errors;
             var response = await assistant.CompletePromptAsync($"""
-                You are a helpful assistant that writes C# razor component code to complete any task specified by me. Your output will be directly written to a file where it will be compiled as part of a larger C# project.
+                {BlazorAssistantPrompt}
                 {context}
 
-                Given the following compilation diagnostic messages transform the following file to resolve the messages:
+                The file `{className}.razor` was just generated by an automated assistant using this prompt:
+                {behaviorPrompt} 
+                
+                ```
+                {fileContent}
+                ```
+                
+                This file caused these compilation errors. 
                 {messagesText}
                 
-                File Content:
-                {fileContent}
+                Create a new version of the file that resolves the errors.
                 """);
             
             var sanitized = Sanitize(response);
             logger.LogInformation(sanitized);
-            var path = Path.Combine(projectRef.RelativeRoot, $"{className}.cs");
+            var path = Path.Combine(projectRef.RelativeRoot, $"{className}.razor");
             await sourceFiles.WriteFileAsync(path, sanitized);
             
-            lastResult = await project.TryCompileAsync();
+            lastResult = await csharp.CompileProjectAsync(new(project));
             if (lastResult is CompilationResult.Success)
             {
                 break;

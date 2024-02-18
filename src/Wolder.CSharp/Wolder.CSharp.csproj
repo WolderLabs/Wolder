@@ -7,6 +7,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\Wolder.CommandLine\Wolder.CommandLine.csproj" />
 		<ProjectReference Include="..\Wolder.Core\Wolder.Core.csproj" />
 	</ItemGroup>
 	
@@ -16,12 +17,13 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Build" Version="17.9.5" ExcludeAssets="runtime" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-		<PackageReference Include="Microsoft.Build.Locator" Version="1.7.1" />
+		<PackageReference Include="Microsoft.Build" Version="17.9.5" />
+		<PackageReference Include="Microsoft.Build.Framework" Version="17.9.5" />
+		<PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.9.5" />
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.8.0" />
 		<PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.8.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
 		<PackageReference Include="System.Drawing.Common" Version="8.0.1" />
 	</ItemGroup>
 
