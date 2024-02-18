@@ -30,7 +30,7 @@ public class GenerateBlazorComponent(
         "written to a `.razor` file. Write terse but helpful comments to explain the code and its structure. " +
         "Add any usings for items used from the context. Ensure all comments use razor style comments @* comment *@. " +
         "It is crucial that the `@rendermode InteractiveServer` directive is included at the top of an interactive component/page " +
-        "so that it works correctly in an interactive server scenario.";
+        "so that it works correctly in an interactive server scenario. Nullable references are enabled.";
     
     public async Task<FileMemoryItem> InvokeAsync()
     {

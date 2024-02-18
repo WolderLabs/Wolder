@@ -1,7 +1,7 @@
 ﻿using Wolder.Core.Files;
 using Wolder.Core.Workspace;
 
-namespace Wolder.CSharp.Actions;
+namespace Wolder.CSharp.CodeActions;
 
 public enum DotNetSdkVersion
 {

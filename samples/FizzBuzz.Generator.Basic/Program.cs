@@ -6,7 +6,8 @@ using Wolder.CommandLine.Actions;
 using Wolder.Core;
 using Wolder.Core.Workspace;
 using Wolder.CSharp;
-using Wolder.CSharp.Actions;
+using Wolder.CSharp.CodeActions;
+using Wolder.CSharp.ProjectActions;
 
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole();
