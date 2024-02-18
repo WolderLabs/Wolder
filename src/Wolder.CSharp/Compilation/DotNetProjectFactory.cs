@@ -3,9 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Wolder.CSharp.Compilation;
 
-public class DotNetProjectFactory(IServiceProvider services, ISourceFiles sourceFiles)
+public class DotNetProjectFactory(IServiceProvider services, ISourceFiles sourceFiles) : IDotNetProjectFactory
 {
-    public DotNetProject Create(DotNetProjectReference reference)
+    public IDotNetProject Create(DotNetProjectReference reference)
     {
         var path = reference.RelativeFilePath;
         var fullPath = sourceFiles.GetAbsolutePath(path);

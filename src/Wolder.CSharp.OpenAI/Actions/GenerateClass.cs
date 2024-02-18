@@ -63,13 +63,13 @@ public class GenerateClass(
     }
 
     private async Task<CompilationResult> TryResolveFailedCompilationAsync(
-        DotNetProject project, string fileContent, CompilationResult lastResult, string context)
+        IDotNetProject project, string fileContent, CompilationResult lastResult, string context)
     {
         var (projectRef, className, behaviorPrompt) = parameters;
         var maxAttempts = 2;
         for (int i = 0; i < maxAttempts; i++)
         {
-            var diagnosticMessages = lastResult.Diagnostics.Select(d => d.GetMessage());
+            var diagnosticMessages = lastResult.Output.Errors;
             var messagesText = string.Join(Environment.NewLine, diagnosticMessages);
             var response = await assistant.CompletePromptAsync($"""
                 You are a helpful assistant that writes C# code to complete any task specified by me. Your output will be directly written to a file where it will be compiled as part of a larger C# project.

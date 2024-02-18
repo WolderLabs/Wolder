@@ -1,62 +1,50 @@
-﻿using Microsoft.Build.Locator;
+﻿using Microsoft.Build.Evaluation;
+using Microsoft.Build.Execution;
+using Microsoft.Build.Framework;
+using Microsoft.Build.Locator;
+using Microsoft.Build.Logging;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
-using Microsoft.Extensions.Logging;
 
 namespace Wolder.CSharp.Compilation;
 
-public class DotNetProject(string path, ILogger<DotNetProject> logger)
+public class DotNetProject(string path, Microsoft.Extensions.Logging.ILogger<DotNetProject> logger) : IDotNetProject
 {
-    private static bool s_isInitialized; // TODO: thread safety, with lazy?
+    private static int s_isInitialized = 0;
 
-    public string BasePath => Path.GetDirectoryName(path)!;
-
-    public async Task<CompilationResult> TryCompileAsync()
+    public Task<CompilationResult> TryCompileAsync()
     {
-        if (!s_isInitialized)
+        if (Interlocked.CompareExchange(ref s_isInitialized, 1, 0) == 0)
         {
-            s_isInitialized = true;
             MSBuildLocator.RegisterDefaults();
         }
 
-        // Create an instance of MSBuildWorkspace
-        var workspace = MSBuildWorkspace.Create();
-
-        // Open the project
-        var project = await workspace.OpenProjectAsync(path);
-
-        // Compile the project
-        var compilation = await project.GetCompilationAsync()
-            ?? throw new InvalidOperationException("No compilation");
-
-        // Handle errors and warnings
-        var compilationDiagnostics = compilation.GetDiagnostics();
-        foreach (var diagnostic in compilationDiagnostics)
+        var globalProperty = new Dictionary<string, string>
         {
-            if (diagnostic.Severity == DiagnosticSeverity.Error)
-            {
-                logger.LogInformation("Error: {error}", diagnostic.GetMessage());
-            }
-            else if (diagnostic.Severity == DiagnosticSeverity.Warning)
-            {
-                logger.LogInformation("Warning: {warning}", diagnostic.GetMessage());
-            }
-        }
+            { "Configuration", "Debug" }
+        };
 
-        if (compilationDiagnostics
-            .Any(d => d.Severity == DiagnosticSeverity.Error))
-            // || compilationDiagnostics
-            //     .Any(d => d.Severity == DiagnosticSeverity.Warning))
+        var buildLogger = new BuildLogger(logger);
+        var buildParameters = new BuildParameters(ProjectCollection.GlobalProjectCollection)
         {
-            return new CompilationResult.Failure(compilationDiagnostics);
-        }
-        return new CompilationResult.Success(compilationDiagnostics);
+            Loggers = new List<ILogger> { buildLogger }
+        };
 
-        // // Emit the compilation to a DLL or an executable
-        // var projectRoot = Path.GetDirectoryName(path)!;
-        // var binDirectory = Path.Combine(projectRoot, "bin", "generate");
-        // Directory.CreateDirectory(binDirectory);
-        // var dllPath = Path.Combine(binDirectory, Path.GetFileNameWithoutExtension(path) + ".dll");
-        // var result = compilation.Emit(dllPath);
+        var buildRequest = new BuildRequestData(
+            path, globalProperty, null, new string[] { "Build" }, null);
+
+        var result = BuildManager.DefaultBuildManager.Build(buildParameters, buildRequest);
+        var buildOutput = buildLogger.GetOutput();
+
+        if (result.OverallResult == BuildResultCode.Success)
+        {
+            return Task.FromResult<CompilationResult>(new CompilationResult.Success(buildOutput));
+        }
+        return Task.FromResult<CompilationResult>(new CompilationResult.Failure(buildOutput));
     }
+}
+
+public interface IDotNetProject
+{
+    Task<CompilationResult> TryCompileAsync();
 }

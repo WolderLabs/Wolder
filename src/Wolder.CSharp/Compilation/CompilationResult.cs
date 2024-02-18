@@ -3,10 +3,10 @@ using Microsoft.CodeAnalysis;
 
 namespace Wolder.CSharp.Compilation;
 
-public abstract record CompilationResult(ImmutableArray<Diagnostic> Diagnostics)
+public abstract record CompilationResult(BuildOutput Output)
 {
-    public record Success(ImmutableArray<Diagnostic> Diagnostics) 
-        : CompilationResult(Diagnostics);
-    public record Failure(ImmutableArray<Diagnostic> Diagnostics)
-        : CompilationResult(Diagnostics);
+    public record Success(BuildOutput Output) 
+        : CompilationResult(Output);
+    public record Failure(BuildOutput Output)
+        : CompilationResult(Output);
 }

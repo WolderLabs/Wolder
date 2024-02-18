@@ -35,16 +35,12 @@ public class GenerateRazorComponent(
                     .Select(i => $"File: {i.RelativePath}\n{i.Content}" ));
         }
         var response = await assistant.CompletePromptAsync($"""
-            You are a C# razor component generator. Output only C# and razor, your output will be directly written to a `.razor` file.
-            Write terse but helpful comments.
-            Make sure this directive is included at the top of generated components to enable interactive rendering
-            ``` razor
-            @rendermode InteractiveServer
-            ```
+            You are a C# Blazor component generator. Output only razor, your output will be directly written to a `.razor` file. Write terse but helpful comments to explain the code and its structure. 
+            
+            Based on the following context
             {context}
-
-            Create a razor component named `{className}` with the following behavior:
-            {behaviorPrompt}
+            
+            Create a razor component named `{className}` that adheres to the behavior described in `{behaviorPrompt}`. It is crucial that the `@rendermode InteractiveServer` directive is included for the component to function correctly in an interactive server scenario. Add any usings for items used from the context. ref Ensure all comments use razor style comments @* comment *@
             """);
         var sanitized = Sanitize(response);
 
@@ -76,8 +72,7 @@ public class GenerateRazorComponent(
         var maxAttempts = 2;
         for (int i = 0; i < maxAttempts; i++)
         {
-            var diagnosticMessages = lastResult.Diagnostics.Select(d => d.GetMessage());
-            var messagesText = string.Join(Environment.NewLine, diagnosticMessages);
+            var messagesText = lastResult.Output.Errors;
             var response = await assistant.CompletePromptAsync($"""
                 You are a helpful assistant that writes C# razor component code to complete any task specified by me. Your output will be directly written to a file where it will be compiled as part of a larger C# project.
                 {context}
