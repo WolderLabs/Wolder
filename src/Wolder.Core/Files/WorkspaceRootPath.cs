@@ -1,6 +1,6 @@
 ﻿namespace Wolder.Core.Files;
 
-public class PipelineRootPath
+public class WorkspaceRootPath
 {
     private string? _path;
 

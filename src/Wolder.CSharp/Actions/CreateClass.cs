@@ -1,15 +1,16 @@
 ﻿using Wolder.Core.Files;
-using Wolder.Core.Pipeline;
+using Wolder.Core.Workspace;
 
 namespace Wolder.CSharp.Actions;
 
-public record CreateClass(DotNetProjectReference Project, string ClassName, string ClassContent)
-    : IActionDefinition<CreateClassAction>;
+public record CreateClassParameters(DotNetProjectReference Project, string ClassName, string ClassContent);
 
-public class CreateClassAction(ISourceFiles sourceFiles) 
-    : PipelineActionBase<CreateClass>
+public class CreateClass(
+    ISourceFiles sourceFiles,
+    CreateClassParameters parameters) 
+    : IVoidAction<CreateClassParameters>
 {
-    protected override async Task ExecuteAsync(IPipelineActionContext context, CreateClass parameters)
+    public async Task InvokeAsync()
     {
         await sourceFiles.WriteFileAsync(
             Path.Combine(parameters.Project.RelativeRoot, $"{parameters.ClassName}.cs"), 

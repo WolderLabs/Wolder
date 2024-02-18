@@ -2,7 +2,7 @@
 
 public class CacheFiles : WorkspaceFileSystem, ICacheFiles
 {
-    public CacheFiles(PipelineRootPath rootPath) 
+    public CacheFiles(WorkspaceRootPath rootPath) 
         : base(rootPath, "cache")
     {
     }

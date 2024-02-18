@@ -13,6 +13,11 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Wolder.Core.Tools\Wolder.Core.Tools.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Wolder.CommandLine\Wolder.CommandLine.csproj" />

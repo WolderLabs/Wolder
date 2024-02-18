@@ -1,6 +1,6 @@
 
 # Wolder
 
-A Polyglot Structured Code Generator Built on .NET
+A Structured Polyglot Code Generator Built on .NET
 
 

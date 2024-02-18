@@ -1,7 +1,6 @@
 ﻿using Wolder.CommandLine;
 using Wolder.CommandLine.Actions;
 using Wolder.Core;
-using Wolder.Core.Pipeline;
 using Wolder.CSharp;
 using Wolder.CSharp.Actions;
 using Wolder.CSharp.OpenAI;
@@ -9,79 +8,115 @@ using Wolder.CSharp.OpenAI.Actions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Wolder.Core.Workspace;
 
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole();
 
 var services = builder.Services;
 
-services.AddDeGA(builder.Configuration.GetSection("Wolder"))
-    .AddCommandLineActions()
-    .AddCSharpGeneration();
+services.AddWolder(builder.Configuration.GetSection("Wolder"));
 
 var host = builder.Build();
 
-var pipelineBuilder = host.Services.GetRequiredService<GeneratorPipelineBuilder>();
-var pipeline = pipelineBuilder.Build("TodoList.Blazor.Output");
+await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
+    .AddCommandLineActions()
+    .AddCSharpGeneration()
+    .InvokeAsync<GenerateTodoListApp>("TodoList.Blazor.Output");
 
-var webProject = new DotNetProjectReference("TodoList.Web/TodoList.Web.csproj");
+class GenerateTodoListApp(
+    CommandLineActions commandLine,
+    CSharpActions csharp,
+    CSharpGenerator csharpGenerator) : IVoidAction
+{
+    public async Task InvokeAsync()
+    {
+        await csharp.CreateSdkGlobalAsync(
+            new CreateSdkGlobalParameters(DotNetSdkVersion.Net8));
+        
+        var webProject = new DotNetProjectReference("TodoList.Web/TodoList.Web.csproj", "TodoList.Web");
+        
+        await commandLine.ExecuteCommandLineAsync(
+            new ExecuteCommandLineParameters(
+                $"dotnet new blazor -o {webProject.Name} --interactivity server --empty"));
 
-pipeline
-    .AddStep(ctx => new CreateSdkGlobal(DotNetSdkVersion.Net8))
-    .AddStep(ctx =>
-        new RunCommand(
-            $"dotnet new blazor -o {webProject.Name} --interactivity server --empty"))
-    .AddStep(ctx =>
-        new TransformClass(
-            webProject,
-            "TodoList.Web/Program.cs",
-            """
-            Use reflection to register any classes in the current assembly
-            that have a name that ends in `Service`, register them as scoped services.
-            Register the default interface if possible. For example if TestService implements
-            ITestService it should be registered as `services.AddScoped<ITestService, TestService>()`
-            Make sure the services are registered before the app container is built.
-            """))
-    .AddStep(ctx =>
-        new GenerateClass(
-            webProject,
-            "TodoList.Web.Models.TodoItem",
-            """
-            A model that represents a todo item. It should have the following properties:
-            Id (guid)
-            Title
-            Completed
-            Notes
-            """))
-    .AddStep(ctx =>
-        new GenerateClass(
-            webProject,
-            "TodoList.Web.Service.TodoService",
-            """
-            A service that provides CRUD actions for todo list items. Assume todo list items are of type 
-            TodoList.Web.Models.TodoItem. The items should be stored in a dictionary. Getting all items should return a list.
-            """));
-    // .AddStep(ctx => 
-    //     new GenerateClasses(
-    //         webProject,
-    //         "TodoList.Web",
-    //         """
-    //         A Blazor page component with route '/todo' that shows a listing of todo items and the supporting 
-    //         service that holds the todo items in memory.
-    //         """))
-    // .AddStep(ctx => 
-    //     new GenerateClasses(
-    //         webProject,
-    //         "TodoList.Web",
-    //         """
-    //         A single Blazor page component at Components/Pages/Home.razor.
-    //         Don't generate any other pages.
-    //         The page contents should be:
-    //         A basic heading.
-    //         A link to "ToDo Items" at URL /todo. 
-    //         """))
-    // .AddStep(ctx =>
-    //     new RunCommand("dotnet run", webProject.RelativeRoot, Interactive: true));
+        await csharpGenerator.TransformClassAsync(
+            new TransformClassParameters(
+                webProject,
+                "TodoList.Web/Program.cs",
+                """
+                Use reflection to register any types that are classes in the current assembly
+                that have a name that ends in `Service`, register them as scoped services.
+                Register the default interface if possible. For example if TestService implements
+                ITestService it should be registered as `services.AddScoped<ITestService, TestService>()`
+                Make sure the services are registered before the app container is built.
+                """));
 
-await pipeline.RunAsync();
+        var todoItem = await csharpGenerator.GenerateClassAsync(
+            new GenerateClassParameters(
+                webProject,
+                "Models",
+                "TodoItem",
+                """
+                A model that represents a todo item. It should have the following properties:
+                Id (guid)
+                Title
+                Completed
+                Notes
+                """));
+        
+        var todoServiceInterface = await csharpGenerator.GenerateClassAsync(
+            new GenerateClassParameters(
+                webProject,
+                "Services",
+                "ITodoService",
+                """
+                An interface for a service that provides CRUD actions for todo list items. Getting all items should return a list.
+                """)
+            {
+                ContextMemoryItems = [todoItem]
+            });
+        
+        var todoService = await csharpGenerator.GenerateClassAsync(
+            new GenerateClassParameters(
+                webProject,
+                "Services",
+                "TodoService",
+                """
+                A service that implements ITodoService and provides CRUD actions for todo list items. 
+                The items should be stored in a dictionary. 
+                """)
+            {
+                ContextMemoryItems = [todoItem, todoServiceInterface]
+            });
+
+        await csharpGenerator.GenerateBlazorComponentAsync(
+            new GenerateRazorComponentParameters(
+                webProject,
+                "Components/Pages/TodoPage",
+                """
+                A interactive render mode Blazor page with route '/todo' that Injects TodoList.Web.Service.ITodoService and 
+                shows a listing of TodoList.Web.Models.TodoItem items.
+                Add interactive controls to the bottom of the page to add new todo items by calling the todo service.
+                """)
+            {
+                ContextMemoryItems = [todoItem, todoServiceInterface]
+            });
+        
+        await csharpGenerator.GenerateBlazorComponentAsync(
+            new GenerateRazorComponentParameters(
+                webProject,
+                "Components/Pages/Home",
+                """
+                A Blazor page component with the route "/"
+                The page contents should be:
+                A basic heading with a creative todo related title.
+                A link to "Todo Items" at URL /todo.
+                """));
+
+        await commandLine.ExecuteCommandLineAsync(
+            new ExecuteCommandLineParameters(
+                "dotnet run", webProject.RelativeRoot, Interactive: true));
+    }
+}
 

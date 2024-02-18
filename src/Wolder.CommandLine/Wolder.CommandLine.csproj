@@ -9,5 +9,10 @@
     <ItemGroup>
       <ProjectReference Include="..\Wolder.Core\Wolder.Core.csproj" />
     </ItemGroup>
+    
+    <ItemGroup>
+        <ProjectReference Include="..\Wolder.Core.Tools\Wolder.Core.Tools.csproj"
+                          OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+    </ItemGroup>
 
 </Project>

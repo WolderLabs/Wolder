@@ -1,5 +1,5 @@
 ﻿using Wolder.Core.Files;
-using Wolder.Core.Pipeline;
+using Wolder.Core.Workspace;
 
 namespace Wolder.CSharp.Actions;
 
@@ -8,14 +8,14 @@ public enum DotNetSdkVersion
     Net8
 }
 
-public record CreateSdkGlobal(DotNetSdkVersion Version)
-    : IActionDefinition<CreateSdkGlobalAction>;
+public record CreateSdkGlobalParameters(DotNetSdkVersion Version);
 
-public class CreateSdkGlobalAction(ISourceFiles sourceFiles) 
-    : PipelineActionBase<CreateSdkGlobal>
+public class CreateSdkGlobal(ISourceFiles sourceFiles, CreateSdkGlobalParameters parameters) 
+    : IVoidAction<CreateSdkGlobalParameters>
 {
-    protected override async Task ExecuteAsync(IPipelineActionContext context, CreateSdkGlobal parameters)
+    public async Task InvokeAsync()
     {
+        _ = parameters;
         await sourceFiles.WriteFileAsync(
             "global.json",
             """

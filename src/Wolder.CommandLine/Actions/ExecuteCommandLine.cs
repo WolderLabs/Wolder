@@ -1,18 +1,24 @@
 ﻿using System.Diagnostics;
-using Wolder.Core.Files;
-using Wolder.Core.Pipeline;
 using Microsoft.Extensions.Logging;
+using Wolder.Core.Files;
+using Wolder.Core.Workspace;
 
 namespace Wolder.CommandLine.Actions;
 
-public record RunCommand(string command, string relativeWorkingDirectory = "", bool Interactive = false)
-    : IActionDefinition<RunCommandAction>;
+public record ExecuteCommandLineParameters(
+    string command,
+    string relativeWorkingDirectory = "",
+    bool Interactive = false);
 
-public class RunCommandAction(
-    ILogger<RunCommandAction> logger,
-    ISourceFiles sourceFiles) : PipelineActionBase<RunCommand>
+public record ExecuteCommandLineOutput(string? Output, string? Errors, int ExitCode);
+
+public class ExecuteCommandLine(
+    ExecuteCommandLineParameters parameters,
+    ILogger<ExecuteCommandLine> logger,
+    ISourceFiles sourceFiles)
+    : IAction<ExecuteCommandLineParameters, ExecuteCommandLineOutput>
 {
-    protected override async Task ExecuteAsync(IPipelineActionContext context, RunCommand parameters)
+    public async Task<ExecuteCommandLineOutput> InvokeAsync()
     {
         var (command, relativeDirectory, interactive) = parameters;
         var workingDir = Path.Combine(sourceFiles.RootDirectoryPath, relativeDirectory);
@@ -29,22 +35,26 @@ public class RunCommandAction(
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.RedirectStandardError = true;
         }
+
         process.StartInfo.CreateNoWindow = true;
 
         logger.LogInformation("Running: {command}", command);
 
         process.Start();
 
+        string? output = null;
+        string? error = null;
+
         // Read the output (or errors)
         if (!interactive)
         {
-            string output = await process.StandardOutput.ReadToEndAsync();
+            output = await process.StandardOutput.ReadToEndAsync();
             if (!string.IsNullOrWhiteSpace(output))
             {
                 logger.LogInformation("ShellOut: {output}", output);
             }
 
-            string error = await process.StandardError.ReadToEndAsync();
+            error = await process.StandardError.ReadToEndAsync();
             if (!string.IsNullOrWhiteSpace(error))
             {
                 logger.LogError("ShellError: {error}", error);
@@ -52,6 +62,7 @@ public class RunCommandAction(
         }
 
         await process.WaitForExitAsync();
-    }
 
+        return new ExecuteCommandLineOutput(output, error, process.ExitCode);
+    }
 }
