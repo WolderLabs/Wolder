@@ -1,12 +1,9 @@
-﻿using System.Text.RegularExpressions;
+﻿using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 using Wolder.Core.Assistants;
 using Wolder.Core.Files;
 using Wolder.CSharp.Compilation;
-using Microsoft.Extensions.Logging;
-using Wolder.CommandLine;
-using Wolder.CommandLine.Actions;
 using Wolder.Core.Workspace;
-using Wolder.CSharp.Actions;
 
 namespace Wolder.CSharp.OpenAI.Actions;
 
@@ -25,6 +22,10 @@ public class GenerateClass(
     GenerateClassParameters parameters) 
     : IAction<GenerateClassParameters, FileMemoryItem>
 {
+    public const string CSharpPrompt =
+        "You are a helpful assistant that writes C# code to complete any task specified by me. " +
+        "Your output will be directly written to a file where it will be compiled as part of a " +
+        "larger C# project. Nullable references are enabled.";
     public async Task<FileMemoryItem> InvokeAsync()
     {
         var (project, classNamespace, className, behaviorPrompt) = parameters;
@@ -36,12 +37,13 @@ public class GenerateClass(
         
         var tree = sourceFiles.GetDirectoryTree();
         var context = $$"""
+            
             Directory Tree:
             {{tree}}
             """;
         if (parameters.ContextMemoryItems.Any())
         {
-            context = "\nThe items may also provide helpful context:\n" + 
+            context = "\nThese items may also provide helpful context:\n" + 
                 string.Join("\n", parameters.ContextMemoryItems
                     .Select(i => $"File: {i.RelativePath}\n{i.Content}" ));
         }
@@ -50,12 +52,13 @@ public class GenerateClass(
             ? ""
             : $".{classNamespace}";
         var response = await assistant.CompletePromptAsync($"""
-            You are a C# code generator. Output only C#, your output will be directly written to a `.cs` file.
-            Write terse but helpful explanatory comments.
+            {CSharpPrompt}
             {context}
 
             Create a class named `{className}` with namespace `{project.BaseNamespace}{namespaceEnd}` with the following behavior:
             {behaviorPrompt}
+            
+            Begin Output:
             """);
         
         var classMemoryItem = await SanitizeAndWriteClassAsync(response);
@@ -88,14 +91,18 @@ public class GenerateClass(
             var diagnosticMessages = lastResult.Output.Errors;
             var messagesText = string.Join(Environment.NewLine, diagnosticMessages);
             var response = await assistant.CompletePromptAsync($"""
-                You are a helpful assistant that writes C# code to complete any task specified by me. Your output will be directly written to a file where it will be compiled as part of a larger C# project.
+                {CSharpPrompt}
                 {context}
 
-                Given the following compilation diagnostic messages transform the following file to resolve the messages:
+                Given the following errors:
                 {messagesText}
                 
-                File Content:
+                Transform the following file to resolve the errors:
+                ```
                 {lastFile.Content}
+                ```
+                
+                Begin Output:
                 """);
             
             classMemoryItem = await SanitizeAndWriteClassAsync(response);

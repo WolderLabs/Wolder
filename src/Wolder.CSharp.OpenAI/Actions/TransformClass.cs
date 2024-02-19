@@ -22,8 +22,7 @@ public class TransformClass(
         var (projectRef, filePath, behaviorPrompt) = parameters;
         var content = await sourceFiles.ReadFileAsync(filePath);
         var response = await assistant.CompletePromptAsync($"""
-            You are a C# code generator. Output only C#, your output will be directly written to a `.cs` file.
-            Write terse but helpful comments. Any explanation must be written as C# comments.
+            {GenerateClass.CSharpPrompt}
 
             Using the code from this file:
             File: {filePath}
@@ -33,6 +32,8 @@ public class TransformClass(
 
             Update the code with the following behavior:
             {behaviorPrompt}
+            
+            Begin Output:
             """);
 
         logger.LogInformation(response);

@@ -5,7 +5,7 @@ using Wolder.Core.Files;
 using Wolder.Core.Workspace;
 using Wolder.CSharp.Compilation;
 
-namespace Wolder.CSharp.Actions;
+namespace Wolder.CSharp.ProjectActions;
 
 public record CompileProjectParameters(DotNetProjectReference Project);
 

@@ -1,6 +1,5 @@
 ﻿using Wolder.Core;
 using Wolder.CSharp;
-using Wolder.CSharp.Actions;
 using Wolder.CSharp.OpenAI;
 using Wolder.CSharp.OpenAI.Actions;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Wolder.CommandLine;
 using Wolder.CommandLine.Actions;
 using Wolder.Core.Workspace;
+using Wolder.CSharp.CodeActions;
 
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole();

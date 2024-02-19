@@ -1,5 +1,6 @@
 ﻿using Wolder.Core.Workspace;
-using Wolder.CSharp.Actions;
+using Wolder.CSharp.CodeActions;
+using Wolder.CSharp.ProjectActions;
 
 namespace Wolder.CSharp;
 

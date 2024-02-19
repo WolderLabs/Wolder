@@ -1,5 +1,4 @@
 ﻿using Wolder.Core;
-using Wolder.CSharp.Actions;
 using Wolder.CSharp.Compilation;
 using Microsoft.Extensions.DependencyInjection;
 using Wolder.Core.Workspace;
@@ -12,6 +11,7 @@ public static class ServiceCollectionExtensions
     {
         builder.Services.AddScoped<DotNetProjectFactory>();
         builder.AddActions<CSharpActions>();
+        builder.AddActions<CSharpProjectActions>();
         
         return builder;
     }

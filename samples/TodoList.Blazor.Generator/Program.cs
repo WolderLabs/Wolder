@@ -2,13 +2,14 @@
 using Wolder.CommandLine.Actions;
 using Wolder.Core;
 using Wolder.CSharp;
-using Wolder.CSharp.Actions;
 using Wolder.CSharp.OpenAI;
 using Wolder.CSharp.OpenAI.Actions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Wolder.Core.Workspace;
+using Wolder.CSharp.CodeActions;
+using Wolder.CSharp.ProjectActions;
 
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole();
@@ -27,6 +28,7 @@ await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
 class GenerateTodoListApp(
     CommandLineActions commandLine,
     CSharpActions csharp,
+    CSharpProjectActions cSharpProject,
     CSharpGenerator csharpGenerator) : IVoidAction
 {
     public async Task InvokeAsync()
@@ -71,7 +73,11 @@ class GenerateTodoListApp(
                 "Services",
                 "ITodoService",
                 """
-                An interface for a service that provides CRUD actions for todo list items. Getting all items should return a list.
+                An interface for a service that provides these actions for todo list items. 
+                - Add item
+                - Remove item
+                - Update item 
+                - Get all items: should return a list
                 """)
             {
                 ContextMemoryItems = [todoItem]
