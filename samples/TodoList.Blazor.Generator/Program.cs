@@ -23,7 +23,7 @@ var host = builder.Build();
 await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
     .AddCommandLineActions()
     .AddCSharpGeneration()
-    .InvokeAsync<GenerateTodoListApp>("TodoList.Blazor.Output");
+    .BuildWorkspaceAndRunAsync<GenerateTodoListApp>("TodoList.Blazor.Output");
 
 class GenerateTodoListApp(
     CommandLineActions commandLine,

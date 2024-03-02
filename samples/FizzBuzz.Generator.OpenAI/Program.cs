@@ -9,6 +9,7 @@ using Wolder.CommandLine;
 using Wolder.CommandLine.Actions;
 using Wolder.Core.Workspace;
 using Wolder.CSharp.CodeActions;
+using Wolder.Interactive.Web;
 
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole();
@@ -22,7 +23,8 @@ var host = builder.Build();
 await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
     .AddCommandLineActions()
     .AddCSharpGeneration()
-    .InvokeAsync<GenerateFizzBuzz>("FizzBuzz.OpenAI.Output");
+    .AddInteractiveWebServer()
+    .BuildWorkspaceAndRunAsync<GenerateFizzBuzz>("FizzBuzz.OpenAI.Output");
 
 class GenerateFizzBuzz(
     CommandLineActions commandLine,

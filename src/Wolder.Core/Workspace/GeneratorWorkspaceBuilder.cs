@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Wolder.Core.Assistants;
 using Wolder.Core.Files;
+using Wolder.Core.Workspace.Events;
 
 namespace Wolder.Core.Workspace;
 
@@ -12,6 +13,7 @@ public class GeneratorWorkspaceBuilder
     private readonly ILoggerFactory _loggerFactory;
     private readonly IConfigurationSection _rootConfiguration;
     private readonly ServiceCollection _services;
+    public WorkspaceStateEventDispatcher EventDispatcher { get; } = new();
 
     public GeneratorWorkspaceBuilder(ILoggerFactory loggerFactory, IConfigurationSection rootConfiguration)
     {
@@ -19,6 +21,7 @@ public class GeneratorWorkspaceBuilder
         _rootConfiguration = rootConfiguration;
         _services = new ServiceCollection();
         _services.AddSingleton<WorkspaceRootPath>();
+        _services.AddSingleton(EventDispatcher);
         _services.AddSingleton(loggerFactory);
         _services.Add(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(Logger<>)));
         _services.AddScoped<IInvoke, InvocationMiddleware>();
@@ -38,14 +41,16 @@ public class GeneratorWorkspaceBuilder
         return this;
     }
 
-    public async Task InvokeAsync<TRootAction>(string rootPath)
+    public async Task BuildWorkspaceAndRunAsync<TRootAction>(string rootPath)
         where TRootAction : IVoidAction
     {
         var serviceProvider = _services.BuildServiceProvider();
         var rootPathService = serviceProvider.GetRequiredService<WorkspaceRootPath>();
         rootPathService.SetRootPath(rootPath);
 
+        await EventDispatcher.Events.WorkspaceInitializedAsync();
         var invokeRootAction = serviceProvider.GetRequiredService<IInvoke>();
         await invokeRootAction.InvokeVoidAsync<TRootAction>();
+        await EventDispatcher.Events.WorkspaceRunEndAsync();
     }
 }

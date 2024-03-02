@@ -19,6 +19,7 @@
     <ProjectReference Include="..\..\src\Wolder.Core\Wolder.Core.csproj" />
     <ProjectReference Include="..\..\src\Wolder.CSharp.OpenAI\Wolder.CSharp.OpenAI.csproj" />
     <ProjectReference Include="..\..\src\Wolder.CSharp\Wolder.CSharp.csproj" />
+    <ProjectReference Include="..\..\src\Wolder.Interactive.Web\Wolder.Interactive.Web.csproj" />
     <ProjectReference Include="..\..\src\Wolder.OpenAI\Wolder.OpenAI.csproj" />
   </ItemGroup>
 

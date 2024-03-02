@@ -1,0 +1,18 @@
+﻿@page "/"
+@using Wolder.Interactive.Web.Services
+
+@inject WorkspaceStateManager WorkspaceStateManager;
+
+@rendermode InteractiveServer
+
+<h3>Wolder Interactive</h3>
+
+<div>
+    <button @onclick="WorkspaceStateManager.Pause">Pause</button>
+    <button @onclick="WorkspaceStateManager.Resume">Resume</button>
+    <button @onclick="WorkspaceStateManager.Step">Step</button>
+</div>
+
+@code {
+    
+}
