@@ -19,7 +19,7 @@ var host = builder.Build();
 await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
     .AddCommandLineActions()
     .AddCSharpActions()
-    .InvokeAsync<CreateFizzBuzz>("FizzBuzz.Basic.Output");
+    .BuildWorkspaceAndRunAsync<CreateFizzBuzz>("FizzBuzz.Basic.Output");
 
 class CreateFizzBuzz(
     CommandLineActions commandLine,

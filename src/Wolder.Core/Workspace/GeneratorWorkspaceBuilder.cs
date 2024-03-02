@@ -12,6 +12,7 @@ public class GeneratorWorkspaceBuilder
     private readonly ILoggerFactory _loggerFactory;
     private readonly IConfigurationSection _rootConfiguration;
     private readonly ServiceCollection _services;
+    private readonly List<IWorkspaceStateDelegate> _stateDelegates = new List<IWorkspaceStateDelegate>();
 
     public GeneratorWorkspaceBuilder(ILoggerFactory loggerFactory, IConfigurationSection rootConfiguration)
     {
@@ -30,6 +31,11 @@ public class GeneratorWorkspaceBuilder
     public IServiceCollection Services => _services;
     
     public IConfiguration Config => _rootConfiguration;
+
+    public void RegisterWorkspaceStateDelegate(IWorkspaceStateDelegate stateDelegate)
+    {
+        _stateDelegates.Add(stateDelegate);
+    }
     
     public GeneratorWorkspaceBuilder AddActions<TActionCollection>()
         where TActionCollection : class, ITypedActionCollection
@@ -38,7 +44,7 @@ public class GeneratorWorkspaceBuilder
         return this;
     }
 
-    public async Task InvokeAsync<TRootAction>(string rootPath)
+    public async Task BuildWorkspaceAndRunAsync<TRootAction>(string rootPath)
         where TRootAction : IVoidAction
     {
         var serviceProvider = _services.BuildServiceProvider();

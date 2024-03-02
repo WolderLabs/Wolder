@@ -6,7 +6,7 @@ public static class GeneratorWorkspaceBuilderExtensions
 {
     public static GeneratorWorkspaceBuilder AddInteractiveWebServer(this GeneratorWorkspaceBuilder builder)
     {
-        
+        builder.RegisterWorkspaceStateDelegate();
         return builder;
     }
 }

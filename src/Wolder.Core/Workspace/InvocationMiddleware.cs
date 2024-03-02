@@ -4,12 +4,16 @@ namespace Wolder.Core.Workspace;
 
 internal class InvocationMiddleware(IServiceProvider provider) : IInvoke
 {
+    private readonly IWorkspaceStateDelegate _stateDelegate = provider.GetRequiredService<IWorkspaceStateDelegate>();
+    
     public async Task InvokeVoidAsync<TInvokable>()
         where TInvokable : IVoidInvokable
     {
-        var scope = provider.CreateScope();
+        using var scope = provider.CreateScope();
         var invokable = ActivatorUtilities.CreateInstance<TInvokable>(scope.ServiceProvider);
+        await _stateDelegate.InvocationBeginAsync(invokable, null);
         await invokable.InvokeAsync();
+        await _stateDelegate.InvocationEndAsync();
     }
     
     public async Task InvokeVoidAsync<TInvokable, TParameter>(TParameter parameter)
@@ -18,7 +22,9 @@ internal class InvocationMiddleware(IServiceProvider provider) : IInvoke
     {
         var scope = provider.CreateScope();
         var invokable = ActivatorUtilities.CreateInstance<TInvokable>(scope.ServiceProvider, parameter);
+        await _stateDelegate.InvocationBeginAsync(invokable, parameter);
         await invokable.InvokeAsync();
+        await _stateDelegate.InvocationEndAsync();
     }
     
     public async Task<TOutput> InvokeAsync<TInvokable, TParameter, TOutput>(TParameter parameter)
@@ -27,7 +33,10 @@ internal class InvocationMiddleware(IServiceProvider provider) : IInvoke
     {
         var scope = provider.CreateScope();
         var invokable = ActivatorUtilities.CreateInstance<TInvokable>(scope.ServiceProvider, parameter);
-        return await invokable.InvokeAsync();
+        await _stateDelegate.InvocationBeginAsync(invokable, parameter);
+        var result = await invokable.InvokeAsync();
+        await _stateDelegate.InvocationEndAsync();
+        return result;
     }
     
     public async Task<TOutput> InvokeAsync<TInvokable, TOutput>()
@@ -35,6 +44,9 @@ internal class InvocationMiddleware(IServiceProvider provider) : IInvoke
     {
         var scope = provider.CreateScope();
         var invokable = ActivatorUtilities.CreateInstance<TInvokable>(scope.ServiceProvider);
-        return await invokable.InvokeAsync();
+        await _stateDelegate.InvocationBeginAsync(invokable, null);
+        var result = await invokable.InvokeAsync();
+        await _stateDelegate.InvocationEndAsync();
+        return result;
     }
 }

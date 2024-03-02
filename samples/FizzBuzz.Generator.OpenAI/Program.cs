@@ -24,7 +24,7 @@ await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
     .AddCommandLineActions()
     .AddCSharpGeneration()
     .AddInteractiveWebServer()
-    .InvokeAsync<GenerateFizzBuzz>("FizzBuzz.OpenAI.Output");
+    .BuildWorkspaceAndRunAsync<GenerateFizzBuzz>("FizzBuzz.OpenAI.Output");
 
 class GenerateFizzBuzz(
     CommandLineActions commandLine,
