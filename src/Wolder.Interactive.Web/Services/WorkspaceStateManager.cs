@@ -12,6 +12,7 @@ public class WorkspaceStateManager
         Events = new()
         {
             WorkspaceInitializedAsync = WorkspaceInitializedAsync,
+            WorkspaceRunEndAsync = WorkspaceRunEndAsync,
             InvocationBeginAsync = InvocationBeginAsync,
             InvocationEndAsync = InvocationEndAsync,
         };
@@ -48,6 +49,12 @@ public class WorkspaceStateManager
     private async Task InvocationBeginAsync(InvocationBeginContext c)
     {
         InvocationBegin?.Invoke(new InvocationDetail(c.Invokable.GetType().Name));
+        await _proceedWhenUnpaused.Task;
+    }
+    
+    private async Task WorkspaceRunEndAsync()
+    {
+        Pause();
         await _proceedWhenUnpaused.Task;
     }
 

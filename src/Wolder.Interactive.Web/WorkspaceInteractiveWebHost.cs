@@ -11,13 +11,13 @@ public class WorkspaceInteractiveWebHost
 
     public WorkspaceInteractiveWebHost()
     {
-        WorkspaceStateNotifications.WorkspaceInitialized += () =>
+        WorkspaceStateManager.WorkspaceInitialized += () =>
         {
             _serverInitializeTask = StartAsync();
         };
     }
 
-    public WorkspaceStateManager WorkspaceStateNotifications { get; } = new();
+    public WorkspaceStateManager WorkspaceStateManager { get; } = new();
 
     private async Task StartAsync()
     {
@@ -31,6 +31,8 @@ public class WorkspaceInteractiveWebHost
         {
             ApplicationName = "Wolder.Interactive.Web"
         });
+
+        webBuilder.Services.AddSingleton(WorkspaceStateManager);
 
         // Add services to the container.
         webBuilder.Services.AddRazorComponents()

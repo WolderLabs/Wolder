@@ -9,7 +9,7 @@ public static class GeneratorWorkspaceBuilderExtensions
     {
         var server = new WorkspaceInteractiveWebHost();
         builder.Services.AddSingleton(server);
-        builder.EventDispatcher.Delegates.Add(server.WorkspaceStateNotifications.Events);
+        builder.EventDispatcher.Delegates.Add(server.WorkspaceStateManager.Events);
         return builder;
     }
 }

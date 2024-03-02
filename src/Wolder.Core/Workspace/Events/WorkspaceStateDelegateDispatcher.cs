@@ -12,6 +12,9 @@ public class WorkspaceStateEventDispatcher
             WorkspaceInitializedAsync = async () =>
                 await Task.WhenAll(Delegates.Select(d =>
                     d.WorkspaceInitializedAsync())),
+            WorkspaceRunEndAsync = async () =>
+                await Task.WhenAll(Delegates.Select(d =>
+                    d.WorkspaceRunEndAsync())),
             InvocationBeginAsync = async (c) => 
                 await Task.WhenAll(Delegates.Select(d =>
                     d.InvocationBeginAsync(c))),

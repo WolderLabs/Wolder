@@ -51,5 +51,6 @@ public class GeneratorWorkspaceBuilder
         await EventDispatcher.Events.WorkspaceInitializedAsync();
         var invokeRootAction = serviceProvider.GetRequiredService<IInvoke>();
         await invokeRootAction.InvokeVoidAsync<TRootAction>();
+        await EventDispatcher.Events.WorkspaceRunEndAsync();
     }
 }
