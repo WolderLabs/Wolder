@@ -1,11 +1,28 @@
 ﻿namespace Wolder.Interactive.Web;
 
-public class WolderInteractiveHost()
+public class WorkspaceInteractiveWebHost
 {
     private WebApplication? _app;
+    private Task? _serverInitializeTask;
 
-    public async Task StartAsync()
+    public WorkspaceInteractiveWebHost()
     {
+        WorkspaceStateNotifications.WorkspaceInitialized += () =>
+        {
+            _serverInitializeTask = StartAsync();
+        };
+    }
+
+    public WorkspaceStateNotifications WorkspaceStateNotifications { get; } = new();
+
+    private async Task StartAsync()
+    {
+        if (_serverInitializeTask is not null)
+        {
+            await _serverInitializeTask;
+            return;
+        }
+        
         var webBuilder = WebApplication.CreateBuilder();
 
         // Add services to the container.
