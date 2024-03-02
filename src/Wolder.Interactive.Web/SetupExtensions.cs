@@ -1,4 +1,5 @@
-﻿using Wolder.Core.Workspace;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Wolder.Core.Workspace;
 
 namespace Wolder.Interactive.Web;
 

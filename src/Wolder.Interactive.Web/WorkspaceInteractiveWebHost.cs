@@ -1,4 +1,8 @@
-﻿namespace Wolder.Interactive.Web;
+﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Wolder.Interactive.Web.Services;
+
+namespace Wolder.Interactive.Web;
 
 public class WorkspaceInteractiveWebHost
 {
@@ -13,7 +17,7 @@ public class WorkspaceInteractiveWebHost
         };
     }
 
-    public WorkspaceStateNotifications WorkspaceStateNotifications { get; } = new();
+    public WorkspaceStateManager WorkspaceStateNotifications { get; } = new();
 
     private async Task StartAsync()
     {
@@ -23,7 +27,10 @@ public class WorkspaceInteractiveWebHost
             return;
         }
         
-        var webBuilder = WebApplication.CreateBuilder();
+        var webBuilder = WebApplication.CreateBuilder(new WebApplicationOptions()
+        {
+            ApplicationName = "Wolder.Interactive.Web"
+        });
 
         // Add services to the container.
         webBuilder.Services.AddRazorComponents()
