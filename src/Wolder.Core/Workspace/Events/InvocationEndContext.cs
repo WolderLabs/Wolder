@@ -1,7 +1,9 @@
-﻿namespace Wolder.Core.Workspace.Events;
+﻿using Wolder.Core.Workspace.StateTracking;
+
+namespace Wolder.Core.Workspace.Events;
 
 public record InvocationEndContext(
-    IInvokable Invokable)
+    InvokableState InvokableState, WorkspaceState WorkspaceState)
 {
     
 }

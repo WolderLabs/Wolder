@@ -1,0 +1,9 @@
+﻿
+.node {
+    width: 200px;
+    color: white;
+    background-color: blueviolet;
+    border: black solid 1px;
+    padding: 5px;
+    display: inline-block;
+}

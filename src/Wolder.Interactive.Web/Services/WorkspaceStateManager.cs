@@ -6,6 +6,7 @@ namespace Wolder.Interactive.Web.Services;
 public class WorkspaceStateManager
 {
     private TaskCompletionSource _proceedWhenUnpaused = new(); // Start paused
+    public bool IsRunning = false;
     
     public WorkspaceStateManager()
     {
@@ -22,12 +23,20 @@ public class WorkspaceStateManager
 
     public void Pause()
     {
-        _proceedWhenUnpaused = new TaskCompletionSource();
+        if (IsRunning)
+        {
+            IsRunning = false;
+            _proceedWhenUnpaused = new TaskCompletionSource();
+        }
     }
 
     public void Resume()
     {
-        _proceedWhenUnpaused.TrySetResult();
+        if (!IsRunning)
+        {
+            IsRunning = true;
+            _proceedWhenUnpaused.TrySetResult();
+        }
     }
     
     public void Step()
@@ -37,7 +46,7 @@ public class WorkspaceStateManager
         prevTcs.TrySetResult();
     }
 
-    public event Action<InvocationDetail>? InvocationBegin;
+    public event Action<InvocationBeginContext>? InvocationBegin;
     public event Action? WorkspaceInitialized;
     
     private async Task WorkspaceInitializedAsync()
@@ -48,7 +57,7 @@ public class WorkspaceStateManager
 
     private async Task InvocationBeginAsync(InvocationBeginContext c)
     {
-        InvocationBegin?.Invoke(new InvocationDetail(c.Invokable.GetType().Name));
+        InvocationBegin?.Invoke(c);
         await _proceedWhenUnpaused.Task;
     }
     

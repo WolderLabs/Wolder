@@ -1,10 +1,10 @@
-﻿using Wolder.Core;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Wolder.Core;
 using Wolder.CSharp;
 using Wolder.CSharp.OpenAI;
 using Wolder.CSharp.OpenAI.Actions;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Wolder.CommandLine;
 using Wolder.CommandLine.Actions;
 using Wolder.Core.Workspace;

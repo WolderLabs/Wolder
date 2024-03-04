@@ -1,0 +1,16 @@
+﻿@using Wolder.Core.Workspace.StateTracking
+
+<div class="node">
+    @Node.State.Invokable.GetType().Name
+    
+    @foreach (var childNode in Node.Children)
+    {
+        <InvokableNodeComponent Node="childNode" />
+    }
+</div>
+
+
+@code {
+    [Parameter, EditorRequired] 
+    public InvokableNode Node { get; set; } = null!;
+}

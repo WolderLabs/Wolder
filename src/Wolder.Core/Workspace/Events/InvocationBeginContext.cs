@@ -1,6 +1,8 @@
-﻿namespace Wolder.Core.Workspace.Events;
+﻿using Wolder.Core.Workspace.StateTracking;
+
+namespace Wolder.Core.Workspace.Events;
 
 public record InvocationBeginContext(
-    IInvokable Invokable, object? Parameter)
+    InvokableState InvokableState, WorkspaceState WorkspaceState)
 {
 }

@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Documentation.Generator": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

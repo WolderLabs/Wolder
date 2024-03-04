@@ -1,18 +1,44 @@
 ﻿@page "/"
 @using Wolder.Interactive.Web.Services
+@using Wolder.Core.Workspace.StateTracking
 
-@inject WorkspaceStateManager WorkspaceStateManager;
+@inject WorkspaceStateManager WorkspaceStateManager
 
 @rendermode InteractiveServer
 
 <h3>Wolder Interactive</h3>
 
 <div>
-    <button @onclick="WorkspaceStateManager.Pause">Pause</button>
-    <button @onclick="WorkspaceStateManager.Resume">Resume</button>
-    <button @onclick="WorkspaceStateManager.Step">Step</button>
+    @if (WorkspaceStateManager.IsRunning)
+    {
+        <button @onclick="WorkspaceStateManager.Pause">Pause</button>
+    }
+    else
+    {
+        <button @onclick="WorkspaceStateManager.Resume">Resume</button>
+        <button @onclick="WorkspaceStateManager.Step">Step</button>
+    }
+</div>
+
+<div>
+    @if (_lastState is not null)
+    {
+        <InvokableNodeComponent Node="_lastState.RootNode" />
+    }
 </div>
 
 @code {
-    
+    private WorkspaceState? _lastState;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            WorkspaceStateManager.InvocationBegin += c =>
+            {
+                _lastState = c.WorkspaceState;
+                InvokeAsync(StateHasChanged);
+            };
+        }
+    }
 }

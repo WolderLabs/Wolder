@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Wolder.Core.Assistants;
 using Wolder.Core.Files;
 using Wolder.Core.Workspace.Events;
+using Wolder.Core.Workspace.StateTracking;
 
 namespace Wolder.Core.Workspace;
 
@@ -24,6 +25,7 @@ public class GeneratorWorkspaceBuilder
         _services.AddSingleton(EventDispatcher);
         _services.AddSingleton(loggerFactory);
         _services.Add(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(Logger<>)));
+        _services.AddSingleton<WorkspaceState>();
         _services.AddScoped<IInvoke, InvocationMiddleware>();
         _services.AddSingleton<ICacheFiles, CacheFiles>();
         _services.AddSingleton<ISourceFiles, SourceFiles>();
@@ -49,8 +51,8 @@ public class GeneratorWorkspaceBuilder
         rootPathService.SetRootPath(rootPath);
 
         await EventDispatcher.Events.WorkspaceInitializedAsync();
-        var invokeRootAction = serviceProvider.GetRequiredService<IInvoke>();
-        await invokeRootAction.InvokeVoidAsync<TRootAction>();
+        var invokeMiddleware = serviceProvider.GetRequiredService<IInvoke>();
+        await invokeMiddleware.InvokeVoidAsync<TRootAction>();
         await EventDispatcher.Events.WorkspaceRunEndAsync();
     }
 }
