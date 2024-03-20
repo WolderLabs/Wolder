@@ -1,6 +1,4 @@
-﻿using Documentation.Generator;
-using Documentation.Generator.Actions;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Wolder.Core;
@@ -8,6 +6,8 @@ using Wolder.CSharp.OpenAI;
 using Wolder.CommandLine;
 using Wolder.Core.Files;
 using Wolder.Core.Workspace;
+using Wolder.Documentation;
+using Wolder.Documentation.Actions;
 using Wolder.Interactive.Web;
 
 var builder = Host.CreateApplicationBuilder();
@@ -22,8 +22,8 @@ var host = builder.Build();
 await host.Services.GetRequiredService<GeneratorWorkspaceBuilder>()
     .AddCommandLineActions()
     .AddCSharpGeneration()
-    // .AddInteractiveWebServer()
-    .AddActions<DocumentationActions>()
+    .AddInteractiveWebServer()
+    .AddDocumentationGeneration()
     .BuildWorkspaceAndRunAsync<GenerateDocs>("output");
 
 class GenerateDocs(

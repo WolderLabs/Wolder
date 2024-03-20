@@ -1,9 +1,8 @@
 ﻿using Wolder.Core.Assistants;
 using Wolder.Core.Files;
 using Wolder.Core.Workspace;
-using Wolder.OpenAI;
 
-namespace Documentation.Generator.Actions;
+namespace Wolder.Documentation.Actions;
 
 public record GenerateMarkdownPageParameters(string Path, string Prompt, params FileMemoryItem[] MemoryItems);
 

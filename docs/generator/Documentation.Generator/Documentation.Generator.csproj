@@ -12,6 +12,7 @@
         <ProjectReference Include="..\..\..\src\Wolder.CommandLine\Wolder.CommandLine.csproj"/>
         <ProjectReference Include="..\..\..\src\Wolder.Core\Wolder.Core.csproj"/>
         <ProjectReference Include="..\..\..\src\Wolder.CSharp.OpenAI\Wolder.CSharp.OpenAI.csproj"/>
+        <ProjectReference Include="..\..\..\src\Wolder.Documentation\Wolder.Documentation.csproj" />
         <ProjectReference Include="..\..\..\src\Wolder.Interactive.Web\Wolder.Interactive.Web.csproj"/>
     </ItemGroup>
     <ItemGroup>
