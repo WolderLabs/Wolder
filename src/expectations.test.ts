@@ -126,6 +126,53 @@ describe("runExpectations", () => {
     })
   })
 
+  describe("expectCompiles", () => {
+    it("passes when file compiles cleanly", () => {
+      const results = runExpectations(
+        [{ type: "compiles" }],
+        ["fixtures/compiles-ok.ts"],
+        fixturesRoot,
+      )
+      expect(results).toHaveLength(1)
+      expect(results[0]!.pass).toBe(true)
+    })
+
+    it("fails when file has type errors", () => {
+      const results = runExpectations(
+        [{ type: "compiles" }],
+        ["fixtures/compiles-fail.ts"],
+        fixturesRoot,
+      )
+      expect(results).toHaveLength(1)
+      expect(results[0]!.pass).toBe(false)
+      expect(results[0]!.error).toContain("TypeScript compilation failed")
+    })
+
+    it("error message includes file and line info", () => {
+      const results = runExpectations(
+        [{ type: "compiles" }],
+        ["fixtures/compiles-fail.ts"],
+        fixturesRoot,
+      )
+      expect(results[0]!.error).toMatch(/compiles-fail\.ts:\d+/)
+    })
+
+    it("runs before AST queries per spec validation order", () => {
+      const results = runExpectations(
+        [
+          { type: "compiles" },
+          { type: "class", name: "Broken" },
+        ],
+        ["fixtures/compiles-fail.ts"],
+        fixturesRoot,
+      )
+      // compiles should fail fast — class check never runs
+      expect(results).toHaveLength(1)
+      expect(results[0]!.pass).toBe(false)
+      expect(results[0]!.expectation.type).toBe("compiles")
+    })
+  })
+
   describe("mixed expectations", () => {
     it("validates file existence before AST queries", () => {
       const expectations: Expectation[] = [

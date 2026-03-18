@@ -41,9 +41,56 @@ export function runExpectations(
     }
   }
 
-  // 2. Compiles (placeholder — returns pass for now, implemented in Phase 3.1)
-  for (const exp of compilesExps) {
-    results.push({ expectation: exp, pass: true })
+  // 2. Compilation check via ts-morph
+  if (compilesExps.length > 0) {
+    const compileProject = new Project({
+      compilerOptions: {
+        strict: true,
+        noEmit: true,
+        target: 99 /* ScriptTarget.Latest */,
+        module: 199 /* ModuleKind.NodeNext */,
+        moduleResolution: 99 /* ModuleResolutionKind.NodeNext */,
+        esModuleInterop: true,
+        skipLibCheck: true,
+      },
+      skipAddingFilesFromTsConfig: true,
+    })
+
+    for (const file of scopeFiles) {
+      const absPath = resolve(root, file)
+      if (existsSync(absPath)) {
+        compileProject.addSourceFileAtPath(absPath)
+      }
+    }
+
+    const diagnostics = compileProject.getPreEmitDiagnostics()
+    const errors = diagnostics.filter(
+      (d) => d.getCategory() === 1 /* DiagnosticCategory.Error */,
+    )
+
+    if (errors.length === 0) {
+      for (const exp of compilesExps) {
+        results.push({ expectation: exp, pass: true })
+      }
+    } else {
+      const messages = errors.map((d) => {
+        const file = d.getSourceFile()
+        const line = d.getLineNumber()
+        const msg = d.getMessageText()
+        const msgStr = typeof msg === "string" ? msg : msg.getMessageText()
+        const prefix = file ? `${file.getBaseName()}:${line}` : "unknown"
+        return `${prefix}: ${msgStr}`
+      })
+
+      for (const exp of compilesExps) {
+        results.push({
+          expectation: exp,
+          pass: false,
+          error: `TypeScript compilation failed:\n${messages.join("\n")}`,
+        })
+      }
+      return results // fail fast
+    }
   }
 
   // 3. AST queries via ts-morph
