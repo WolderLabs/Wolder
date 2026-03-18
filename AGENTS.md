@@ -55,6 +55,8 @@ There is no build step required for development — all source is executed direc
 
 ## Testing instructions
 
+**Every bug fix and new feature must include tests.** After making any changes, always run `npx vitest run` and confirm all tests pass before considering the work done.
+
 Tests use **vitest** and live alongside source files as `*.test.ts`.
 
 - Mock external dependencies (Anthropic SDK, fs operations on fake roots) — never call the real LLM in tests
