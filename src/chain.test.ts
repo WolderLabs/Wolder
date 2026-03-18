@@ -1,6 +1,14 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi } from "vitest"
 import { wolder } from "./wolder.js"
 import { ActBuilderImpl } from "./chain.js"
+
+// Mock generate so tests don't call the LLM
+vi.mock("./generate.js", () => ({
+  generate: vi.fn(async (node: { scopeFiles: string[] }) => ({
+    files: node.scopeFiles.map((p: string) => ({ path: p, content: "" })),
+    rawResponse: "",
+  })),
+}))
 
 describe("wolder()", () => {
   const w = wolder({ root: "/tmp/test", model: "claude-sonnet-4-6" })
@@ -33,7 +41,7 @@ describe("wolder()", () => {
     ])
   })
 
-  it("captures expectations from a full chain", async () => {
+  it("captures expectations from a full chain", () => {
     const builder = w
       .scope("src/services/todoService.ts")
       .act("Create a TodoService class")
@@ -44,7 +52,6 @@ describe("wolder()", () => {
       .withFunction("deleteItem")
       .expectCompiles()
 
-    // Access internal node definition
     const node = (builder as ActBuilderImpl).getNodeDefinition()
 
     expect(node.scopeFiles).toEqual(["src/services/todoService.ts"])
@@ -60,7 +67,7 @@ describe("wolder()", () => {
     expect(node.memberNames).toEqual(["getAllItems", "addItem", "deleteItem"])
   })
 
-  it("captures interface expectations", async () => {
+  it("captures interface expectations", () => {
     const builder = w
       .scope("src/interfaces/ITodoService.ts")
       .act("Create ITodoService interface")
@@ -124,7 +131,7 @@ describe("wolder()", () => {
     })
   })
 
-  it("scopes withFunction to the preceding expectClass", async () => {
+  it("scopes withFunction to the preceding expectClass", () => {
     const builder = w
       .scope("src/services/combo.ts")
       .act("Create two classes")

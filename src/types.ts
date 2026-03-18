@@ -21,6 +21,7 @@ export interface MemberRef<N extends string = string> {
 }
 
 export interface Artifact<TMembers extends Record<string, MemberRef> = Record<string, MemberRef>> {
+  readonly kind: "artifact"
   readonly id: string
   readonly generatedFiles: string[]
   readonly members: TMembers

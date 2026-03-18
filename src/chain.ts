@@ -9,6 +9,7 @@ import type {
   Expectation,
   NodeDefinition,
 } from "./types.js"
+import { generate } from "./generate.js"
 
 export class ScopeBuilderImpl implements ScopeBuilder {
   private scopeFiles: string[] = []
@@ -115,7 +116,11 @@ export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, Inte
     const node = this.getNodeDefinition()
     const id = node.scopeFiles.join("+")
 
-    // Stub: return artifact with metadata but no generation
+    const result = await generate(node, {
+      root: this.root,
+      model: this.model,
+    })
+
     const members: Record<string, MemberRef> = {}
     for (const name of node.memberNames) {
       members[name] = {
@@ -127,8 +132,9 @@ export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, Inte
     }
 
     return {
+      kind: "artifact",
       id,
-      generatedFiles: node.scopeFiles,
+      generatedFiles: result.files.map((f) => f.path),
       members,
     }
   }
