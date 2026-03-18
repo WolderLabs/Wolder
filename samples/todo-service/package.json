@@ -1,0 +1,8 @@
+{
+  "name": "wolder-sample-todo-service",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "tsx --env-file=.env wolder.program.ts"
+  }
+}
