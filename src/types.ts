@@ -44,6 +44,17 @@ export interface Expectation {
   path?: string
   className?: string
   interfacePath?: string
+  route?: string
+  description?: string
+  compiledAssertion?: string
+}
+
+export interface WebPageConfig {
+  devCommand: string
+  devPort: number
+  devReadyPattern: string
+  model: string
+  apiKey?: string
 }
 
 export interface ActBuilder<TMembers extends readonly string[] = []> {
@@ -52,6 +63,7 @@ export interface ActBuilder<TMembers extends readonly string[] = []> {
   expectClass(name: string): ClassExpectationBuilder<TMembers>
   expectInterface(name: string): InterfaceExpectationBuilder<TMembers>
   expectImplements(interfaceRef: InputRef): this
+  expectWebPage(route: string, description: string): ActBuilder<TMembers>
   expectCompiles(): ActBuilder<TMembers>
   build(): Promise<Artifact<ExtractMembers<TMembers>>>
 }

@@ -110,6 +110,12 @@ function formatExpectations(expectations: Expectation[]): string[] {
       case "compiles":
         lines.push("The files must compile without TypeScript errors")
         break
+      case "webPage":
+        lines.push(`The page at route "${exp.route}" must: ${exp.description}`)
+        break
+      case "implements":
+        lines.push(`A class must implement an interface from "${exp.interfacePath}"`)
+        break
     }
   }
   return lines

@@ -122,6 +122,11 @@ export class ActBuilderImpl<TMembers extends readonly string[] = []>
     return this
   }
 
+  expectWebPage(route: string, description: string): ActBuilder<TMembers> {
+    this.expectations.push({ type: "webPage", route, description })
+    return this
+  }
+
   expectCompiles(): ActBuilder<TMembers> {
     this.expectations.push({ type: "compiles" })
     return this
