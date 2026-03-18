@@ -11,6 +11,14 @@ vi.mock("./generate.js", () => ({
   })),
 }))
 
+// Mock manifest so tests don't write to disk
+vi.mock("./manifest.js", () => ({
+  readManifest: vi.fn(() => ({ version: 1, nodes: {} })),
+  writeManifest: vi.fn(),
+  updateManifestNode: vi.fn(),
+  computeOutputHash: vi.fn(() => "fakehash"),
+}))
+
 describe("wolder()", () => {
   const w = wolder({ root: "/tmp/test", model: "claude-sonnet-4-6" })
 

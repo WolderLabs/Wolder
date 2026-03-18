@@ -10,6 +10,12 @@ import type {
   NodeDefinition,
 } from "./types.js"
 import { generate } from "./generate.js"
+import {
+  readManifest,
+  writeManifest,
+  updateManifestNode,
+  computeOutputHash,
+} from "./manifest.js"
 
 export class ScopeBuilderImpl implements ScopeBuilder {
   private scopeFiles: string[] = []
@@ -120,6 +126,17 @@ export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, Inte
       root: this.root,
       model: this.model,
     })
+
+    // Update manifest
+    const manifest = readManifest(this.root)
+    const outputHash = computeOutputHash(result.files)
+    updateManifestNode(manifest, id, {
+      inputHashes: {},
+      outputHash,
+      generatedFiles: result.files.map((f) => f.path),
+      expectations: node.expectations,
+    })
+    writeManifest(manifest, this.root)
 
     const members: Record<string, MemberRef> = {}
     for (const name of node.memberNames) {
