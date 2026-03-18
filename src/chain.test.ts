@@ -7,6 +7,7 @@ vi.mock("./generate.js", () => ({
   generate: vi.fn(async (node: { scopeFiles: string[] }) => ({
     files: node.scopeFiles.map((p: string) => ({ path: p, content: "" })),
     rawResponse: "",
+    attempts: 1,
   })),
 }))
 

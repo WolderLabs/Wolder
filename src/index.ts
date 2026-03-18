@@ -1,5 +1,6 @@
 export { wolder } from "./wolder.js"
-export { generate } from "./generate.js"
+export { generate, GenerationError } from "./generate.js"
+export { runExpectations } from "./expectations.js"
 export { parseGeneratedFiles } from "./parser.js"
 export { buildSystemPrompt, buildUserPrompt } from "./prompt.js"
 export type {
