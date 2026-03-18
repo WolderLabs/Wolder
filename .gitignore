@@ -2,3 +2,7 @@ node_modules/
 dist/
 packages/*/node_modules/
 packages/*/dist/
+.env
+samples/*/src/services/
+samples/*/src/controllers/
+samples/*/wolder.manifest.json
