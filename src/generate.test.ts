@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { mkdtempSync, writeFileSync, existsSync } from "node:fs"
+import { mkdtempSync, existsSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { generate, GenerationError } from "./generate.js"
 import type { NodeDefinition } from "./types.js"
+import { typescript } from "../packages/typescript/src/index.js"
 
 // Mock the Anthropic SDK
 const mockCreate = vi.fn()
@@ -43,6 +44,7 @@ export class TodoService {
         { type: "function", name: "getAllItems", className: "TodoService" },
       ],
       memberNames: ["getAllItems"],
+      plugins: [typescript],
     }
 
     const result = await generate(node, { root, model: "test", apiKey: "test-key" })
@@ -77,6 +79,7 @@ export class TodoService {
         { type: "function", name: "getAllItems", className: "TodoService" },
       ],
       memberNames: ["getAllItems"],
+      plugins: [typescript],
     }
 
     const result = await generate(node, { root, model: "test", apiKey: "test-key" })
@@ -102,6 +105,7 @@ export class WrongName {}
       inputs: [],
       expectations: [{ type: "class", name: "TodoService" }],
       memberNames: [],
+      plugins: [typescript],
     }
 
     await expect(
@@ -124,6 +128,7 @@ anything
       inputs: [],
       expectations: [],
       memberNames: [],
+      plugins: [],
     }
 
     const result = await generate(node, { root, model: "test", apiKey: "test-key" })

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { wolder } from "./wolder.js"
 import { ActBuilderImpl } from "./chain.js"
+import { typescript } from "../packages/typescript/src/index.js"
 
 // Mock generate so tests don't call the LLM
 vi.mock("./generate.js", () => ({
@@ -52,16 +53,19 @@ describe("wolder()", () => {
     ])
   })
 
-  it("captures expectations from a full chain", () => {
+  it("captures expectations via expect(typescript, fn) callback", () => {
     const builder = w
       .scope("src/services/todoService.ts")
       .act("Create a TodoService class")
       .expectFile("src/services/todoService.ts")
-      .expectClass("TodoService")
-      .withFunction("getAllItems")
-      .withFunction("addItem")
-      .withFunction("deleteItem")
-      .expectCompiles()
+      .expect(typescript, (e) =>
+        e
+          .hasClass("TodoService")
+          .withFunction("getAllItems")
+          .withFunction("addItem")
+          .withFunction("deleteItem")
+          .compiles(),
+      )
 
     const node = (builder as unknown as ActBuilderImpl).getNodeDefinition()
 
@@ -78,13 +82,13 @@ describe("wolder()", () => {
     expect(node.memberNames).toEqual(["getAllItems", "addItem", "deleteItem"])
   })
 
-  it("captures interface expectations", () => {
+  it("captures interface expectations via expect(typescript, fn)", () => {
     const builder = w
       .scope("src/interfaces/ITodoService.ts")
       .act("Create ITodoService interface")
-      .expectInterface("ITodoService")
-      .withMethod("getAllItems")
-      .withMethod("addItem")
+      .expect(typescript, (e) =>
+        e.hasInterface("ITodoService").withMethod("getAllItems").withMethod("addItem"),
+      )
 
     const node = (builder as unknown as ActBuilderImpl).getNodeDefinition()
 
@@ -100,8 +104,7 @@ describe("wolder()", () => {
     const serviceArtifact = await w
       .scope("src/services/todoService.ts")
       .act("Create TodoService")
-      .expectClass("TodoService")
-      .withFunction("getAllItems")
+      .expect(typescript, (e) => e.hasClass("TodoService").withFunction("getAllItems"))
       .build()
 
     const builder = w
@@ -119,13 +122,13 @@ describe("wolder()", () => {
     expect(node.inputs[2]).toHaveProperty("kind", "member")
   })
 
-  it("build() returns artifact with typed members", async () => {
+  it("build() returns artifact with typed members from expect(typescript, fn)", async () => {
     const artifact = await w
       .scope("src/services/todoService.ts")
       .act("Create TodoService")
-      .expectClass("TodoService")
-      .withFunction("getAllItems")
-      .withFunction("addItem")
+      .expect(typescript, (e) =>
+        e.hasClass("TodoService").withFunction("getAllItems").withFunction("addItem"),
+      )
       .build()
 
     expect(artifact.members.getAllItems).toEqual({
@@ -142,14 +145,35 @@ describe("wolder()", () => {
     })
   })
 
-  it("scopes withFunction to the preceding expectClass", () => {
+  it("withArtifactTrait registers a member without any expectation", async () => {
+    const artifact = await w
+      .scope("src/services/myService.ts")
+      .act("Create service")
+      .withArtifactTrait("doThing")
+      .build()
+
+    expect(artifact.members.doThing).toMatchObject({ name: "doThing", kind: "member" })
+    const node = (
+      w
+        .scope("src/services/myService.ts")
+        .act("x")
+        .withArtifactTrait("doThing") as unknown as ActBuilderImpl
+    ).getNodeDefinition()
+    expect(node.expectations).toHaveLength(0)
+    expect(node.memberNames).toEqual(["doThing"])
+  })
+
+  it("scopes withFunction to the preceding hasClass", () => {
     const builder = w
       .scope("src/services/combo.ts")
       .act("Create two classes")
-      .expectClass("ClassA")
-      .withFunction("methodA")
-      .expectClass("ClassB")
-      .withFunction("methodB")
+      .expect(typescript, (e) =>
+        e
+          .hasClass("ClassA")
+          .withFunction("methodA")
+          .hasClass("ClassB")
+          .withFunction("methodB"),
+      )
 
     const node = (builder as unknown as ActBuilderImpl).getNodeDefinition()
 
@@ -159,5 +183,16 @@ describe("wolder()", () => {
       { type: "class", name: "ClassB" },
       { type: "function", name: "methodB", className: "ClassB" },
     ])
+  })
+
+  it("registers plugin on the node", () => {
+    const builder = w
+      .scope("src/svc.ts")
+      .act("create")
+      .expect(typescript, (e) => e.hasClass("Svc").compiles())
+
+    const node = (builder as unknown as ActBuilderImpl).getNodeDefinition()
+    expect(node.plugins).toHaveLength(1)
+    expect(node.plugins[0]!.name).toBe("typescript")
   })
 })

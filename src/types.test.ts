@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, expectTypeOf } from "vitest"
 import { wolder } from "./wolder.js"
-import type { MemberRef, Artifact, ExtractMembers } from "./types.js"
+import type { MemberRef, ExtractMembers } from "./types.js"
+import { typescript } from "../packages/typescript/src/index.js"
 
 // Mock generate + manifest so tests don't call LLM or write to disk
 vi.mock("./generate.js", () => ({
@@ -22,13 +23,11 @@ vi.mock("./manifest.js", () => ({
 describe("type-level member inference", () => {
   const w = wolder({ root: "/tmp/test", model: "test" })
 
-  it("artifact.members is typed from withFunction calls", async () => {
+  it("artifact.members is typed from withFunction calls in expect(typescript, fn)", async () => {
     const artifact = await w
       .scope("svc.ts")
       .act("Create service")
-      .expectClass("Svc")
-      .withFunction("getAllItems")
-      .withFunction("addItem")
+      .expect(typescript, (e) => e.hasClass("Svc").withFunction("getAllItems").withFunction("addItem"))
       .build()
 
     // Runtime checks
@@ -40,27 +39,24 @@ describe("type-level member inference", () => {
     expectTypeOf(artifact.members.addItem).toEqualTypeOf<MemberRef<"addItem">>()
   })
 
-  it("artifact.members is typed from withMethod calls", async () => {
+  it("artifact.members is typed from withMethod calls in expect(typescript, fn)", async () => {
     const artifact = await w
       .scope("iface.ts")
       .act("Create interface")
-      .expectInterface("ISvc")
-      .withMethod("getAll")
-      .withMethod("create")
+      .expect(typescript, (e) => e.hasInterface("ISvc").withMethod("getAll").withMethod("create"))
       .build()
 
     expectTypeOf(artifact.members.getAll).toEqualTypeOf<MemberRef<"getAll">>()
     expectTypeOf(artifact.members.create).toEqualTypeOf<MemberRef<"create">>()
   })
 
-  it("mixed expectClass + expectInterface accumulates all members", async () => {
+  it("mixed hasClass + hasInterface accumulates all members", async () => {
     const artifact = await w
       .scope("combo.ts")
       .act("Create combo")
-      .expectClass("Impl")
-      .withFunction("run")
-      .expectInterface("IRunner")
-      .withMethod("execute")
+      .expect(typescript, (e) =>
+        e.hasClass("Impl").withFunction("run").hasInterface("IRunner").withMethod("execute"),
+      )
       .build()
 
     expectTypeOf(artifact.members.run).toEqualTypeOf<MemberRef<"run">>()
@@ -68,29 +64,32 @@ describe("type-level member inference", () => {
   })
 
   it("empty chain produces empty members", async () => {
+    const artifact = await w.scope("empty.ts").act("Create something").build()
+
+    expectTypeOf(artifact.members).toEqualTypeOf<ExtractMembers<[]>>()
+  })
+
+  it("withArtifactTrait produces typed member without plugin callback", async () => {
     const artifact = await w
-      .scope("empty.ts")
-      .act("Create something")
+      .scope("svc.ts")
+      .act("Create service")
+      .withArtifactTrait("doThing")
       .build()
 
-    // Should be an empty record type — no known keys
-    expectTypeOf(artifact.members).toEqualTypeOf<ExtractMembers<[]>>()
+    expectTypeOf(artifact.members.doThing).toEqualTypeOf<MemberRef<"doThing">>()
   })
 
   it("member refs from artifacts are typed for withInput", async () => {
     const svc = await w
       .scope("svc.ts")
       .act("Create service")
-      .expectClass("Svc")
-      .withFunction("getAllItems")
+      .expect(typescript, (e) => e.hasClass("Svc").withFunction("getAllItems"))
       .build()
 
-    // svc.members.getAllItems should be usable as withInput
     const ref = svc.members.getAllItems
     expectTypeOf(ref.kind).toEqualTypeOf<"member">()
     expectTypeOf(ref.name).toEqualTypeOf<"getAllItems">()
 
-    // This should compile — downstream can use typed member ref
     const _controller = await w
       .scope("ctrl.ts")
       .act("Create controller")

@@ -4,9 +4,11 @@ import { writeFileSync, mkdirSync } from "node:fs"
 import { resolve, dirname } from "node:path"
 import { buildSystemPrompt, buildUserPrompt } from "./prompt.js"
 import { parseGeneratedFiles, type ParsedFile } from "./parser.js"
-import { runExpectations, type ExpectationResult } from "./expectations.js"
-import type { NodeDefinition } from "./types.js"
+import { runCoreExpectations } from "./expectations.js"
+import type { NodeDefinition, ExpectationResult, PluginRunContext } from "./types.js"
 import * as log from "./log.js"
+
+export { type ExpectationResult }
 
 export interface GenerateOptions {
   root: string
@@ -46,12 +48,38 @@ export async function generate(
     throw new Error("Missing API key")
   }
 
+  const pluginRunContext: PluginRunContext = {
+    allExpectations: node.expectations,
+    scopeFiles: node.scopeFiles,
+    root: options.root,
+    model: options.model,
+    apiKey: options.apiKey,
+  }
+
+  // Run preGenerate hooks (e.g. TDD test-first generation)
+  const preGeneratedInputs: Array<{ path: string; content: string }> = []
+  for (const plugin of node.plugins) {
+    if (plugin.preGenerate) {
+      const ownExps = node.expectations.filter((e) =>
+        plugin.expectationTypes.includes(e.type),
+      )
+      const result = await plugin.preGenerate(ownExps, pluginRunContext)
+      if (result?.testFile) {
+        const absPath = resolve(options.root, result.testFile.path)
+        mkdirSync(dirname(absPath), { recursive: true })
+        writeFileSync(absPath, result.testFile.content, "utf-8")
+        log.info(`  Generated test file ${log.cyan(result.testFile.path)}`)
+        preGeneratedInputs.push(result.testFile)
+      }
+    }
+  }
+
   const client = new Anthropic({
     apiKey: options.apiKey ?? process.env.ANTHROPIC_API_KEY,
   })
 
   const systemPrompt = buildSystemPrompt()
-  const userPrompt = buildUserPrompt(node, options.root)
+  const userPrompt = buildUserPrompt(node, options.root, preGeneratedInputs)
   const nodeLabel = node.scopeFiles.join(", ")
 
   const messages: MessageParam[] = [{ role: "user", content: userPrompt }]
@@ -89,7 +117,8 @@ export async function generate(
       messages.push({ role: "assistant", content: rawResponse })
       messages.push({
         role: "user",
-        content: "You did not output any files. Please output the files using the === FILE: path === format.",
+        content:
+          "You did not output any files. Please output the files using the === FILE: path === format.",
       })
       continue
     }
@@ -102,32 +131,27 @@ export async function generate(
       log.info(`  Wrote ${log.cyan(file.path)}`)
     }
 
-    // Run expectations
-    if (node.expectations.length === 0) {
+    if (node.expectations.length === 0 && node.plugins.length === 0) {
       return { files, rawResponse, attempts: attempt }
     }
 
     log.info(`  Validating expectations...`)
-    const results = runExpectations(node.expectations, node.scopeFiles, options.root)
+    const results = await runAllExpectations(node, options, pluginRunContext)
     const failures = results.filter((r) => !r.pass)
 
     if (failures.length === 0) {
-      const passed = results.length
-      log.success(`  All ${passed} expectation(s) passed`)
+      log.success(`  All ${results.length} expectation(s) passed`)
       return { files, rawResponse, attempts: attempt }
     }
 
-    // Log which expectations failed
     for (const f of failures) {
       log.error(`  Failed: ${f.error}`)
     }
 
-    // Last attempt — throw
     if (attempt === maxRetries) {
       throw new GenerationError(failures, attempt)
     }
 
-    // Append assistant response + failure feedback for retry
     messages.push({ role: "assistant", content: rawResponse })
     messages.push({
       role: "user",
@@ -135,15 +159,36 @@ export async function generate(
     })
   }
 
-  // Unreachable, but TypeScript needs it
   throw new Error("Unexpected end of retry loop")
 }
 
+async function runAllExpectations(
+  node: NodeDefinition,
+  options: GenerateOptions,
+  context: PluginRunContext,
+): Promise<ExpectationResult[]> {
+  const results: ExpectationResult[] = []
+
+  // Core: file existence (language-agnostic)
+  const fileExps = node.expectations.filter((e) => e.type === "file")
+  const fileResults = runCoreExpectations(fileExps, node.scopeFiles, options.root)
+  results.push(...fileResults)
+  if (results.some((r) => !r.pass)) return results
+
+  // Plugin expectations in registration order
+  for (const plugin of node.plugins) {
+    const ownExps = node.expectations.filter((e) => plugin.expectationTypes.includes(e.type))
+    if (ownExps.length === 0) continue
+    const pluginResults = await plugin.runExpectations(ownExps, context)
+    results.push(...pluginResults)
+    if (results.some((r) => !r.pass)) return results
+  }
+
+  return results
+}
+
 function buildFailureFeedback(failures: ExpectationResult[]): string {
-  const lines = [
-    "The generated code did not meet the following expectations:",
-    "",
-  ]
+  const lines = ["The generated code did not meet the following expectations:", ""]
   for (const failure of failures) {
     lines.push(`- ${failure.error}`)
   }

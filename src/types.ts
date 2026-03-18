@@ -60,33 +60,60 @@ export interface Expectation {
   route?: string
   description?: string
   compiledAssertion?: string
+  testFile?: string
 }
 
-export interface WebPageConfig {
-  devCommand: string
-  devPort: number
-  devReadyPattern: string
+export interface ExpectationResult {
+  expectation: Expectation
+  pass: boolean
+  error?: string
+}
+
+export interface PluginRunContext {
+  allExpectations: Expectation[]
+  scopeFiles: string[]
+  root: string
   model: string
   apiKey?: string
 }
 
+// Phantom type that accumulates member names through plugin builder chains
+export interface PluginBuilder<TMembers extends readonly string[] = []> {
+  readonly _members: TMembers
+}
+
+export interface Plugin<TInitialBuilder = unknown> {
+  readonly name: string
+  readonly expectationTypes: readonly string[]
+  /** Expectations added when expect(plugin) is called without a callback */
+  readonly defaultExpectations?: Expectation[]
+  createBuilder(
+    addExpectation: (exp: Expectation) => void,
+    addMember: (name: string) => void,
+  ): TInitialBuilder
+  runExpectations(
+    ownExpectations: Expectation[],
+    context: PluginRunContext,
+  ): Promise<ExpectationResult[]>
+  formatExpectations(expectations: Expectation[]): string[]
+  preGenerate?(
+    ownExpectations: Expectation[],
+    context: PluginRunContext,
+  ): Promise<{ testFile: { path: string; content: string } } | null>
+}
+
 export interface ActBuilder<TMembers extends readonly string[] = []> {
-  withInput(ref: InputRef | Artifact<any> | MemberRef): ActBuilder<TMembers>
-  expectFile(path: string): ActBuilder<TMembers>
-  expectClass(name: string): ClassExpectationBuilder<TMembers>
-  expectInterface(name: string): InterfaceExpectationBuilder<TMembers>
-  expectImplements(interfaceRef: InputRef): this
-  expectWebPage(route: string, description: string): ActBuilder<TMembers>
-  expectCompiles(): ActBuilder<TMembers>
+  withInput(ref: InputRef | Artifact<any> | MemberRef): this
+  expectFile(path: string): this
+  withArtifactTrait<N extends string>(name: N): ActBuilder<[...TMembers, N]>
+  /** Register a plugin without a callback — uses plugin.defaultExpectations */
+  expect(plugin: Plugin<any>): this
+  /** Register a plugin with a callback — member names from return type flow into artifact.members */
+  expect<TInit, TResult extends PluginBuilder<readonly string[]>>(
+    plugin: Plugin<TInit>,
+    fn: (e: TInit) => TResult,
+  ): ActBuilder<[...TMembers, ...TResult["_members"]]>
   build(): Promise<Artifact<ExtractMembers<TMembers>>>
-}
-
-export interface ClassExpectationBuilder<TMembers extends readonly string[] = []> extends ActBuilder<TMembers> {
-  withFunction<N extends string>(name: N): ClassExpectationBuilder<[...TMembers, N]>
-}
-
-export interface InterfaceExpectationBuilder<TMembers extends readonly string[] = []> extends ActBuilder<TMembers> {
-  withMethod<N extends string>(name: N): InterfaceExpectationBuilder<[...TMembers, N]>
 }
 
 // Internal node definition — everything captured by a single chain
@@ -96,4 +123,5 @@ export interface NodeDefinition {
   inputs: Array<InputRef | Artifact<any> | MemberRef>
   expectations: Expectation[]
   memberNames: string[]
+  plugins: Plugin<any>[]
 }

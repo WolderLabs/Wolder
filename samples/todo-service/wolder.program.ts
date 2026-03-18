@@ -1,4 +1,4 @@
-import { wolder } from "../../src/index.js"
+import { wolder, typescript } from "../../packages/typescript/src/index.js"
 
 const w = wolder({
   root: import.meta.dirname,
@@ -19,13 +19,16 @@ const todoService = await w
   `)
   .withInput(todoItem)
   .expectFile("src/services/todoService.ts")
-  .expectClass("TodoService")
-  .withFunction("getAllItems")
-  .withFunction("getItem")
-  .withFunction("addItem")
-  .withFunction("updateItem")
-  .withFunction("deleteItem")
-  .expectCompiles()
+  .expect(typescript, (e) =>
+    e
+      .hasClass("TodoService")
+      .withFunction("getAllItems")
+      .withFunction("getItem")
+      .withFunction("addItem")
+      .withFunction("updateItem")
+      .withFunction("deleteItem")
+      .compiles(),
+  )
   .build()
 
 console.log("")
@@ -43,13 +46,16 @@ const todoController = await w
   .withInput(todoItem)
   .withInput(todoService)
   .expectFile("src/controllers/todoController.ts")
-  .expectClass("TodoController")
-  .withFunction("list")
-  .withFunction("get")
-  .withFunction("create")
-  .withFunction("toggle")
-  .withFunction("remove")
-  .expectCompiles()
+  .expect(typescript, (e) =>
+    e
+      .hasClass("TodoController")
+      .withFunction("list")
+      .withFunction("get")
+      .withFunction("create")
+      .withFunction("toggle")
+      .withFunction("remove")
+      .compiles(),
+  )
   .build()
 
 console.log("TodoController members:", Object.keys(todoController.members).join(", "))

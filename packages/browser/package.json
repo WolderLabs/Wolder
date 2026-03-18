@@ -1,21 +1,16 @@
 {
-  "name": "@wolder/core",
+  "name": "@wolder/browser",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "bin": {
-    "wolder": "dist/cli.js"
-  },
+  "main": "./src/index.ts",
   "scripts": {
-    "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.79.0",
-    "tsx": "^4.21.0"
+    "playwright": "^1.58.2"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

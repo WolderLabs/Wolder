@@ -1,6 +1,6 @@
 export { wolder } from "./wolder.js"
 export { generate, GenerationError } from "./generate.js"
-export { runExpectations } from "./expectations.js"
+export { runCoreExpectations } from "./expectations.js"
 export { parseGeneratedFiles } from "./parser.js"
 export { buildSystemPrompt, buildUserPrompt } from "./prompt.js"
 export { defineConfig, loadConfig, mergeConfig } from "./config.js"
@@ -13,8 +13,11 @@ export type {
   MemberRef,
   ScopeBuilder,
   ActBuilder,
-  ClassExpectationBuilder,
-  InterfaceExpectationBuilder,
   Expectation,
+  ExpectationResult,
   NodeDefinition,
+  Plugin,
+  PluginBuilder,
+  PluginRunContext,
+  ExtractMembers,
 } from "./types.js"

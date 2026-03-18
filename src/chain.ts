@@ -1,14 +1,14 @@
 import type {
   ScopeBuilder,
   ActBuilder,
-  ClassExpectationBuilder,
-  InterfaceExpectationBuilder,
   Artifact,
   InputRef,
   MemberRef,
   Expectation,
   NodeDefinition,
   ExtractMembers,
+  Plugin,
+  PluginBuilder,
 } from "./types.js"
 import { generate } from "./generate.js"
 import {
@@ -50,16 +50,12 @@ export class ScopeBuilderImpl<TMembers extends readonly string[] = []>
 }
 
 export class ActBuilderImpl<TMembers extends readonly string[] = []>
-  implements
-    ActBuilder<TMembers>,
-    ClassExpectationBuilder<TMembers>,
-    InterfaceExpectationBuilder<TMembers>
+  implements ActBuilder<TMembers>
 {
   private inputs: Array<InputRef | Artifact<any> | MemberRef> = []
   private expectations: Expectation[] = []
   private memberNames: string[] = []
-  private currentClass: string | null = null
-  private currentInterface: string | null = null
+  private plugins: Plugin<any>[] = []
 
   constructor(
     private readonly scopeFiles: string[],
@@ -68,68 +64,36 @@ export class ActBuilderImpl<TMembers extends readonly string[] = []>
     private readonly model: string,
   ) {}
 
-  withInput(ref: InputRef | Artifact<any> | MemberRef): ActBuilder<TMembers> {
+  withInput(ref: InputRef | Artifact<any> | MemberRef): this {
     this.inputs.push(ref)
     return this
   }
 
-  expectFile(path: string): ActBuilder<TMembers> {
+  expectFile(path: string): this {
     this.expectations.push({ type: "file", path })
-    this.currentClass = null
-    this.currentInterface = null
     return this
   }
 
-  expectClass(name: string): ClassExpectationBuilder<TMembers> {
-    this.expectations.push({ type: "class", name })
-    this.currentClass = name
-    this.currentInterface = null
-    return this
-  }
-
-  withFunction<N extends string>(name: N): ClassExpectationBuilder<[...TMembers, N]> {
-    this.expectations.push({
-      type: "function",
-      name,
-      className: this.currentClass!,
-    })
-    this.memberNames.push(name)
-    // Cast: the runtime object is the same, but the type gains N
-    return this as unknown as ActBuilderImpl<[...TMembers, N]>
-  }
-
-  expectInterface(name: string): InterfaceExpectationBuilder<TMembers> {
-    this.expectations.push({ type: "interface", name })
-    this.currentInterface = name
-    this.currentClass = null
-    return this
-  }
-
-  withMethod<N extends string>(name: N): InterfaceExpectationBuilder<[...TMembers, N]> {
-    this.expectations.push({
-      type: "method",
-      name,
-      className: this.currentInterface!,
-    })
+  withArtifactTrait<N extends string>(name: N): ActBuilder<[...TMembers, N]> {
     this.memberNames.push(name)
     return this as unknown as ActBuilderImpl<[...TMembers, N]>
   }
 
-  expectImplements(interfaceRef: InputRef): this {
-    this.expectations.push({
-      type: "implements",
-      interfacePath: interfaceRef.path,
-    })
-    return this
-  }
-
-  expectWebPage(route: string, description: string): ActBuilder<TMembers> {
-    this.expectations.push({ type: "webPage", route, description })
-    return this
-  }
-
-  expectCompiles(): ActBuilder<TMembers> {
-    this.expectations.push({ type: "compiles" })
+  expect(plugin: Plugin<any>, fn?: (e: any) => any): any {
+    if (!this.plugins.find((p) => p.name === plugin.name)) {
+      this.plugins.push(plugin)
+    }
+    if (fn) {
+      const builder = plugin.createBuilder(
+        (exp: Expectation) => this.expectations.push(exp),
+        (name: string) => this.memberNames.push(name),
+      )
+      fn(builder)
+    } else {
+      for (const exp of plugin.defaultExpectations ?? []) {
+        this.expectations.push(exp)
+      }
+    }
     return this
   }
 
@@ -140,6 +104,7 @@ export class ActBuilderImpl<TMembers extends readonly string[] = []>
       inputs: [...this.inputs],
       expectations: [...this.expectations],
       memberNames: [...this.memberNames],
+      plugins: [...this.plugins],
     }
   }
 
@@ -156,7 +121,6 @@ export class ActBuilderImpl<TMembers extends readonly string[] = []>
       node.expectations,
     )
 
-    // Extract dependency edges (artifact IDs this node depends on)
     const dependsOn = node.inputs
       .filter((i): i is Artifact<any> => i.kind === "artifact")
       .map((a) => a.id)
@@ -171,7 +135,6 @@ export class ActBuilderImpl<TMembers extends readonly string[] = []>
       }
     }
 
-    // Cache hit — skip generation
     if (isFresh(manifest, id, inputHashes)) {
       log.success(`${log.bold(id)} is fresh — skipping generation`)
       const cached = manifest.nodes[id]!
@@ -184,7 +147,6 @@ export class ActBuilderImpl<TMembers extends readonly string[] = []>
       } as Artifact<ExtractMembers<TMembers>>
     }
 
-    // Cache miss — generate
     const result = await generate(node, {
       root: this.root,
       model: this.model,
