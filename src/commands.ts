@@ -56,10 +56,8 @@ export function check(root: string): NodeStatus[] {
         generatedFiles: node.generatedFiles,
         details:
           `Files have been manually modified.\n` +
-          `  Expected hash: ${node.outputHash.slice(0, 12)}...\n` +
-          `  Current hash:  ${currentHash.slice(0, 12)}...\n` +
-          `  Run 'wolder regen ${nodeId}' to regenerate\n` +
-          `  Run 'wolder accept ${nodeId}' to accept current state`,
+          `  Expected: ${node.outputHash.slice(0, 12)}...  Current: ${currentHash.slice(0, 12)}...\n` +
+          `  Run 'wolder run' to regenerate`,
       })
     }
   }

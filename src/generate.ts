@@ -6,6 +6,7 @@ import { buildSystemPrompt, buildUserPrompt } from "./prompt.js"
 import { parseGeneratedFiles, type ParsedFile } from "./parser.js"
 import { runExpectations, type ExpectationResult } from "./expectations.js"
 import type { NodeDefinition } from "./types.js"
+import * as log from "./log.js"
 
 export interface GenerateOptions {
   root: string
@@ -39,16 +40,29 @@ export async function generate(
   options: GenerateOptions,
 ): Promise<GenerateResult> {
   const maxRetries = options.maxRetries ?? 3
+
+  if (!options.apiKey && !process.env.ANTHROPIC_API_KEY) {
+    log.error("No API key found. Set ANTHROPIC_API_KEY or pass apiKey in config.")
+    throw new Error("Missing API key")
+  }
+
   const client = new Anthropic({
     apiKey: options.apiKey ?? process.env.ANTHROPIC_API_KEY,
   })
 
   const systemPrompt = buildSystemPrompt()
   const userPrompt = buildUserPrompt(node, options.root)
+  const nodeLabel = node.scopeFiles.join(", ")
 
   const messages: MessageParam[] = [{ role: "user", content: userPrompt }]
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    if (attempt === 1) {
+      log.info(`Generating ${log.bold(nodeLabel)} ${log.dim(`[${options.model}]`)}`)
+    } else {
+      log.warn(`Retry ${attempt}/${maxRetries} for ${log.bold(nodeLabel)}`)
+    }
+
     const response = await client.messages.create({
       model: options.model,
       max_tokens: 16384,
@@ -64,11 +78,28 @@ export async function generate(
 
     const files = parseGeneratedFiles(rawResponse)
 
+    if (files.length === 0) {
+      log.warn("LLM returned no file blocks — retrying")
+      if (attempt === maxRetries) {
+        throw new GenerationError(
+          [{ expectation: { type: "file" }, pass: false, error: "No files were generated" }],
+          attempt,
+        )
+      }
+      messages.push({ role: "assistant", content: rawResponse })
+      messages.push({
+        role: "user",
+        content: "You did not output any files. Please output the files using the === FILE: path === format.",
+      })
+      continue
+    }
+
     // Write files to disk
     for (const file of files) {
       const absPath = resolve(options.root, file.path)
       mkdirSync(dirname(absPath), { recursive: true })
       writeFileSync(absPath, file.content, "utf-8")
+      log.info(`  Wrote ${log.cyan(file.path)}`)
     }
 
     // Run expectations
@@ -76,11 +107,19 @@ export async function generate(
       return { files, rawResponse, attempts: attempt }
     }
 
+    log.info(`  Validating expectations...`)
     const results = runExpectations(node.expectations, node.scopeFiles, options.root)
     const failures = results.filter((r) => !r.pass)
 
     if (failures.length === 0) {
+      const passed = results.length
+      log.success(`  All ${passed} expectation(s) passed`)
       return { files, rawResponse, attempts: attempt }
+    }
+
+    // Log which expectations failed
+    for (const f of failures) {
+      log.error(`  Failed: ${f.error}`)
     }
 
     // Last attempt — throw

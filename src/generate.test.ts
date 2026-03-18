@@ -45,7 +45,7 @@ export class TodoService {
       memberNames: ["getAllItems"],
     }
 
-    const result = await generate(node, { root, model: "test" })
+    const result = await generate(node, { root, model: "test", apiKey: "test-key" })
     expect(result.attempts).toBe(1)
     expect(result.files).toHaveLength(1)
     expect(existsSync(join(root, "svc.ts"))).toBe(true)
@@ -79,7 +79,7 @@ export class TodoService {
       memberNames: ["getAllItems"],
     }
 
-    const result = await generate(node, { root, model: "test" })
+    const result = await generate(node, { root, model: "test", apiKey: "test-key" })
     expect(result.attempts).toBe(2)
     expect(mockCreate).toHaveBeenCalledTimes(2)
 
@@ -105,7 +105,7 @@ export class WrongName {}
     }
 
     await expect(
-      generate(node, { root, model: "test", maxRetries: 2 }),
+      generate(node, { root, model: "test", apiKey: "test-key", maxRetries: 2 }),
     ).rejects.toThrow(GenerationError)
 
     expect(mockCreate).toHaveBeenCalledTimes(2)
@@ -126,7 +126,7 @@ anything
       memberNames: [],
     }
 
-    const result = await generate(node, { root, model: "test" })
+    const result = await generate(node, { root, model: "test", apiKey: "test-key" })
     expect(result.attempts).toBe(1)
   })
 })

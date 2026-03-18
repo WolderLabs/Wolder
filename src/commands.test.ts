@@ -59,6 +59,8 @@ describe("check", () => {
     expect(results).toHaveLength(1)
     expect(results[0]!.status).toBe("drifted")
     expect(results[0]!.details).toContain("manually modified")
+    expect(results[0]!.details).toContain("wolder run")
+    expect(results[0]!.details).not.toContain("accept")
   })
 
   it("reports missing when generated file was deleted", () => {

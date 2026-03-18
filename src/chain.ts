@@ -19,6 +19,7 @@ import {
   computeInputHashes,
   isFresh,
 } from "./manifest.js"
+import * as log from "./log.js"
 
 export class ScopeBuilderImpl<TMembers extends readonly string[] = []>
   implements ScopeBuilder<TMembers>
@@ -170,6 +171,7 @@ export class ActBuilderImpl<TMembers extends readonly string[] = []>
 
     // Cache hit — skip generation
     if (isFresh(manifest, id, inputHashes)) {
+      log.success(`${log.bold(id)} is fresh — skipping generation`)
       const cached = manifest.nodes[id]!
       return {
         kind: "artifact",

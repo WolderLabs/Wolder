@@ -4,17 +4,15 @@ A minimal Wolder sample that generates a TodoService and TodoController from a h
 
 ## Setup
 
-1. Copy `.env.example` to `.env` and add your Anthropic API key:
-
-```
+```bash
 cp .env.example .env
+# Edit .env and add your ANTHROPIC_API_KEY
 ```
 
-2. Run the generation program:
+## Run
 
-```
-cd samples/todo-service
-npx tsx --env-file=.env wolder.program.ts
+```bash
+npm run generate
 ```
 
 ## What it does
@@ -24,3 +22,13 @@ npx tsx --env-file=.env wolder.program.ts
 - `src/controllers/todoController.ts` — **Generated** by step 2, depends on step 1
 
 The second run will skip generation if nothing changed (cache hit).
+
+## Other commands
+
+```bash
+# Check manifest status (fresh/drifted/missing)
+npx tsx ../../src/cli.ts check
+
+# Remove all generated files
+npx tsx ../../src/cli.ts clean
+```

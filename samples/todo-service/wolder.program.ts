@@ -28,9 +28,8 @@ const todoService = await w
   .expectCompiles()
   .build()
 
-console.log("Generated TodoService artifact:", todoService.id)
-console.log("Files:", todoService.generatedFiles)
-console.log("Members:", Object.keys(todoService.members))
+console.log("")
+console.log("TodoService members:", Object.keys(todoService.members).join(", "))
 
 // Step 2: Generate a controller that uses the service
 const todoController = await w
@@ -53,6 +52,5 @@ const todoController = await w
   .expectCompiles()
   .build()
 
-console.log("\nGenerated TodoController artifact:", todoController.id)
-console.log("Files:", todoController.generatedFiles)
-console.log("Members:", Object.keys(todoController.members))
+console.log("TodoController members:", Object.keys(todoController.members).join(", "))
+console.log("")

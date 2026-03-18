@@ -5,6 +5,7 @@ import { existsSync } from "node:fs"
 import { execSync } from "node:child_process"
 import { check, clean } from "./commands.js"
 import { readManifest } from "./manifest.js"
+import * as log from "./log.js"
 
 const DEFAULT_PROGRAM = "wolder.program.ts"
 
@@ -25,30 +26,41 @@ function main() {
       runClean()
       break
 
+    case "help":
+    case "--help":
+    case "-h":
+      printHelp()
+      break
+
     default:
       if (!command) {
         runProgram(undefined)
       } else {
-        console.error(
-          `Unknown command: ${command}\n` +
-            `Usage:\n` +
-            `  wolder run [program]   Execute a generation program\n` +
-            `  wolder check           Report stale/drifted nodes\n` +
-            `  wolder clean           Remove all generated files`,
-        )
+        log.error(`Unknown command: ${command}`)
+        printHelp()
         process.exit(1)
       }
   }
+}
+
+function printHelp() {
+  console.log(`
+${log.bold("wolder")} — code-first agentic software generation
+
+${log.bold("Usage:")}
+  wolder run [program]   Execute a generation program (default: ${DEFAULT_PROGRAM})
+  wolder check           Compare generated files against manifest
+  wolder clean           Remove all generated files
+  wolder help            Show this help
+`)
 }
 
 function runProgram(programArg: string | undefined) {
   const programFile = resolve(process.cwd(), programArg ?? DEFAULT_PROGRAM)
 
   if (!existsSync(programFile)) {
-    console.error(
-      `Error: Program file not found: ${programFile}\n` +
-        `Create a ${DEFAULT_PROGRAM} or specify a file: wolder run <file>`,
-    )
+    log.error(`Program file not found: ${programFile}`)
+    log.info(`Create a ${DEFAULT_PROGRAM} or specify a file: wolder run <file>`)
     process.exit(1)
   }
 
@@ -72,27 +84,48 @@ function runCheck() {
   const manifest = readManifest(root)
 
   if (Object.keys(manifest.nodes).length === 0) {
-    console.log("No nodes in manifest. Run 'wolder run' first.")
+    log.warn("No nodes in manifest. Run 'wolder run' first.")
     return
   }
 
   const results = check(root)
+  let hasProblems = false
 
   for (const r of results) {
-    const icon = r.status === "fresh" ? "OK" : r.status === "drifted" ? "!!" : "??"
-    console.log(`[${icon}] ${r.nodeId} — ${r.status}`)
-    if (r.details) {
-      for (const line of r.details.split("\n")) {
-        console.log(`    ${line}`)
-      }
+    switch (r.status) {
+      case "fresh":
+        console.log(`  ${log.green("OK")}  ${r.nodeId}`)
+        break
+      case "drifted":
+        console.log(`  ${log.yellow("!!")}  ${r.nodeId} — ${log.yellow("drifted")}`)
+        if (r.details) {
+          for (const line of r.details.split("\n")) {
+            console.log(`       ${log.dim(line)}`)
+          }
+        }
+        hasProblems = true
+        break
+      case "missing":
+        console.log(`  ${log.red("??")}  ${r.nodeId} — ${log.red("missing")}`)
+        if (r.details) {
+          for (const line of r.details.split("\n")) {
+            console.log(`       ${log.dim(line)}`)
+          }
+        }
+        hasProblems = true
+        break
     }
   }
 
-  const drifted = results.filter((r) => r.status === "drifted").length
-  const missing = results.filter((r) => r.status === "missing").length
+  const fresh = results.filter((r) => r.status === "fresh").length
+  const total = results.length
+  console.log("")
 
-  if (drifted > 0 || missing > 0) {
+  if (hasProblems) {
+    log.warn(`${fresh}/${total} nodes fresh. Run 'wolder run' to regenerate stale nodes.`)
     process.exit(1)
+  } else {
+    log.success(`All ${total} node(s) fresh.`)
   }
 }
 
@@ -101,12 +134,13 @@ function runClean() {
   const deleted = clean(root)
 
   if (deleted.length === 0) {
-    console.log("Nothing to clean.")
+    log.info("Nothing to clean.")
   } else {
     for (const file of deleted) {
-      console.log(`  Deleted: ${file}`)
+      console.log(`  ${log.red("x")}  ${file}`)
     }
-    console.log(`\nRemoved ${deleted.length} generated file(s).`)
+    console.log("")
+    log.success(`Removed ${deleted.length} generated file(s).`)
   }
 }
 
