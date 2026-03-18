@@ -2,12 +2,16 @@ import { describe, it, expect, beforeEach } from "vitest"
 import { mkdtempSync, readFileSync, existsSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
+import { writeFileSync } from "node:fs"
 import {
   createEmptyManifest,
   readManifest,
   writeManifest,
   updateManifestNode,
   computeOutputHash,
+  computeInputHashes,
+  computeCacheKey,
+  isFresh,
 } from "./manifest.js"
 
 describe("manifest", () => {
@@ -123,5 +127,110 @@ describe("manifest", () => {
 
     const loaded = readManifest(root, "custom.manifest.json")
     expect(loaded.version).toBe(1)
+  })
+})
+
+describe("cache key + freshness", () => {
+  let root: string
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), "wolder-cache-"))
+  })
+
+  it("computeInputHashes includes act hash and model", () => {
+    const hashes = computeInputHashes("Create a service", [], "claude-sonnet-4-6", root)
+    expect(hashes["act:sha256"]).toMatch(/^[a-f0-9]{64}$/)
+    expect(hashes.model).toBe("claude-sonnet-4-6")
+  })
+
+  it("computeInputHashes includes input file hashes", () => {
+    writeFileSync(join(root, "input.ts"), "export const x = 1")
+    const hashes = computeInputHashes(
+      "Generate",
+      [{ path: "input.ts", kind: "input" }],
+      "test",
+      root,
+    )
+    expect(hashes["input.ts"]).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it("computeInputHashes changes when input file content changes", () => {
+    writeFileSync(join(root, "input.ts"), "v1")
+    const h1 = computeInputHashes("Go", [{ path: "input.ts", kind: "input" }], "test", root)
+
+    writeFileSync(join(root, "input.ts"), "v2")
+    const h2 = computeInputHashes("Go", [{ path: "input.ts", kind: "input" }], "test", root)
+
+    expect(h1["input.ts"]).not.toBe(h2["input.ts"])
+  })
+
+  it("computeInputHashes changes when act instruction changes", () => {
+    const h1 = computeInputHashes("Create a service", [], "test", root)
+    const h2 = computeInputHashes("Create a controller", [], "test", root)
+    expect(h1["act:sha256"]).not.toBe(h2["act:sha256"])
+  })
+
+  it("computeCacheKey is deterministic regardless of key insertion order", () => {
+    const a = { "act:sha256": "abc", model: "test", "input.ts": "def" }
+    const b = { model: "test", "input.ts": "def", "act:sha256": "abc" }
+    expect(computeCacheKey(a)).toBe(computeCacheKey(b))
+  })
+
+  it("isFresh returns false when node not in manifest", () => {
+    const m = createEmptyManifest()
+    expect(isFresh(m, "missing", { "act:sha256": "abc" })).toBe(false)
+  })
+
+  it("isFresh returns true when input hashes match", () => {
+    const hashes = { "act:sha256": "abc", model: "test" }
+    const m = createEmptyManifest()
+    updateManifestNode(m, "svc", {
+      inputHashes: hashes,
+      outputHash: "out",
+      generatedFiles: ["svc.ts"],
+      expectations: [],
+    })
+
+    expect(isFresh(m, "svc", hashes)).toBe(true)
+  })
+
+  it("isFresh returns false when act hash changes", () => {
+    const m = createEmptyManifest()
+    updateManifestNode(m, "svc", {
+      inputHashes: { "act:sha256": "old", model: "test" },
+      outputHash: "out",
+      generatedFiles: ["svc.ts"],
+      expectations: [],
+    })
+
+    expect(isFresh(m, "svc", { "act:sha256": "new", model: "test" })).toBe(false)
+  })
+
+  it("isFresh returns false when input file hash changes", () => {
+    const m = createEmptyManifest()
+    updateManifestNode(m, "svc", {
+      inputHashes: { "act:sha256": "abc", model: "test", "input.ts": "hash1" },
+      outputHash: "out",
+      generatedFiles: ["svc.ts"],
+      expectations: [],
+    })
+
+    expect(
+      isFresh(m, "svc", { "act:sha256": "abc", model: "test", "input.ts": "hash2" }),
+    ).toBe(false)
+  })
+
+  it("isFresh returns false when model changes", () => {
+    const m = createEmptyManifest()
+    updateManifestNode(m, "svc", {
+      inputHashes: { "act:sha256": "abc", model: "claude-sonnet-4-6" },
+      outputHash: "out",
+      generatedFiles: ["svc.ts"],
+      expectations: [],
+    })
+
+    expect(
+      isFresh(m, "svc", { "act:sha256": "abc", model: "claude-opus-4-6" }),
+    ).toBe(false)
   })
 })

@@ -15,6 +15,8 @@ import {
   writeManifest,
   updateManifestNode,
   computeOutputHash,
+  computeInputHashes,
+  isFresh,
 } from "./manifest.js"
 
 export class ScopeBuilderImpl implements ScopeBuilder {
@@ -121,22 +123,13 @@ export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, Inte
   async build(): Promise<Artifact> {
     const node = this.getNodeDefinition()
     const id = node.scopeFiles.join("+")
-
-    const result = await generate(node, {
-      root: this.root,
-      model: this.model,
-    })
-
-    // Update manifest
     const manifest = readManifest(this.root)
-    const outputHash = computeOutputHash(result.files)
-    updateManifestNode(manifest, id, {
-      inputHashes: {},
-      outputHash,
-      generatedFiles: result.files.map((f) => f.path),
-      expectations: node.expectations,
-    })
-    writeManifest(manifest, this.root)
+    const inputHashes = computeInputHashes(
+      node.actInstruction,
+      node.inputs,
+      this.model,
+      this.root,
+    )
 
     const members: Record<string, MemberRef> = {}
     for (const name of node.memberNames) {
@@ -147,6 +140,32 @@ export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, Inte
         filePath: node.scopeFiles[0] ?? "",
       }
     }
+
+    // Cache hit — skip generation
+    if (isFresh(manifest, id, inputHashes)) {
+      const cached = manifest.nodes[id]!
+      return {
+        kind: "artifact",
+        id,
+        generatedFiles: cached.generatedFiles,
+        members,
+      }
+    }
+
+    // Cache miss — generate
+    const result = await generate(node, {
+      root: this.root,
+      model: this.model,
+    })
+
+    const outputHash = computeOutputHash(result.files)
+    updateManifestNode(manifest, id, {
+      inputHashes,
+      outputHash,
+      generatedFiles: result.files.map((f) => f.path),
+      expectations: node.expectations,
+    })
+    writeManifest(manifest, this.root)
 
     return {
       kind: "artifact",

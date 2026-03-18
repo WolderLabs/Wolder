@@ -17,6 +17,8 @@ vi.mock("./manifest.js", () => ({
   writeManifest: vi.fn(),
   updateManifestNode: vi.fn(),
   computeOutputHash: vi.fn(() => "fakehash"),
+  computeInputHashes: vi.fn(() => ({ "act:sha256": "fake", model: "test" })),
+  isFresh: vi.fn(() => false),
 }))
 
 describe("wolder()", () => {
