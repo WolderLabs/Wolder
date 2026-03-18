@@ -16,6 +16,8 @@ export interface InputRef {
 export interface MemberRef<N extends string = string> {
   readonly name: N
   readonly kind: "member"
+  readonly className: string
+  readonly filePath: string
 }
 
 export interface Artifact<TMembers extends Record<string, MemberRef> = Record<string, MemberRef>> {
@@ -31,7 +33,9 @@ export interface ScopeBuilder {
 
 export interface Expectation {
   type: string
-  [key: string]: unknown
+  name?: string
+  path?: string
+  className?: string
 }
 
 export interface ActBuilder {
@@ -49,4 +53,13 @@ export interface ClassExpectationBuilder extends ActBuilder {
 
 export interface InterfaceExpectationBuilder extends ActBuilder {
   withMethod(name: string): InterfaceExpectationBuilder
+}
+
+// Internal node definition — everything captured by a single chain
+export interface NodeDefinition {
+  scopeFiles: string[]
+  actInstruction: string
+  inputs: Array<InputRef | Artifact | MemberRef>
+  expectations: Expectation[]
+  memberNames: string[]
 }
