@@ -5,7 +5,7 @@ export interface WolderOptions {
 
 export interface WolderInstance {
   input(path: string): InputRef
-  scope(path: string): ScopeBuilder
+  scope(path: string): ScopeBuilder<[]>
 }
 
 export interface InputRef {
@@ -20,6 +20,11 @@ export interface MemberRef<N extends string = string> {
   readonly filePath: string
 }
 
+// Convert a tuple of member names to a typed members record
+export type ExtractMembers<T extends readonly string[]> = {
+  [K in T[number]]: MemberRef<K>
+}
+
 export interface Artifact<TMembers extends Record<string, MemberRef> = Record<string, MemberRef>> {
   readonly kind: "artifact"
   readonly id: string
@@ -28,9 +33,9 @@ export interface Artifact<TMembers extends Record<string, MemberRef> = Record<st
   readonly members: TMembers
 }
 
-export interface ScopeBuilder {
-  scope(path: string): ScopeBuilder
-  act(instruction: string): ActBuilder
+export interface ScopeBuilder<TMembers extends readonly string[] = []> {
+  scope(path: string): ScopeBuilder<TMembers>
+  act(instruction: string): ActBuilder<TMembers>
 }
 
 export interface Expectation {
@@ -40,28 +45,28 @@ export interface Expectation {
   className?: string
 }
 
-export interface ActBuilder {
-  withInput(ref: InputRef | Artifact | MemberRef): ActBuilder
-  expectFile(path: string): ActBuilder
-  expectClass(name: string): ClassExpectationBuilder
-  expectInterface(name: string): InterfaceExpectationBuilder
-  expectCompiles(): ActBuilder
-  build(): Promise<Artifact>
+export interface ActBuilder<TMembers extends readonly string[] = []> {
+  withInput(ref: InputRef | Artifact<any> | MemberRef): ActBuilder<TMembers>
+  expectFile(path: string): ActBuilder<TMembers>
+  expectClass(name: string): ClassExpectationBuilder<TMembers>
+  expectInterface(name: string): InterfaceExpectationBuilder<TMembers>
+  expectCompiles(): ActBuilder<TMembers>
+  build(): Promise<Artifact<ExtractMembers<TMembers>>>
 }
 
-export interface ClassExpectationBuilder extends ActBuilder {
-  withFunction(name: string): ClassExpectationBuilder
+export interface ClassExpectationBuilder<TMembers extends readonly string[] = []> extends ActBuilder<TMembers> {
+  withFunction<N extends string>(name: N): ClassExpectationBuilder<[...TMembers, N]>
 }
 
-export interface InterfaceExpectationBuilder extends ActBuilder {
-  withMethod(name: string): InterfaceExpectationBuilder
+export interface InterfaceExpectationBuilder<TMembers extends readonly string[] = []> extends ActBuilder<TMembers> {
+  withMethod<N extends string>(name: N): InterfaceExpectationBuilder<[...TMembers, N]>
 }
 
 // Internal node definition — everything captured by a single chain
 export interface NodeDefinition {
   scopeFiles: string[]
   actInstruction: string
-  inputs: Array<InputRef | Artifact | MemberRef>
+  inputs: Array<InputRef | Artifact<any> | MemberRef>
   expectations: Expectation[]
   memberNames: string[]
 }

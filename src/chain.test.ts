@@ -63,7 +63,7 @@ describe("wolder()", () => {
       .withFunction("deleteItem")
       .expectCompiles()
 
-    const node = (builder as ActBuilderImpl).getNodeDefinition()
+    const node = (builder as unknown as ActBuilderImpl).getNodeDefinition()
 
     expect(node.scopeFiles).toEqual(["src/services/todoService.ts"])
     expect(node.actInstruction).toBe("Create a TodoService class")
@@ -86,7 +86,7 @@ describe("wolder()", () => {
       .withMethod("getAllItems")
       .withMethod("addItem")
 
-    const node = (builder as ActBuilderImpl).getNodeDefinition()
+    const node = (builder as unknown as ActBuilderImpl).getNodeDefinition()
 
     expect(node.expectations).toEqual([
       { type: "interface", name: "ITodoService" },
@@ -111,7 +111,7 @@ describe("wolder()", () => {
       .withInput(serviceArtifact)
       .withInput(serviceArtifact.members.getAllItems!)
 
-    const node = (builder as ActBuilderImpl).getNodeDefinition()
+    const node = (builder as unknown as ActBuilderImpl).getNodeDefinition()
 
     expect(node.inputs).toHaveLength(3)
     expect(node.inputs[0]).toEqual({ path: "src/models/Todo.ts", kind: "input" })
@@ -151,7 +151,7 @@ describe("wolder()", () => {
       .expectClass("ClassB")
       .withFunction("methodB")
 
-    const node = (builder as ActBuilderImpl).getNodeDefinition()
+    const node = (builder as unknown as ActBuilderImpl).getNodeDefinition()
 
     expect(node.expectations).toEqual([
       { type: "class", name: "ClassA" },

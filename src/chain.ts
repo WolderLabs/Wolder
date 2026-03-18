@@ -8,6 +8,7 @@ import type {
   MemberRef,
   Expectation,
   NodeDefinition,
+  ExtractMembers,
 } from "./types.js"
 import { generate } from "./generate.js"
 import {
@@ -19,7 +20,9 @@ import {
   isFresh,
 } from "./manifest.js"
 
-export class ScopeBuilderImpl implements ScopeBuilder {
+export class ScopeBuilderImpl<TMembers extends readonly string[] = []>
+  implements ScopeBuilder<TMembers>
+{
   private scopeFiles: string[] = []
 
   constructor(
@@ -30,13 +33,13 @@ export class ScopeBuilderImpl implements ScopeBuilder {
     this.scopeFiles.push(path)
   }
 
-  scope(path: string): ScopeBuilder {
+  scope(path: string): ScopeBuilder<TMembers> {
     this.scopeFiles.push(path)
     return this
   }
 
-  act(instruction: string): ActBuilder {
-    return new ActBuilderImpl(
+  act(instruction: string): ActBuilder<TMembers> {
+    return new ActBuilderImpl<TMembers>(
       [...this.scopeFiles],
       instruction,
       this.root,
@@ -45,8 +48,13 @@ export class ScopeBuilderImpl implements ScopeBuilder {
   }
 }
 
-export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, InterfaceExpectationBuilder {
-  private inputs: Array<InputRef | Artifact | MemberRef> = []
+export class ActBuilderImpl<TMembers extends readonly string[] = []>
+  implements
+    ActBuilder<TMembers>,
+    ClassExpectationBuilder<TMembers>,
+    InterfaceExpectationBuilder<TMembers>
+{
+  private inputs: Array<InputRef | Artifact<any> | MemberRef> = []
   private expectations: Expectation[] = []
   private memberNames: string[] = []
   private currentClass: string | null = null
@@ -59,53 +67,54 @@ export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, Inte
     private readonly model: string,
   ) {}
 
-  withInput(ref: InputRef | Artifact | MemberRef): ActBuilder {
+  withInput(ref: InputRef | Artifact<any> | MemberRef): ActBuilder<TMembers> {
     this.inputs.push(ref)
     return this
   }
 
-  expectFile(path: string): ActBuilder {
+  expectFile(path: string): ActBuilder<TMembers> {
     this.expectations.push({ type: "file", path })
     this.currentClass = null
     this.currentInterface = null
     return this
   }
 
-  expectClass(name: string): ClassExpectationBuilder {
+  expectClass(name: string): ClassExpectationBuilder<TMembers> {
     this.expectations.push({ type: "class", name })
     this.currentClass = name
     this.currentInterface = null
     return this
   }
 
-  withFunction(name: string): ClassExpectationBuilder {
+  withFunction<N extends string>(name: N): ClassExpectationBuilder<[...TMembers, N]> {
     this.expectations.push({
       type: "function",
       name,
       className: this.currentClass!,
     })
     this.memberNames.push(name)
-    return this
+    // Cast: the runtime object is the same, but the type gains N
+    return this as unknown as ActBuilderImpl<[...TMembers, N]>
   }
 
-  expectInterface(name: string): InterfaceExpectationBuilder {
+  expectInterface(name: string): InterfaceExpectationBuilder<TMembers> {
     this.expectations.push({ type: "interface", name })
     this.currentInterface = name
     this.currentClass = null
     return this
   }
 
-  withMethod(name: string): InterfaceExpectationBuilder {
+  withMethod<N extends string>(name: N): InterfaceExpectationBuilder<[...TMembers, N]> {
     this.expectations.push({
       type: "method",
       name,
       className: this.currentInterface!,
     })
     this.memberNames.push(name)
-    return this
+    return this as unknown as ActBuilderImpl<[...TMembers, N]>
   }
 
-  expectCompiles(): ActBuilder {
+  expectCompiles(): ActBuilder<TMembers> {
     this.expectations.push({ type: "compiles" })
     return this
   }
@@ -120,7 +129,7 @@ export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, Inte
     }
   }
 
-  async build(): Promise<Artifact> {
+  async build(): Promise<Artifact<ExtractMembers<TMembers>>> {
     const node = this.getNodeDefinition()
     const id = node.scopeFiles.join("+")
     const manifest = readManifest(this.root)
@@ -133,10 +142,10 @@ export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, Inte
 
     // Extract dependency edges (artifact IDs this node depends on)
     const dependsOn = node.inputs
-      .filter((i): i is Artifact => i.kind === "artifact")
+      .filter((i): i is Artifact<any> => i.kind === "artifact")
       .map((a) => a.id)
 
-    const members: Record<string, MemberRef> = {}
+    const members = {} as Record<string, MemberRef>
     for (const name of node.memberNames) {
       members[name] = {
         name,
@@ -155,7 +164,7 @@ export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, Inte
         outputHash: cached.outputHash,
         generatedFiles: cached.generatedFiles,
         members,
-      }
+      } as Artifact<ExtractMembers<TMembers>>
     }
 
     // Cache miss — generate
@@ -180,6 +189,6 @@ export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, Inte
       outputHash,
       generatedFiles: result.files.map((f) => f.path),
       members,
-    }
+    } as Artifact<ExtractMembers<TMembers>>
   }
 }
