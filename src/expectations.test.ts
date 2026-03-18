@@ -173,6 +173,51 @@ describe("runExpectations", () => {
     })
   })
 
+  describe("expectImplements", () => {
+    it("passes when class correctly implements interface", () => {
+      const results = runExpectations(
+        [{ type: "implements", interfacePath: "fixtures/i-counter.ts" }],
+        ["fixtures/implements-ok.ts"],
+        fixturesRoot,
+      )
+      expect(results).toHaveLength(1)
+      expect(results[0]!.pass).toBe(true)
+    })
+
+    it("fails when class does not satisfy interface", () => {
+      const results = runExpectations(
+        [{ type: "implements", interfacePath: "fixtures/i-counter.ts" }],
+        ["fixtures/implements-fail.ts"],
+        fixturesRoot,
+      )
+      expect(results).toHaveLength(1)
+      expect(results[0]!.pass).toBe(false)
+      expect(results[0]!.error).toContain("does not correctly implement")
+    })
+
+    it("fails when no class implements the interface", () => {
+      const results = runExpectations(
+        [{ type: "implements", interfacePath: "fixtures/i-counter.ts" }],
+        ["fixtures/no-implements.ts"],
+        fixturesRoot,
+      )
+      expect(results).toHaveLength(1)
+      expect(results[0]!.pass).toBe(false)
+      expect(results[0]!.error).toContain("No class in scope files implements")
+    })
+
+    it("fails when interface file is missing", () => {
+      const results = runExpectations(
+        [{ type: "implements", interfacePath: "fixtures/nonexistent.ts" }],
+        ["fixtures/implements-ok.ts"],
+        fixturesRoot,
+      )
+      expect(results).toHaveLength(1)
+      expect(results[0]!.pass).toBe(false)
+      expect(results[0]!.error).toContain("not found")
+    })
+  })
+
   describe("mixed expectations", () => {
     it("validates file existence before AST queries", () => {
       const expectations: Expectation[] = [

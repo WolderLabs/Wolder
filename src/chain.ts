@@ -114,6 +114,14 @@ export class ActBuilderImpl<TMembers extends readonly string[] = []>
     return this as unknown as ActBuilderImpl<[...TMembers, N]>
   }
 
+  expectImplements(interfaceRef: InputRef): this {
+    this.expectations.push({
+      type: "implements",
+      interfacePath: interfaceRef.path,
+    })
+    return this
+  }
+
   expectCompiles(): ActBuilder<TMembers> {
     this.expectations.push({ type: "compiles" })
     return this

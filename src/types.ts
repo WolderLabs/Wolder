@@ -43,6 +43,7 @@ export interface Expectation {
   name?: string
   path?: string
   className?: string
+  interfacePath?: string
 }
 
 export interface ActBuilder<TMembers extends readonly string[] = []> {
@@ -50,6 +51,7 @@ export interface ActBuilder<TMembers extends readonly string[] = []> {
   expectFile(path: string): ActBuilder<TMembers>
   expectClass(name: string): ClassExpectationBuilder<TMembers>
   expectInterface(name: string): InterfaceExpectationBuilder<TMembers>
+  expectImplements(interfaceRef: InputRef): this
   expectCompiles(): ActBuilder<TMembers>
   build(): Promise<Artifact<ExtractMembers<TMembers>>>
 }

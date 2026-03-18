@@ -25,6 +25,7 @@ export function runExpectations(
   const astExps = expectations.filter((e) =>
     ["class", "function", "interface", "method"].includes(e.type),
   )
+  const implementsExps = expectations.filter((e) => e.type === "implements")
 
   // 1. File existence checks
   for (const exp of fileExps) {
@@ -111,7 +112,129 @@ export function runExpectations(
     }
   }
 
+  // 4. Semantic implements check via ts-morph type checker
+  if (implementsExps.length > 0) {
+    const implProject = new Project({
+      compilerOptions: {
+        strict: true,
+        noEmit: true,
+        target: 99,
+        module: 199,
+        moduleResolution: 99,
+        esModuleInterop: true,
+        skipLibCheck: true,
+      },
+      skipAddingFilesFromTsConfig: true,
+    })
+
+    // Add scope files and interface files
+    for (const file of scopeFiles) {
+      const absPath = resolve(root, file)
+      if (existsSync(absPath)) {
+        implProject.addSourceFileAtPath(absPath)
+      }
+    }
+    for (const exp of implementsExps) {
+      if (exp.interfacePath) {
+        const absPath = resolve(root, exp.interfacePath)
+        if (existsSync(absPath)) {
+          implProject.addSourceFileAtPath(absPath)
+        }
+      }
+    }
+
+    for (const exp of implementsExps) {
+      const result = validateImplements(exp, implProject, scopeFiles, root)
+      results.push(result)
+      if (!result.pass) return results
+    }
+  }
+
   return results
+}
+
+function validateImplements(
+  exp: Expectation,
+  project: Project,
+  scopeFiles: string[],
+  root: string,
+): ExpectationResult {
+  if (!exp.interfacePath) {
+    return {
+      expectation: exp,
+      pass: false,
+      error: "expectImplements: no interface path provided",
+    }
+  }
+
+  // Find the interface in the interface file
+  const ifaceAbsPath = resolve(root, exp.interfacePath)
+  const ifaceSf = project.getSourceFile(ifaceAbsPath)
+  if (!ifaceSf) {
+    return {
+      expectation: exp,
+      pass: false,
+      error: `Interface file "${exp.interfacePath}" not found`,
+    }
+  }
+
+  const interfaces = ifaceSf.getInterfaces()
+  if (interfaces.length === 0) {
+    return {
+      expectation: exp,
+      pass: false,
+      error: `No interfaces found in "${exp.interfacePath}"`,
+    }
+  }
+
+  // Check each class in scope files for implements clause
+  for (const file of scopeFiles) {
+    const sf = project.getSourceFile(resolve(root, file))
+    if (!sf) continue
+
+    for (const cls of sf.getClasses()) {
+      const implementsClauses = cls.getImplements()
+      for (const impl of implementsClauses) {
+        const implName = impl.getExpression().getText()
+        for (const iface of interfaces) {
+          if (implName === iface.getName()) {
+            // Found a class that claims to implement the interface.
+            // Use the type checker to verify it actually satisfies it.
+            const diagnostics = project.getPreEmitDiagnostics().filter((d) => {
+              const dSf = d.getSourceFile()
+              return dSf && dSf.getFilePath() === sf.getFilePath()
+            })
+            const implErrors = diagnostics.filter((d) => {
+              const msg = d.getMessageText()
+              const msgStr = typeof msg === "string" ? msg : msg.getMessageText()
+              return msgStr.includes(iface.getName()!)
+            })
+
+            if (implErrors.length === 0) {
+              return { expectation: exp, pass: true }
+            } else {
+              const messages = implErrors.map((d) => {
+                const msg = d.getMessageText()
+                return typeof msg === "string" ? msg : msg.getMessageText()
+              })
+              return {
+                expectation: exp,
+                pass: false,
+                error: `Class "${cls.getName()}" does not correctly implement interface "${iface.getName()}":\n${messages.join("\n")}`,
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const ifaceNames = interfaces.map((i) => i.getName()).join(", ")
+  return {
+    expectation: exp,
+    pass: false,
+    error: `No class in scope files implements any interface from "${exp.interfacePath}" (interfaces: ${ifaceNames})`,
+  }
 }
 
 function validateAstExpectation(
