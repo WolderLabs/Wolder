@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { mkdtempSync, readFileSync, existsSync } from "node:fs"
+import { mkdtempSync, existsSync } from "node:fs"
+import { writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { writeFileSync } from "node:fs"
 import {
   createEmptyManifest,
   readManifest,
@@ -12,6 +12,8 @@ import {
   computeInputHashes,
   computeCacheKey,
   isFresh,
+  getDependents,
+  topologicalSort,
 } from "./manifest.js"
 
 describe("manifest", () => {
@@ -40,6 +42,7 @@ describe("manifest", () => {
       outputHash: "def456",
       generatedFiles: ["src/services/todoService.ts"],
       expectations: [{ type: "class", name: "TodoService" }],
+      dependsOn: [],
     })
 
     writeManifest(m, root)
@@ -57,6 +60,7 @@ describe("manifest", () => {
     expect(loaded.nodes.todoService!.expectations).toEqual([
       { type: "class", name: "TodoService" },
     ])
+    expect(loaded.nodes.todoService!.dependsOn).toEqual([])
     expect(loaded.nodes.todoService!.lastRun).toBeDefined()
   })
 
@@ -69,6 +73,7 @@ describe("manifest", () => {
       generatedFiles: ["src/app.ts"],
       expectations: [],
       compiledAssertions: { "/todos": "await expect(page).toHaveTitle('Todos')" },
+      dependsOn: [],
       lastRun: "2026-01-01T00:00:00Z",
     }
 
@@ -77,6 +82,7 @@ describe("manifest", () => {
       outputHash: "new",
       generatedFiles: ["src/app.ts"],
       expectations: [],
+      dependsOn: [],
     })
 
     expect(m.nodes.app!.outputHash).toBe("new")
@@ -92,15 +98,18 @@ describe("manifest", () => {
       outputHash: "hash-a",
       generatedFiles: ["a.ts"],
       expectations: [],
+      dependsOn: [],
     })
     updateManifestNode(m, "b", {
       inputHashes: {},
       outputHash: "hash-b",
       generatedFiles: ["b.ts"],
       expectations: [],
+      dependsOn: ["a"],
     })
 
     expect(Object.keys(m.nodes)).toEqual(["a", "b"])
+    expect(m.nodes.b!.dependsOn).toEqual(["a"])
   })
 
   it("computeOutputHash is deterministic and order-independent", () => {
@@ -154,6 +163,16 @@ describe("cache key + freshness", () => {
     expect(hashes["input.ts"]).toMatch(/^[a-f0-9]{64}$/)
   })
 
+  it("computeInputHashes includes artifact outputHash", () => {
+    const hashes = computeInputHashes(
+      "Generate",
+      [{ kind: "artifact", id: "svc", outputHash: "abc123", generatedFiles: ["svc.ts"], members: {} }],
+      "test",
+      root,
+    )
+    expect(hashes["artifact:svc"]).toBe("abc123")
+  })
+
   it("computeInputHashes changes when input file content changes", () => {
     writeFileSync(join(root, "input.ts"), "v1")
     const h1 = computeInputHashes("Go", [{ path: "input.ts", kind: "input" }], "test", root)
@@ -189,6 +208,7 @@ describe("cache key + freshness", () => {
       outputHash: "out",
       generatedFiles: ["svc.ts"],
       expectations: [],
+      dependsOn: [],
     })
 
     expect(isFresh(m, "svc", hashes)).toBe(true)
@@ -201,6 +221,7 @@ describe("cache key + freshness", () => {
       outputHash: "out",
       generatedFiles: ["svc.ts"],
       expectations: [],
+      dependsOn: [],
     })
 
     expect(isFresh(m, "svc", { "act:sha256": "new", model: "test" })).toBe(false)
@@ -213,6 +234,7 @@ describe("cache key + freshness", () => {
       outputHash: "out",
       generatedFiles: ["svc.ts"],
       expectations: [],
+      dependsOn: [],
     })
 
     expect(
@@ -227,10 +249,196 @@ describe("cache key + freshness", () => {
       outputHash: "out",
       generatedFiles: ["svc.ts"],
       expectations: [],
+      dependsOn: [],
     })
 
     expect(
       isFresh(m, "svc", { "act:sha256": "abc", model: "claude-opus-4-6" }),
     ).toBe(false)
+  })
+
+  it("isFresh returns false when upstream artifact outputHash changes", () => {
+    const m = createEmptyManifest()
+    updateManifestNode(m, "controller", {
+      inputHashes: { "act:sha256": "abc", model: "test", "artifact:svc": "hash-v1" },
+      outputHash: "out",
+      generatedFiles: ["controller.ts"],
+      expectations: [],
+      dependsOn: ["svc"],
+    })
+
+    // Upstream re-ran and produced a new outputHash
+    expect(
+      isFresh(m, "controller", { "act:sha256": "abc", model: "test", "artifact:svc": "hash-v2" }),
+    ).toBe(false)
+  })
+})
+
+describe("DAG operations", () => {
+  it("getDependents returns direct dependents", () => {
+    const m = createEmptyManifest()
+    updateManifestNode(m, "svc", {
+      inputHashes: {},
+      outputHash: "h1",
+      generatedFiles: ["svc.ts"],
+      expectations: [],
+      dependsOn: [],
+    })
+    updateManifestNode(m, "controller", {
+      inputHashes: {},
+      outputHash: "h2",
+      generatedFiles: ["controller.ts"],
+      expectations: [],
+      dependsOn: ["svc"],
+    })
+
+    expect(getDependents(m, "svc")).toEqual(["controller"])
+    expect(getDependents(m, "controller")).toEqual([])
+  })
+
+  it("getDependents returns transitive dependents", () => {
+    const m = createEmptyManifest()
+    updateManifestNode(m, "model", {
+      inputHashes: {},
+      outputHash: "h1",
+      generatedFiles: ["model.ts"],
+      expectations: [],
+      dependsOn: [],
+    })
+    updateManifestNode(m, "svc", {
+      inputHashes: {},
+      outputHash: "h2",
+      generatedFiles: ["svc.ts"],
+      expectations: [],
+      dependsOn: ["model"],
+    })
+    updateManifestNode(m, "controller", {
+      inputHashes: {},
+      outputHash: "h3",
+      generatedFiles: ["controller.ts"],
+      expectations: [],
+      dependsOn: ["svc"],
+    })
+    updateManifestNode(m, "app", {
+      inputHashes: {},
+      outputHash: "h4",
+      generatedFiles: ["app.ts"],
+      expectations: [],
+      dependsOn: ["controller"],
+    })
+
+    expect(getDependents(m, "model")).toEqual(["svc", "controller", "app"])
+    expect(getDependents(m, "svc")).toEqual(["controller", "app"])
+    expect(getDependents(m, "controller")).toEqual(["app"])
+  })
+
+  it("topologicalSort returns nodes in dependency order", () => {
+    const m = createEmptyManifest()
+    // Insert in reverse order to verify sorting
+    updateManifestNode(m, "app", {
+      inputHashes: {},
+      outputHash: "h3",
+      generatedFiles: ["app.ts"],
+      expectations: [],
+      dependsOn: ["controller"],
+    })
+    updateManifestNode(m, "controller", {
+      inputHashes: {},
+      outputHash: "h2",
+      generatedFiles: ["controller.ts"],
+      expectations: [],
+      dependsOn: ["svc"],
+    })
+    updateManifestNode(m, "svc", {
+      inputHashes: {},
+      outputHash: "h1",
+      generatedFiles: ["svc.ts"],
+      expectations: [],
+      dependsOn: [],
+    })
+
+    const sorted = topologicalSort(m)
+    const svcIdx = sorted.indexOf("svc")
+    const ctrlIdx = sorted.indexOf("controller")
+    const appIdx = sorted.indexOf("app")
+
+    expect(svcIdx).toBeLessThan(ctrlIdx)
+    expect(ctrlIdx).toBeLessThan(appIdx)
+  })
+
+  it("topologicalSort handles diamond dependencies", () => {
+    const m = createEmptyManifest()
+    updateManifestNode(m, "base", {
+      inputHashes: {},
+      outputHash: "h1",
+      generatedFiles: ["base.ts"],
+      expectations: [],
+      dependsOn: [],
+    })
+    updateManifestNode(m, "left", {
+      inputHashes: {},
+      outputHash: "h2",
+      generatedFiles: ["left.ts"],
+      expectations: [],
+      dependsOn: ["base"],
+    })
+    updateManifestNode(m, "right", {
+      inputHashes: {},
+      outputHash: "h3",
+      generatedFiles: ["right.ts"],
+      expectations: [],
+      dependsOn: ["base"],
+    })
+    updateManifestNode(m, "top", {
+      inputHashes: {},
+      outputHash: "h4",
+      generatedFiles: ["top.ts"],
+      expectations: [],
+      dependsOn: ["left", "right"],
+    })
+
+    const sorted = topologicalSort(m)
+    const baseIdx = sorted.indexOf("base")
+    const leftIdx = sorted.indexOf("left")
+    const rightIdx = sorted.indexOf("right")
+    const topIdx = sorted.indexOf("top")
+
+    expect(baseIdx).toBeLessThan(leftIdx)
+    expect(baseIdx).toBeLessThan(rightIdx)
+    expect(leftIdx).toBeLessThan(topIdx)
+    expect(rightIdx).toBeLessThan(topIdx)
+  })
+
+  it("topologicalSort detects cycles", () => {
+    const m = createEmptyManifest()
+    updateManifestNode(m, "a", {
+      inputHashes: {},
+      outputHash: "h1",
+      generatedFiles: ["a.ts"],
+      expectations: [],
+      dependsOn: ["b"],
+    })
+    updateManifestNode(m, "b", {
+      inputHashes: {},
+      outputHash: "h2",
+      generatedFiles: ["b.ts"],
+      expectations: [],
+      dependsOn: ["a"],
+    })
+
+    expect(() => topologicalSort(m)).toThrow(/Cycle detected/)
+  })
+
+  it("getDependents with no dependents returns empty array", () => {
+    const m = createEmptyManifest()
+    updateManifestNode(m, "standalone", {
+      inputHashes: {},
+      outputHash: "h1",
+      generatedFiles: ["standalone.ts"],
+      expectations: [],
+      dependsOn: [],
+    })
+
+    expect(getDependents(m, "standalone")).toEqual([])
   })
 })

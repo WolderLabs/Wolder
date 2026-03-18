@@ -131,6 +131,11 @@ export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, Inte
       this.root,
     )
 
+    // Extract dependency edges (artifact IDs this node depends on)
+    const dependsOn = node.inputs
+      .filter((i): i is Artifact => i.kind === "artifact")
+      .map((a) => a.id)
+
     const members: Record<string, MemberRef> = {}
     for (const name of node.memberNames) {
       members[name] = {
@@ -147,6 +152,7 @@ export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, Inte
       return {
         kind: "artifact",
         id,
+        outputHash: cached.outputHash,
         generatedFiles: cached.generatedFiles,
         members,
       }
@@ -164,12 +170,14 @@ export class ActBuilderImpl implements ActBuilder, ClassExpectationBuilder, Inte
       outputHash,
       generatedFiles: result.files.map((f) => f.path),
       expectations: node.expectations,
+      dependsOn,
     })
     writeManifest(manifest, this.root)
 
     return {
       kind: "artifact",
       id,
+      outputHash,
       generatedFiles: result.files.map((f) => f.path),
       members,
     }

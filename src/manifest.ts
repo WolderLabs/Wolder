@@ -10,6 +10,7 @@ export interface ManifestNode {
   generatedFiles: string[]
   expectations: Expectation[]
   compiledAssertions: Record<string, string>
+  dependsOn: string[]
   lastRun: string
 }
 
@@ -80,14 +81,9 @@ export function computeInputHashes(
         )
       }
     } else {
-      // Artifact — use its outputHash as the cache key component
+      // Artifact — use its outputHash directly as the cache key component
       const artifact = input as Artifact
-      hashes[`artifact:${artifact.id}`] = artifact.generatedFiles
-        .map((f) => {
-          const absPath = resolve(root, f)
-          return existsSync(absPath) ? sha256(readFileSync(absPath, "utf-8")) : ""
-        })
-        .join(":")
+      hashes[`artifact:${artifact.id}`] = artifact.outputHash
     }
   }
 
@@ -119,6 +115,7 @@ export function updateManifestNode(
     outputHash: string
     generatedFiles: string[]
     expectations: Expectation[]
+    dependsOn: string[]
   },
 ): void {
   manifest.nodes[nodeId] = {
@@ -128,6 +125,60 @@ export function updateManifestNode(
     generatedFiles: data.generatedFiles,
     expectations: data.expectations,
     compiledAssertions: manifest.nodes[nodeId]?.compiledAssertions ?? {},
+    dependsOn: data.dependsOn,
     lastRun: new Date().toISOString(),
   }
+}
+
+/**
+ * Get all downstream node IDs that depend (directly or transitively) on the given node.
+ */
+export function getDependents(manifest: Manifest, nodeId: string): string[] {
+  const result: string[] = []
+  const visited = new Set<string>()
+
+  function walk(id: string) {
+    for (const [candidateId, node] of Object.entries(manifest.nodes)) {
+      if (!visited.has(candidateId) && node.dependsOn.includes(id)) {
+        visited.add(candidateId)
+        result.push(candidateId)
+        walk(candidateId)
+      }
+    }
+  }
+
+  walk(nodeId)
+  return result
+}
+
+/**
+ * Return node IDs in topological order (dependencies before dependents).
+ */
+export function topologicalSort(manifest: Manifest): string[] {
+  const sorted: string[] = []
+  const visited = new Set<string>()
+  const visiting = new Set<string>()
+
+  function visit(id: string) {
+    if (visited.has(id)) return
+    if (visiting.has(id)) throw new Error(`Cycle detected involving node "${id}"`)
+    visiting.add(id)
+
+    const node = manifest.nodes[id]
+    if (node) {
+      for (const dep of node.dependsOn) {
+        visit(dep)
+      }
+    }
+
+    visiting.delete(id)
+    visited.add(id)
+    sorted.push(id)
+  }
+
+  for (const id of Object.keys(manifest.nodes)) {
+    visit(id)
+  }
+
+  return sorted
 }
