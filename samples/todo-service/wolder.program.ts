@@ -25,6 +25,7 @@ const todoService = await w
   .withFunction("addItem")
   .withFunction("updateItem")
   .withFunction("deleteItem")
+  .expectCompiles()
   .build()
 
 console.log("Generated TodoService artifact:", todoService.id)
@@ -49,6 +50,7 @@ const todoController = await w
   .withFunction("create")
   .withFunction("toggle")
   .withFunction("remove")
+  .expectCompiles()
   .build()
 
 console.log("\nGenerated TodoController artifact:", todoController.id)
