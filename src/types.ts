@@ -1,6 +1,19 @@
+export interface WolderConfig {
+  model?: string
+  apiKey?: string
+  temperature?: number
+  devCommand?: string
+  devPort?: number
+  devReadyPattern?: string
+  maxRetries?: number
+  manifestPath?: string
+  protectedPatterns?: string[]
+}
+
 export interface WolderOptions {
   root: string
   model: string
+  config?: WolderConfig
 }
 
 export interface WolderInstance {
