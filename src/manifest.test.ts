@@ -147,7 +147,7 @@ describe("cache key + freshness", () => {
   })
 
   it("computeInputHashes includes act hash and model", () => {
-    const hashes = computeInputHashes("Create a service", [], "claude-sonnet-4-6", root)
+    const hashes = computeInputHashes("Create a service", [], "claude-sonnet-4-6", root, [], [])
     expect(hashes["act:sha256"]).toMatch(/^[a-f0-9]{64}$/)
     expect(hashes.model).toBe("claude-sonnet-4-6")
   })
@@ -159,6 +159,8 @@ describe("cache key + freshness", () => {
       [{ path: "input.ts", kind: "input" }],
       "test",
       root,
+      [],
+      [],
     )
     expect(hashes["input.ts"]).toMatch(/^[a-f0-9]{64}$/)
   })
@@ -169,24 +171,124 @@ describe("cache key + freshness", () => {
       [{ kind: "artifact", id: "svc", outputHash: "abc123", generatedFiles: ["svc.ts"], members: {} }],
       "test",
       root,
+      [],
+      [],
     )
     expect(hashes["artifact:svc"]).toBe("abc123")
   })
 
   it("computeInputHashes changes when input file content changes", () => {
     writeFileSync(join(root, "input.ts"), "v1")
-    const h1 = computeInputHashes("Go", [{ path: "input.ts", kind: "input" }], "test", root)
+    const h1 = computeInputHashes("Go", [{ path: "input.ts", kind: "input" }], "test", root, [], [])
 
     writeFileSync(join(root, "input.ts"), "v2")
-    const h2 = computeInputHashes("Go", [{ path: "input.ts", kind: "input" }], "test", root)
+    const h2 = computeInputHashes("Go", [{ path: "input.ts", kind: "input" }], "test", root, [], [])
 
     expect(h1["input.ts"]).not.toBe(h2["input.ts"])
   })
 
   it("computeInputHashes changes when act instruction changes", () => {
-    const h1 = computeInputHashes("Create a service", [], "test", root)
-    const h2 = computeInputHashes("Create a controller", [], "test", root)
+    const h1 = computeInputHashes("Create a service", [], "test", root, [], [])
+    const h2 = computeInputHashes("Create a controller", [], "test", root, [], [])
     expect(h1["act:sha256"]).not.toBe(h2["act:sha256"])
+  })
+
+  it("computeInputHashes includes scope:sha256", () => {
+    const hashes = computeInputHashes("Go", [], "test", root, ["src/svc.ts"], [])
+    expect(hashes["scope:sha256"]).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it("computeInputHashes scope:sha256 changes when scope files change", () => {
+    const h1 = computeInputHashes("Go", [], "test", root, ["src/svc.ts"], [])
+    const h2 = computeInputHashes("Go", [], "test", root, ["src/ctrl.ts"], [])
+    expect(h1["scope:sha256"]).not.toBe(h2["scope:sha256"])
+  })
+
+  it("computeInputHashes scope:sha256 changes when a scope file is added", () => {
+    const h1 = computeInputHashes("Go", [], "test", root, ["src/svc.ts"], [])
+    const h2 = computeInputHashes("Go", [], "test", root, ["src/svc.ts", "src/svc.test.ts"], [])
+    expect(h1["scope:sha256"]).not.toBe(h2["scope:sha256"])
+  })
+
+  it("computeInputHashes scope:sha256 is sensitive to scope file order", () => {
+    const h1 = computeInputHashes("Go", [], "test", root, ["src/a.ts", "src/b.ts"], [])
+    const h2 = computeInputHashes("Go", [], "test", root, ["src/b.ts", "src/a.ts"], [])
+    expect(h1["scope:sha256"]).not.toBe(h2["scope:sha256"])
+  })
+
+  it("computeInputHashes includes expectations:sha256", () => {
+    const hashes = computeInputHashes("Go", [], "test", root, [], [{ type: "compiles" }])
+    expect(hashes["expectations:sha256"]).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it("computeInputHashes expectations:sha256 changes when an expectation is added", () => {
+    const h1 = computeInputHashes("Go", [], "test", root, [], [])
+    const h2 = computeInputHashes("Go", [], "test", root, [], [{ type: "compiles" }])
+    expect(h1["expectations:sha256"]).not.toBe(h2["expectations:sha256"])
+  })
+
+  it("computeInputHashes expectations:sha256 changes when expectation details change", () => {
+    const h1 = computeInputHashes("Go", [], "test", root, [], [{ type: "class", name: "Foo" }])
+    const h2 = computeInputHashes("Go", [], "test", root, [], [{ type: "class", name: "Bar" }])
+    expect(h1["expectations:sha256"]).not.toBe(h2["expectations:sha256"])
+  })
+
+  it("computeInputHashes expectations:sha256 is sensitive to expectation order", () => {
+    const h1 = computeInputHashes("Go", [], "test", root, [], [
+      { type: "class", name: "Foo" },
+      { type: "compiles" },
+    ])
+    const h2 = computeInputHashes("Go", [], "test", root, [], [
+      { type: "compiles" },
+      { type: "class", name: "Foo" },
+    ])
+    expect(h1["expectations:sha256"]).not.toBe(h2["expectations:sha256"])
+  })
+
+  it("isFresh returns false when scope files change", () => {
+    const m = createEmptyManifest()
+    updateManifestNode(m, "svc", {
+      inputHashes: computeInputHashes("Go", [], "test", root, ["src/svc.ts"], []),
+      outputHash: "out",
+      generatedFiles: ["src/svc.ts"],
+      expectations: [],
+      dependsOn: [],
+    })
+
+    const newHashes = computeInputHashes("Go", [], "test", root, ["src/svc.ts", "src/svc.test.ts"], [])
+    expect(isFresh(m, "svc", newHashes)).toBe(false)
+  })
+
+  it("isFresh returns false when expectations change", () => {
+    const m = createEmptyManifest()
+    updateManifestNode(m, "svc", {
+      inputHashes: computeInputHashes("Go", [], "test", root, ["src/svc.ts"], []),
+      outputHash: "out",
+      generatedFiles: ["src/svc.ts"],
+      expectations: [],
+      dependsOn: [],
+    })
+
+    const newHashes = computeInputHashes("Go", [], "test", root, ["src/svc.ts"], [{ type: "compiles" }])
+    expect(isFresh(m, "svc", newHashes)).toBe(false)
+  })
+
+  it("isFresh returns true when scope files and expectations are unchanged", () => {
+    const hashes = computeInputHashes(
+      "Go", [], "test", root,
+      ["src/svc.ts"],
+      [{ type: "class", name: "Svc" }],
+    )
+    const m = createEmptyManifest()
+    updateManifestNode(m, "svc", {
+      inputHashes: hashes,
+      outputHash: "out",
+      generatedFiles: ["src/svc.ts"],
+      expectations: [{ type: "class", name: "Svc" }],
+      dependsOn: [],
+    })
+
+    expect(isFresh(m, "svc", hashes)).toBe(true)
   })
 
   it("computeCacheKey is deterministic regardless of key insertion order", () => {

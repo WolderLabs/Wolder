@@ -152,6 +152,8 @@ export class ActBuilderImpl<TMembers extends readonly string[] = []>
       node.inputs,
       this.model,
       this.root,
+      node.scopeFiles,
+      node.expectations,
     )
 
     // Extract dependency edges (artifact IDs this node depends on)

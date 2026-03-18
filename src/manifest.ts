@@ -61,10 +61,14 @@ export function computeInputHashes(
   inputs: Array<InputRef | Artifact | MemberRef>,
   model: string,
   root: string,
+  scopeFiles: string[],
+  expectations: Expectation[],
 ): Record<string, string> {
   const hashes: Record<string, string> = {
     "act:sha256": sha256(actInstruction),
     model,
+    "scope:sha256": sha256(JSON.stringify(scopeFiles)),
+    "expectations:sha256": sha256(JSON.stringify(expectations)),
   }
 
   for (const input of inputs) {
