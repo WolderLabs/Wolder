@@ -49,24 +49,38 @@ A record of all inputs that contribute to the cache key:
 
 - `act:sha256` — hash of the `.act()` instruction string
 - `model` — the model ID
-- File paths — hash of each input file's content
-- `artifact:<id>` — the `outputHash` of upstream artifacts
+- `scope:sha256` — hash of the scope file path list
+- `expectations:sha256` — hash of the full expectations array
+- File paths — hash of each `.withInput()` file's content
+- `artifact:<id>` — the `outputHash` of upstream artifacts passed via `.withInput()`
 - `member:<path>:<name>` — hash of files containing referenced members
 
 ### Output Hash
 
-SHA256 of all generated file contents (sorted by path for determinism).
+SHA256 of all generated file contents (sorted by path for determinism). Used to detect manual edits between runs.
 
 ### Dependencies
 
 `dependsOn` lists the node IDs of upstream artifacts passed via `withInput()`. This enables staleness propagation — if an upstream node regenerates with a different `outputHash`, downstream nodes become stale.
 
-### Compiled Assertions
+## What Triggers Regeneration
 
-For `expectWebPage()`, the `compiledAssertions` record stores LLM-compiled Playwright assertions keyed by `route::description`. These are reused on subsequent runs without an LLM call.
+A node regenerates if **any** of the following are true:
+
+**Inputs changed**
+- The `.act()` instruction text changed
+- The model name changed
+- The scope file list changed (added, removed, or reordered `.scope()` calls)
+- The `.expect()` chain changed
+- A `.withInput(file)` content changed on disk
+- An upstream `.withInput(artifact)` was regenerated (its `outputHash` changed)
+
+**Output drifted**
+- A generated file was manually edited
+- A generated file was deleted from disk
 
 ## Drift Detection
 
-`wolder check` computes the current hash of each generated file and compares it to the manifest's `outputHash`. If they differ, the file has been manually edited (drifted).
+`wolder check` compares the current hash of each generated file against the stored `outputHash` and reports nodes as `fresh`, `drifted`, or `missing` — without regenerating anything.
 
-The recommended workflow is to not manually edit generated files — instead, move logic into input files and re-run generation. If you do edit a generated file, `wolder run` will regenerate it on the next run (since the output hash won't match what the LLM would produce).
+`wolder run` does the same check and regenerates any drifted or missing nodes automatically.
