@@ -18,6 +18,7 @@ vi.mock("./manifest.js", () => ({
   computeOutputHash: vi.fn(() => "fakehash"),
   computeInputHashes: vi.fn(() => ({ "act:sha256": "fake", model: "test" })),
   isFresh: vi.fn(() => false),
+  isOutputFresh: vi.fn(() => true),
 }))
 
 describe("type-level member inference", () => {

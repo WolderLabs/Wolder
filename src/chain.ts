@@ -18,6 +18,7 @@ import {
   computeOutputHash,
   computeInputHashes,
   isFresh,
+  isOutputFresh,
 } from "./manifest.js"
 import * as log from "./log.js"
 
@@ -135,7 +136,7 @@ export class ActBuilderImpl<TMembers extends readonly string[] = []>
       }
     }
 
-    if (isFresh(manifest, id, inputHashes)) {
+    if (isFresh(manifest, id, inputHashes) && isOutputFresh(manifest, id, this.root)) {
       log.success(`${log.bold(id)} is fresh — skipping generation`)
       const cached = manifest.nodes[id]!
       return {

@@ -135,6 +135,25 @@ export function updateManifestNode(
 }
 
 /**
+ * Check whether the generated files on disk still match the stored output hash.
+ * Returns false if any file is missing or has been manually modified.
+ */
+export function isOutputFresh(manifest: Manifest, nodeId: string, root: string): boolean {
+  const node = manifest.nodes[nodeId]
+  if (!node) return false
+
+  const currentFiles = node.generatedFiles.map((f) => {
+    const absPath = resolve(root, f)
+    if (!existsSync(absPath)) return null
+    return { path: f, content: readFileSync(absPath, "utf-8") }
+  })
+
+  if (currentFiles.some((f) => f === null)) return false
+
+  return computeOutputHash(currentFiles as Array<{ path: string; content: string }>) === node.outputHash
+}
+
+/**
  * Get all downstream node IDs that depend (directly or transitively) on the given node.
  */
 export function getDependents(manifest: Manifest, nodeId: string): string[] {

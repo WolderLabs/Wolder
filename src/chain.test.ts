@@ -20,6 +20,7 @@ vi.mock("./manifest.js", () => ({
   computeOutputHash: vi.fn(() => "fakehash"),
   computeInputHashes: vi.fn(() => ({ "act:sha256": "fake", model: "test" })),
   isFresh: vi.fn(() => false),
+  isOutputFresh: vi.fn(() => true),
 }))
 
 describe("wolder()", () => {
@@ -183,6 +184,26 @@ describe("wolder()", () => {
       { type: "class", name: "ClassB" },
       { type: "function", name: "methodB", className: "ClassB" },
     ])
+  })
+
+  it("regenerates when output files have drifted even if inputs are unchanged", async () => {
+    const { isFresh, isOutputFresh } = await import("./manifest.js")
+    vi.mocked(isFresh).mockReturnValueOnce(true)   // inputs haven't changed
+    vi.mocked(isOutputFresh).mockReturnValueOnce(false) // but files were edited
+
+    const { generate } = await import("./generate.js")
+    vi.mocked(generate).mockResolvedValueOnce({
+      files: [{ path: "src/services/todoService.ts", content: "" }],
+      rawResponse: "",
+      attempts: 1,
+    })
+
+    await w
+      .scope("src/services/todoService.ts")
+      .act("Create TodoService")
+      .build()
+
+    expect(generate).toHaveBeenCalled()
   })
 
   it("registers plugin on the node", () => {

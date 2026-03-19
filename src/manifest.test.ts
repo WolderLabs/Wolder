@@ -12,6 +12,7 @@ import {
   computeInputHashes,
   computeCacheKey,
   isFresh,
+  isOutputFresh,
   getDependents,
   topologicalSort,
 } from "./manifest.js"
@@ -373,6 +374,62 @@ describe("cache key + freshness", () => {
     expect(
       isFresh(m, "controller", { "act:sha256": "abc", model: "test", "artifact:svc": "hash-v2" }),
     ).toBe(false)
+  })
+})
+
+describe("isOutputFresh", () => {
+  let root: string
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), "wolder-manifest-test-"))
+  })
+
+  it("returns false when node not in manifest", () => {
+    const manifest = createEmptyManifest()
+    expect(isOutputFresh(manifest, "node-a", root)).toBe(false)
+  })
+
+  it("returns true when generated files match stored output hash", () => {
+    writeFileSync(join(root, "svc.ts"), "export class Svc {}", "utf-8")
+
+    const manifest = createEmptyManifest()
+    updateManifestNode(manifest, "svc.ts", {
+      inputHashes: {},
+      outputHash: computeOutputHash([{ path: "svc.ts", content: "export class Svc {}" }]),
+      generatedFiles: ["svc.ts"],
+      expectations: [],
+      dependsOn: [],
+    })
+
+    expect(isOutputFresh(manifest, "svc.ts", root)).toBe(true)
+  })
+
+  it("returns false when a generated file has been manually modified", () => {
+    writeFileSync(join(root, "svc.ts"), "export class Svc { extra() {} }", "utf-8")
+
+    const manifest = createEmptyManifest()
+    updateManifestNode(manifest, "svc.ts", {
+      inputHashes: {},
+      outputHash: computeOutputHash([{ path: "svc.ts", content: "export class Svc {}" }]),
+      generatedFiles: ["svc.ts"],
+      expectations: [],
+      dependsOn: [],
+    })
+
+    expect(isOutputFresh(manifest, "svc.ts", root)).toBe(false)
+  })
+
+  it("returns false when a generated file is missing from disk", () => {
+    const manifest = createEmptyManifest()
+    updateManifestNode(manifest, "svc.ts", {
+      inputHashes: {},
+      outputHash: "somehash",
+      generatedFiles: ["svc.ts"],
+      expectations: [],
+      dependsOn: [],
+    })
+
+    expect(isOutputFresh(manifest, "svc.ts", root)).toBe(false)
   })
 })
 
