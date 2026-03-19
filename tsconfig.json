@@ -11,5 +11,5 @@
     "skipLibCheck": true
   },
   "include": ["src"],
-  "exclude": ["src/fixtures"]
+  "exclude": ["src/fixtures", "src/**/*.test.ts"]
 }
