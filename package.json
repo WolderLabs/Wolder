@@ -8,6 +8,10 @@
   "bin": {
     "wolder": "dist/cli.js"
   },
+  "workspaces": [
+    "packages/*",
+    "samples/*"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run",

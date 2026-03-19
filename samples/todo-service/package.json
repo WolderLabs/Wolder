@@ -4,5 +4,8 @@
   "type": "module",
   "scripts": {
     "generate": "tsx --env-file=.env wolder.program.ts"
+  },
+  "dependencies": {
+    "@wolder/typescript": "*"
   }
 }

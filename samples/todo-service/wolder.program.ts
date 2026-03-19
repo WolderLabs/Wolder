@@ -1,4 +1,4 @@
-import { wolder, typescript } from "../../packages/typescript/src/index.js"
+import { wolder, typescript } from "@wolder/typescript"
 
 const w = wolder({
   root: import.meta.dirname,

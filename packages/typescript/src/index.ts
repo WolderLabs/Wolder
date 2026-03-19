@@ -11,7 +11,7 @@ import type {
 } from "../../../src/index.js"
 
 export type { Plugin, PluginBuilder, Expectation, ExpectationResult, PluginRunContext }
-export { wolder } from "../../../src/index.js"
+export { wolder, defineConfig } from "../../../src/index.js"
 export type {
   WolderConfig,
   WolderInstance,

@@ -1,4 +1,4 @@
-import { defineConfig } from "../../src/index.js"
+import { defineConfig } from "@wolder/typescript-testing"
 
 export default defineConfig({
   model: "claude-sonnet-4-6",

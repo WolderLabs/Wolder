@@ -10,15 +10,14 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@wolder/typescript-testing": "*",
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.7.0",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
-    "@types/better-sqlite3": "^7.6.12",
     "@types/express": "^5.0.0",
     "@types/express-session": "^1.18.1",
     "@types/node": "^22.0.0",
