@@ -5,17 +5,22 @@ import { existsSync } from "node:fs"
 import { execSync } from "node:child_process"
 import { check, clean } from "./commands.js"
 import { readManifest } from "./manifest.js"
+import { runAgent } from "./agent.js"
 import * as log from "./log.js"
 
 const DEFAULT_PROGRAM = "wolder.program.ts"
 
-function main() {
+async function main() {
   const args = process.argv.slice(2)
   const command = args[0]
 
   switch (command) {
     case "run":
       runProgram(args[1])
+      break
+
+    case "agent":
+      await runAgent(args[1])
       break
 
     case "check":
@@ -48,10 +53,11 @@ function printHelp() {
 ${log.bold("wolder")} — code-first agentic software generation
 
 ${log.bold("Usage:")}
-  wolder run [program]   Execute a generation program (default: ${DEFAULT_PROGRAM})
-  wolder check           Compare generated files against manifest
-  wolder clean           Remove all generated files
-  wolder help            Show this help
+  wolder agent <requirements> Generate a wolder.program.ts from a requirements document
+  wolder run [program]        Execute a generation program (default: ${DEFAULT_PROGRAM})
+  wolder check               Compare generated files against manifest
+  wolder clean               Remove all generated files
+  wolder help                Show this help
 `)
 }
 
@@ -144,4 +150,7 @@ function runClean() {
   }
 }
 
-main()
+main().catch((err) => {
+  log.error(err instanceof Error ? err.message : String(err))
+  process.exit(1)
+})
