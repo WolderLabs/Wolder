@@ -253,6 +253,18 @@ const todoController = await w
 - Always end expectations with \`.compiles()\` on TypeScript files
 - Use \`.withFunction()\` rather than just \`.hasClass()\` to track members for downstream steps
 - Write the output to \`wolder.program.ts\` in the current working directory
+
+## Workflow
+
+After writing \`wolder.program.ts\`, you must run the generation step and verify it succeeds:
+
+1. Write \`wolder.program.ts\`
+2. Run \`npx wolder run\` in the current directory
+3. If it fails, read the error output carefully:
+   - **Wolder program errors** (import errors, TypeScript errors in the program itself) — fix \`wolder.program.ts\`
+   - **Expectation failures** (generated code didn't meet expectations after all retries) — tighten the \`.act()\` instructions or adjust expectations
+4. Repeat until \`npx wolder run\` exits successfully
+5. Only report success once generation has completed without errors
 `
 
 export async function runAgent(requirementsArg: string | undefined): Promise<void> {
@@ -271,20 +283,22 @@ export async function runAgent(requirementsArg: string | undefined): Promise<voi
   const cwd = process.cwd()
 
   log.info(`Requirements: ${requirementsPath}`)
-  log.info(`Output:       ${cwd}/wolder.program.ts`)
+  log.info(`Directory:    ${cwd}`)
   console.log("")
 
   const prompt =
     `Read the requirements document at "${requirementsPath}". ` +
     `Explore the current directory to understand any existing project structure. ` +
-    `Then write a wolder.program.ts file in the current directory (${cwd}) that ` +
-    `uses the Wolder API to orchestrate generation of the described software.`
+    `Write a wolder.program.ts file in the current directory (${cwd}) that ` +
+    `uses the Wolder API to orchestrate generation of the described software. ` +
+    `Then run \`npx wolder run\` to execute the generation step. ` +
+    `Fix any errors and re-run until generation completes successfully.`
 
   for await (const message of query({
     prompt,
     options: {
       cwd,
-      allowedTools: ["Read", "Write", "Glob", "Grep"],
+      allowedTools: ["Read", "Write", "Glob", "Grep", "Bash"],
       permissionMode: "acceptEdits",
       systemPrompt: SYSTEM_PROMPT,
       model: "claude-opus-4-6",
@@ -295,7 +309,7 @@ export async function runAgent(requirementsArg: string | undefined): Promise<voi
         console.log(message.result)
       }
       console.log("")
-      log.success("wolder.program.ts written.")
+      log.success("Generation complete.")
     }
   }
 }
