@@ -7,5 +7,8 @@
   },
   "dependencies": {
     "@wolder/typescript": "*"
+  },
+  "devDependencies": {
+    "@wolder/cli": "*"
   }
 }

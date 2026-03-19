@@ -2,26 +2,12 @@
   "name": "wolder-sample-chat-app",
   "private": true,
   "type": "module",
-  "scripts": {
-    "generate": "tsx --env-file=.env wolder.program.ts",
-    "dev": "tsx src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "test": "vitest run"
-  },
   "dependencies": {
-    "@wolder/typescript-testing": "*",
-    "bcryptjs": "^2.4.3",
-    "express": "^4.21.2",
-    "express-session": "^1.18.1",
-    "socket.io": "^4.8.1"
+    "@wolder/typescript-testing": "*"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/express": "^5.0.0",
-    "@types/express-session": "^1.18.1",
+    "@wolder/cli": "*",
     "@types/node": "^22.0.0",
-    "socket.io-client": "^4.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.7.3",
     "vitest": "^3.0.0"
