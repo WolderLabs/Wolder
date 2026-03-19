@@ -1,4 +1,9 @@
 import { describe, it, expect, vi } from "vitest"
+
+vi.mock("playwright", () => ({
+  chromium: { launch: vi.fn() },
+}))
+
 import { webPage } from "./index.js"
 
 describe("webPage plugin", () => {
