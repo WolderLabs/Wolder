@@ -11,7 +11,7 @@ import type {
 } from "../../../src/index.js"
 
 // Re-export everything from @wolder/typescript so users only need one import
-export { wolder, typescript, defineConfig } from "../typescript/src/index.js"
+export { wolder, typescript, defineConfig } from "../../typescript/src/index.js"
 export type {
   WolderConfig,
   WolderInstance,
@@ -24,7 +24,7 @@ export type {
   NodeDefinition,
   ExtractMembers,
   TypeScriptBuilder,
-} from "../typescript/src/index.js"
+} from "../../typescript/src/index.js"
 
 export interface TestsBuilder extends PluginBuilder<[]> {
   /** Override the inferred test file path */
