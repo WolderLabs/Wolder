@@ -1,0 +1,4 @@
+
+```
+npx wolder init --local
+```

@@ -82,12 +82,12 @@ export function runInit(flag: string | undefined): void {
   console.log("")
 
   if (local) {
-    log.info("Add this directory to your workspace, then run 'npm install' from the workspace root.")
-    log.info("Then: wolder agent <requirements>")
+    log.info("Add this directory to the workspace, then run 'npm install' from the workspace root.")
+    log.info("Then: npx wolder agent <requirements>")
   } else {
     log.info("Installing dependencies...")
     execSync("npm install", { cwd, stdio: "inherit" })
     console.log("")
-    log.success("Ready. Run 'wolder agent <requirements>' to get started.")
+    log.success("Ready. Run 'npx wolder agent <requirements>' to get started.")
   }
 }
