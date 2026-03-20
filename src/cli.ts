@@ -25,8 +25,9 @@ async function main() {
       break
 
     case "agent":
-      await runAgent(args[1])
+      runAgent()
       break
+
 
     case "check":
       runCheck()
@@ -59,7 +60,7 @@ ${log.bold("wolder")} — code-first agentic software generation
 
 ${log.bold("Usage:")}
   wolder init [--local]       Set up a new wolder project in the current directory
-  wolder agent <requirements> Generate a wolder.program.ts from a requirements document
+  wolder agent               Install the /wolder Claude Code skill into .claude/commands/
   wolder run [program]        Execute a generation program (default: ${DEFAULT_PROGRAM})
   wolder check               Compare generated files against manifest
   wolder clean               Remove all generated files

@@ -1,9 +1,14 @@
 import { resolve } from "node:path"
-import { existsSync } from "node:fs"
-import { query } from "@anthropic-ai/claude-agent-sdk"
+import { writeFileSync, mkdirSync } from "node:fs"
 import * as log from "./log.js"
 
-const SYSTEM_PROMPT = `You are an expert Wolder programmer. Wolder is a TypeScript code-generation framework that uses LLMs to generate source files based on developer-written programs.
+const SKILL = `---
+description: Generate a wolder.program.ts from a requirements document
+argument-hint: [requirements-file]
+allowed-tools: Read, Write, Glob, Grep, Bash
+---
+
+You are an expert Wolder programmer. Wolder is a TypeScript code-generation framework that uses LLMs to generate source files based on developer-written programs.
 
 Your job is to read a requirements document and write a \`wolder.program.ts\` file that uses the Wolder API to orchestrate generation of the described software.
 
@@ -87,9 +92,9 @@ Asserts a file exists after generation.
 .expectFile("src/services/userService.ts")
 \`\`\`
 
-### .expect(plugin, builder)
+### .expect(plugin, builder?)
 
-Plugin-specific structural expectations.
+Plugin-specific structural expectations. The builder argument is optional — omitting it applies the plugin's default expectations.
 
 \`\`\`typescript
 .expect(typescript, (e) =>
@@ -98,6 +103,7 @@ Plugin-specific structural expectations.
    .withFunction("createUser")
    .compiles()
 )
+.expect(tests)  // builder optional — uses inferred test file path
 \`\`\`
 
 ### .expectWebPage(route, description)
@@ -126,20 +132,6 @@ userService.members.getUser  // MemberRef<"getUser">
 
 ## Plugins
 
-### @wolder/typescript
-
-\`\`\`typescript
-import { wolder, typescript } from "@wolder/typescript"
-\`\`\`
-
-Builder methods on the \`typescript\` plugin:
-- \`e.hasClass(name)\` — assert a class exists
-- \`e.hasInterface(name)\` — assert an interface exists
-- \`e.withFunction(name)\` — assert a method exists on the preceding class; registers as a typed member on the artifact
-- \`e.withMethod(name)\` — assert a method exists on the preceding interface; registers as a typed member
-- \`e.compiles()\` — assert TypeScript compiles without errors (always add this)
-- \`e.implements(inputRef)\` — assert a class implements an interface from an input file
-
 ### @wolder/tests
 
 \`\`\`typescript
@@ -155,6 +147,20 @@ Usage:
 .expect(tests)                                               // uses inferred test path (builder optional)
 .expect(tests, (e) => e.file("src/__tests__/user.test.ts"))  // explicit path
 \`\`\`
+
+### @wolder/typescript
+
+\`\`\`typescript
+import { wolder, typescript } from "@wolder/typescript"
+\`\`\`
+
+Builder methods on the \`typescript\` plugin:
+- \`e.hasClass(name)\` — assert a class exists
+- \`e.hasInterface(name)\` — assert an interface exists
+- \`e.withFunction(name)\` — assert a method exists on the preceding class; registers as a typed member on the artifact
+- \`e.withMethod(name)\` — assert a method exists on the preceding interface; registers as a typed member
+- \`e.compiles()\` — assert TypeScript compiles without errors (always add this)
+- \`e.implements(inputRef)\` — assert a class implements an interface from an input file
 
 ### @wolder/browser
 
@@ -270,55 +276,17 @@ After writing \`wolder.program.ts\`, you must run the generation step and verify
    - **Expectation failures** (generated code didn't meet expectations after all retries) — tighten the \`.act()\` instructions or adjust expectations
 4. Repeat until \`npx wolder run\` exits successfully
 5. Only report success once generation has completed without errors
+
+## Task
+
+Read the requirements document at \`$ARGUMENTS\`. Explore the current directory to understand any existing project structure. Write \`wolder.program.ts\` in the current directory. Then run \`npx wolder run\` to execute the generation. Fix any errors and re-run until generation completes successfully.
 `
 
-export async function runAgent(requirementsArg: string | undefined): Promise<void> {
-  if (!requirementsArg) {
-    log.error("Usage: wolder agent <requirements-file>")
-    process.exit(1)
-  }
-
-  const requirementsPath = resolve(process.cwd(), requirementsArg)
-
-  if (!existsSync(requirementsPath)) {
-    log.error(`Requirements file not found: ${requirementsPath}`)
-    process.exit(1)
-  }
-
+export function runAgent(): void {
   const cwd = process.cwd()
-
-  log.info(`Requirements: ${requirementsPath}`)
-  log.info(`Directory:    ${cwd}`)
-  console.log("")
-
-  const prompt =
-    `Read the requirements document at "${requirementsPath}". ` +
-    `Explore the current directory to understand any existing project structure. ` +
-    `Write a wolder.program.ts file in the current directory (${cwd}) that ` +
-    `uses the Wolder API to orchestrate generation of the described software. ` +
-    `Then run \`npx wolder run\` to execute the generation step. ` +
-    `Fix any errors and re-run until generation completes successfully.`
-
-  for await (const message of query({
-    prompt,
-    options: {
-      cwd,
-      allowedTools: ["Read", "Write", "Glob", "Grep", "Bash"],
-      permissionMode: "acceptEdits",
-      systemPrompt: SYSTEM_PROMPT,
-      model: "claude-opus-4-6",
-    },
-  })) {
-    if ("result" in message) {
-      console.log("")
-      log.success("Generation complete.")
-    } else if ((message as any).type === "assistant") {
-      const blocks: any[] = (message as any).message?.content ?? []
-      for (const block of blocks) {
-        if (block.type === "text" && block.text) {
-          process.stdout.write(block.text)
-        }
-      }
-    }
-  }
+  const commandsDir = resolve(cwd, ".claude", "commands")
+  mkdirSync(commandsDir, { recursive: true })
+  writeFileSync(resolve(commandsDir, "wolder.md"), SKILL)
+  log.success("Wrote .claude/commands/wolder.md")
+  log.info("In Claude Code, run: /wolder <requirements-file>")
 }
