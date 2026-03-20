@@ -16,6 +16,7 @@ function packageJson(name: string, local: boolean): string {
         },
         devDependencies: {
           "@wolder/cli": ver,
+          "@wolder/tests": ver,
           "@wolder/typescript": ver,
         },
       },
