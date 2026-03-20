@@ -305,11 +305,15 @@ export async function runAgent(requirementsArg: string | undefined): Promise<voi
     },
   })) {
     if ("result" in message) {
-      if (message.result) {
-        console.log(message.result)
-      }
       console.log("")
       log.success("Generation complete.")
+    } else if ((message as any).type === "assistant") {
+      const blocks: any[] = (message as any).message?.content ?? []
+      for (const block of blocks) {
+        if (block.type === "text" && block.text) {
+          process.stdout.write(block.text)
+        }
+      }
     }
   }
 }
