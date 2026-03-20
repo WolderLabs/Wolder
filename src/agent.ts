@@ -21,7 +21,7 @@ A \`wolder.program.ts\` is a top-level TypeScript script that:
 ### Initialise
 
 \`\`\`typescript
-import { wolder, typescript } from "@wolder/typescript"
+import { wolder, typescript, tests } from "@wolder/tests"
 
 const w = wolder({
   root: import.meta.dirname, // always use this — resolves relative to the program file
@@ -117,6 +117,7 @@ const userService = await w
   .scope("src/services/userService.ts")
   .act("Create UserService...")
   .expect(typescript, (e) => e.hasClass("UserService").withFunction("getUser").compiles())
+  .expect(tests)
   .build()
 
 // Typed member refs are accessible on the artifact:
@@ -139,10 +140,10 @@ Builder methods on the \`typescript\` plugin:
 - \`e.compiles()\` — assert TypeScript compiles without errors (always add this)
 - \`e.implements(inputRef)\` — assert a class implements an interface from an input file
 
-### @wolder/typescript-testing
+### @wolder/tests
 
 \`\`\`typescript
-import { wolder, typescript, tests } from "@wolder/typescript-testing"
+import { wolder, typescript, tests } from "@wolder/tests"
 \`\`\`
 
 Re-exports everything from \`@wolder/typescript\`, plus:
@@ -151,7 +152,7 @@ Re-exports everything from \`@wolder/typescript\`, plus:
 
 Usage:
 \`\`\`typescript
-.expect(tests, (e) => e)                           // uses inferred test path
+.expect(tests)                                               // uses inferred test path (builder optional)
 .expect(tests, (e) => e.file("src/__tests__/user.test.ts"))  // explicit path
 \`\`\`
 
@@ -190,7 +191,7 @@ export default defineConfig({
 ## Complete example
 
 \`\`\`typescript
-import { wolder, typescript } from "@wolder/typescript"
+import { wolder, typescript, tests } from "@wolder/tests"
 
 const w = wolder({
   root: import.meta.dirname,
@@ -219,6 +220,7 @@ const todoService = await w
      .withFunction("deleteItem")
      .compiles()
   )
+  .expect(tests)
   .build()
 
 // Step 2: Generate the controller — depends on service output
@@ -241,6 +243,7 @@ const todoController = await w
      .withFunction("remove")
      .compiles()
   )
+  .expect(tests)
   .build()
 \`\`\`
 
@@ -252,6 +255,8 @@ const todoController = await w
 - Be specific in \`.act()\` — include class names, method signatures, import paths, and implementation notes
 - Always end expectations with \`.compiles()\` on TypeScript files
 - Use \`.withFunction()\` rather than just \`.hasClass()\` to track members for downstream steps
+- **Always use \`@wolder/tests\` instead of \`@wolder/typescript\`** — import from \`@wolder/tests\` in every program; it re-exports everything from \`@wolder/typescript\` plus the \`tests\` plugin
+- **Add \`.expect(tests)\` to every generated scope** unless there is a clear reason not to (e.g. a config file or type-only declaration file). Tests are the primary quality gate.
 - Write the output to \`wolder.program.ts\` in the current working directory
 
 ## Workflow
