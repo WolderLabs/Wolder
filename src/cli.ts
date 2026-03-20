@@ -6,6 +6,7 @@ import { execSync } from "node:child_process"
 import { check, clean } from "./commands.js"
 import { readManifest } from "./manifest.js"
 import { runAgent } from "./agent.js"
+import { runInit } from "./init.js"
 import * as log from "./log.js"
 
 const DEFAULT_PROGRAM = "wolder.program.ts"
@@ -17,6 +18,10 @@ async function main() {
   switch (command) {
     case "run":
       runProgram(args[1])
+      break
+
+    case "init":
+      runInit(args[1])
       break
 
     case "agent":
@@ -53,6 +58,7 @@ function printHelp() {
 ${log.bold("wolder")} — code-first agentic software generation
 
 ${log.bold("Usage:")}
+  wolder init [--local]       Set up a new wolder project in the current directory
   wolder agent <requirements> Generate a wolder.program.ts from a requirements document
   wolder run [program]        Execute a generation program (default: ${DEFAULT_PROGRAM})
   wolder check               Compare generated files against manifest
