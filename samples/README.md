@@ -1,9 +1,12 @@
 # Samples
 
-Three programs, in increasing order of how much of v2 they exercise. Each one lives in a
-directory that is *itself* the project being generated — the agents own the files there, so
-almost everything you see after a run is generated. Only the program, its config, the
-developer-owned inputs, and the requirements document are checked in.
+Three programs, in increasing order of how much of v2 they exercise.
+
+`todo-service` keeps the generated project in a `project/` subdirectory, with the program,
+its config and the API key outside it. That separation is not incidental: the program has
+an agent that owns `package.json`, so if the program's own root were the generated root,
+that agent would overwrite the manifest used to run the sample. Any program with a
+`canWrite("package.json")` wants this layout.
 
 Each sample needs an API key:
 
@@ -30,9 +33,11 @@ regions, two `requests` edges and one `uses` edge:
 - `src/controllers/` provides the Todo API, **uses** the service, and **requests** a
   framework from the package agent
 
-`src/models/TodoItem.ts` is developer-owned — included as context, inside nobody's region,
-never written. Watch the contract phase: the controller never touches `package.json`, but
-it ends up importing exactly the framework the package agent installed.
+Everything above is relative to `project/`. `project/src/models/TodoItem.ts` is
+developer-owned — included as context, inside nobody's region, never written; so is
+`project/tsconfig.json`. Those two and the program are all that is checked in. Watch the
+contract phase: the controller never touches `package.json`, but it ends up importing
+exactly the framework the package agent installed.
 
 ## `counting-react-agent-based`
 

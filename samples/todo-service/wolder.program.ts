@@ -1,8 +1,12 @@
+import { resolve } from "node:path"
 import { wolder } from "@wolder/core"
 import { typescriptConventions } from "@wolder/typescript"
 
+// The generated project is ./project. The program, its config and the API key live
+// outside it — otherwise the agent that owns package.json would overwrite the very
+// manifest used to run the sample.
 const w = wolder({
-  root: import.meta.dirname,
+  root: resolve(import.meta.dirname, "project"),
   model: "claude-sonnet-4-6",
 })
 

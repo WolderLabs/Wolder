@@ -2,9 +2,39 @@ import { relative, resolve, isAbsolute } from "node:path";
 import type { AgentRunner, AgentRunRequest, AgentRunResult } from "./types.js";
 import { regionsMatch, toPosix } from "./region.js";
 
-/** Tools an agent may use. Everything that writes goes through the region check. */
-const WRITE_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit"]);
-const ALLOWED_TOOLS = ["Read", "Glob", "Grep", "Write", "Edit", "MultiEdit", "NotebookEdit"];
+/** Everything that writes. Each of these goes through the region check. */
+export const WRITE_TOOLS = ["Write", "Edit", "MultiEdit", "NotebookEdit"] as const;
+
+/** Everything that only reads. Safe to auto-approve. */
+export const READ_TOOLS = ["Read", "Glob", "Grep"] as const;
+
+/**
+ * The tools an agent is given at all. Notably absent: Bash. An agent with a shell
+ * can write anywhere, and the checks an agent would want a shell for are the
+ * layer's gates, which wolder runs itself and feeds back.
+ */
+export const AGENT_TOOLS = [...READ_TOOLS, ...WRITE_TOOLS];
+
+const WRITE_TOOL_SET = new Set<string>(WRITE_TOOLS);
+
+/**
+ * The SDK options that make the boundary real.
+ *
+ * `tools` is what restricts the available set. `allowedTools` means "auto-approve
+ * without asking" — so a write tool must be kept *out* of it, or the SDK runs the
+ * call without ever consulting `canUseTool` and the region guard never sees it.
+ */
+export function toolOptions(): {
+  tools: string[];
+  allowedTools: string[];
+  disallowedTools: string[];
+} {
+  return {
+    tools: AGENT_TOOLS,
+    allowedTools: [...READ_TOOLS],
+    disallowedTools: ["Bash", "WebFetch", "WebSearch", "Task"],
+  };
+}
 
 /**
  * Decide whether a tool call is allowed, and record what it wrote.
@@ -21,7 +51,7 @@ export function createPermissionGuard(request: Pick<AgentRunRequest, "root" | "r
     toolName: string,
     input: Record<string, unknown>,
   ): { behavior: "allow" } | { behavior: "deny"; message: string } {
-    if (!WRITE_TOOLS.has(toolName)) return { behavior: "allow" };
+    if (!WRITE_TOOL_SET.has(toolName)) return { behavior: "allow" };
 
     const target = input["file_path"] ?? input["notebook_path"] ?? input["path"];
     if (typeof target !== "string") {
@@ -78,7 +108,7 @@ export function createSdkRunner(): AgentRunner {
           cwd: request.root,
           model: request.model,
           systemPrompt: request.systemPrompt,
-          allowedTools: ALLOWED_TOOLS,
+          ...toolOptions(),
           maxTurns: request.maxTurns,
           permissionMode: "default",
           canUseTool: async (toolName, input) => guard.decide(toolName, input),

@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { resolve } from "node:path";
-import { createPermissionGuard, toRootRelative } from "./runner.js";
+import {
+  AGENT_TOOLS,
+  READ_TOOLS,
+  WRITE_TOOLS,
+  createPermissionGuard,
+  toRootRelative,
+  toolOptions,
+} from "./runner.js";
 
 const root = resolve("/project");
 
@@ -90,5 +97,43 @@ describe("toRootRelative", () => {
   it("returns null for the root itself and for anything outside it", () => {
     expect(toRootRelative(root, root)).toBeNull();
     expect(toRootRelative("../x.ts", root)).toBeNull();
+  });
+});
+
+describe("SDK tool options", () => {
+  const options = toolOptions();
+
+  it("keeps every write tool out of allowedTools", () => {
+    // `allowedTools` means "auto-approve without asking". A write tool listed there
+    // executes without `canUseTool` ever running, so the region guard never sees it
+    // and the boundary silently stops existing. This is the invariant.
+    for (const tool of WRITE_TOOLS) {
+      expect(options.allowedTools).not.toContain(tool);
+    }
+  });
+
+  it("offers every write tool, so the guard is what decides", () => {
+    for (const tool of WRITE_TOOLS) {
+      expect(options.tools).toContain(tool);
+    }
+  });
+
+  it("auto-approves the read-only tools", () => {
+    expect(options.allowedTools).toEqual([...READ_TOOLS]);
+  });
+
+  it("gives the agent no shell and no network", () => {
+    expect(options.tools).not.toContain("Bash");
+    expect(options.disallowedTools).toContain("Bash");
+    for (const tool of ["WebFetch", "WebSearch", "Task"]) {
+      expect(options.disallowedTools).toContain(tool);
+    }
+  });
+
+  it("guards every tool it offers that can write", () => {
+    const guarded = AGENT_TOOLS.filter(
+      (tool) => guard(["a.ts"]).decide(tool, { file_path: "b.ts" }).behavior === "deny",
+    );
+    expect(guarded.sort()).toEqual([...WRITE_TOOLS].sort());
   });
 });
