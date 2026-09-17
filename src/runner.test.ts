@@ -5,6 +5,7 @@ import {
   READ_TOOLS,
   WRITE_TOOLS,
   createPermissionGuard,
+  describeAssistantTurn,
   toRootRelative,
   toolOptions,
 } from "./runner.js";
@@ -46,7 +47,7 @@ describe("write enforcement", () => {
     );
   });
 
-  it("allows reading anywhere — the boundary is about writing", () => {
+  it("lets an agent read anywhere inside the project, region or not", () => {
     for (const tool of ["Read", "Glob", "Grep"]) {
       expect(guard(["a.ts"]).decide(tool, { file_path: "anything.ts" }).behavior).toBe("allow");
     }
@@ -100,6 +101,89 @@ describe("toRootRelative", () => {
   });
 });
 
+describe("read confinement", () => {
+  it("refuses a read above the project root", () => {
+    const decision = guard(["a.ts"]).decide("Read", {
+      file_path: resolve(root, "..", "other-project", "secrets.ts"),
+    });
+    expect(decision.behavior).toBe("deny");
+    expect(decision.behavior === "deny" && decision.message).toMatch(/outside this project/);
+  });
+
+  it("refuses a read of an unrelated absolute path", () => {
+    // The case seen in a real run: an agent reaching into ~/.claude.
+    const decision = guard(["a.ts"]).decide("Read", {
+      file_path: resolve("/home/someone/.claude/projects/other/package.json"),
+    });
+    expect(decision.behavior).toBe("deny");
+  });
+
+  it("refuses a relative escape", () => {
+    expect(guard(["a.ts"]).decide("Read", { file_path: "../../.env" }).behavior).toBe("deny");
+  });
+
+  it("allows the project root itself, so an agent can list and search it", () => {
+    for (const tool of ["Glob", "Grep"]) {
+      expect(guard(["a.ts"]).decide(tool, { path: root }).behavior).toBe("allow");
+      expect(guard(["a.ts"]).decide(tool, { path: "." }).behavior).toBe("allow");
+    }
+  });
+
+  it("allows a search with no path at all — it defaults to the root", () => {
+    expect(guard(["a.ts"]).decide("Glob", { pattern: "src/**/*.ts" }).behavior).toBe("allow");
+  });
+
+  it("refuses a pattern that climbs out with ..", () => {
+    const decision = guard(["a.ts"]).decide("Glob", { pattern: "../**/*.env" });
+    expect(decision.behavior).toBe("deny");
+    expect(decision.behavior === "deny" && decision.message).toMatch(/reaches outside/);
+  });
+
+  it("refuses a grep glob that climbs out", () => {
+    expect(
+      guard(["a.ts"]).decide("Grep", { pattern: "TOKEN", glob: "../../**" }).behavior,
+    ).toBe("deny");
+  });
+
+  it("does not mistake a pattern containing .. inside a name for an escape", () => {
+    expect(guard(["a.ts"]).decide("Glob", { pattern: "src/**/a..b.ts" }).behavior).toBe("allow");
+  });
+
+  it("leaves writes judged by region, not merely by the root", () => {
+    // A path inside the project but outside the region is still refused.
+    const decision = guard(["src/services/**"]).decide("Write", { file_path: "package.json" });
+    expect(decision.behavior).toBe("deny");
+    expect(decision.behavior === "deny" && decision.message).toMatch(/writable region/);
+  });
+});
+
+describe("the shape of an allow decision", () => {
+  it("echoes updatedInput back, because the SDK's runtime schema demands it", () => {
+    // Its .d.ts says `updatedInput?`, but an allow without it is rejected at runtime
+    // and the agent only sees an opaque ZodError. Regression guard for a bug that
+    // silently cost every write.
+    const decision = guard(["a.ts"]).decide("Write", { file_path: "a.ts", content: "x" });
+    expect(decision).toEqual({
+      behavior: "allow",
+      updatedInput: { file_path: "a.ts", content: "x" },
+    });
+  });
+
+  it("echoes it for read-only tools too", () => {
+    const decision = guard(["a.ts"]).decide("Read", { file_path: "anything.ts" });
+    expect(decision).toEqual({
+      behavior: "allow",
+      updatedInput: { file_path: "anything.ts" },
+    });
+  });
+
+  it("carries no updatedInput on a denial, only a message", () => {
+    const decision = guard(["a.ts"]).decide("Write", { file_path: "b.ts" });
+    expect(decision.behavior).toBe("deny");
+    expect(decision).not.toHaveProperty("updatedInput");
+  });
+});
+
 describe("SDK tool options", () => {
   const options = toolOptions();
 
@@ -118,8 +202,13 @@ describe("SDK tool options", () => {
     }
   });
 
-  it("auto-approves the read-only tools", () => {
-    expect(options.allowedTools).toEqual([...READ_TOOLS]);
+  it("auto-approves nothing at all, so every call reaches the guard", () => {
+    // Reads are fenced to the project root, which only works if `canUseTool` runs
+    // for them — and anything in `allowedTools` skips it.
+    expect(options.allowedTools).toEqual([]);
+    for (const tool of READ_TOOLS) {
+      expect(options.allowedTools).not.toContain(tool);
+    }
   });
 
   it("gives the agent no shell and no network", () => {
@@ -135,5 +224,56 @@ describe("SDK tool options", () => {
       (tool) => guard(["a.ts"]).decide(tool, { file_path: "b.ts" }).behavior === "deny",
     );
     expect(guarded.sort()).toEqual([...WRITE_TOOLS].sort());
+  });
+});
+
+describe("translating an assistant turn into progress events", () => {
+  it("reports each tool the agent reaches for, with the field worth showing", () => {
+    expect(
+      describeAssistantTurn({
+        content: [
+          { type: "tool_use", name: "Read", input: { file_path: "src/models/TodoItem.ts" } },
+          { type: "tool_use", name: "Glob", input: { pattern: "src/**/*.ts" } },
+        ],
+      }),
+    ).toEqual([
+      { kind: "tool", name: "Read", detail: "src/models/TodoItem.ts" },
+      { kind: "tool", name: "Glob", detail: "src/**/*.ts" },
+    ]);
+  });
+
+  it("reports what the agent said, first line only", () => {
+    expect(
+      describeAssistantTurn({
+        content: [
+          { type: "text", text: "\n  Writing the service.\nThen the tests.\n" },
+        ],
+      }),
+    ).toEqual([{ kind: "text", text: "Writing the service." }]);
+  });
+
+  it("truncates a long line rather than flooding the terminal", () => {
+    const [event] = describeAssistantTurn({
+      content: [{ type: "text", text: "x".repeat(500) }],
+    });
+    expect(event!.kind).toBe("text");
+    expect(event!.kind === "text" && event!.text.length).toBeLessThanOrEqual(100);
+  });
+
+  it("drops an empty text block instead of emitting a blank line", () => {
+    expect(describeAssistantTurn({ content: [{ type: "text", text: "   \n  " }] })).toEqual(
+      [],
+    );
+  });
+
+  it("copes with content that is not what it expects", () => {
+    expect(describeAssistantTurn({ content: undefined })).toEqual([]);
+    expect(describeAssistantTurn({ content: [null, 42, { type: "thinking" }] })).toEqual([]);
+  });
+
+  it("emits a tool event even when no field is worth showing", () => {
+    expect(describeAssistantTurn({ content: [{ type: "tool_use", name: "TodoWrite" }] })).toEqual([
+      { kind: "tool", name: "TodoWrite", detail: undefined },
+    ]);
   });
 });

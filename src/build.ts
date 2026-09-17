@@ -155,85 +155,116 @@ async function settleContracts(
   if (grouped.size === 0) return [];
 
   reporter.phase("Settling contracts");
+
+  // Negotiations are independent of one another, so they run together. Settling them
+  // one at a time made the contract phase as slow as the sum of its exchanges.
+  const settled = await Promise.all(
+    [...grouped]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([providerId, requests]) =>
+        settleOne(providerId, requests, graph, inputs, manifest, reporter, options),
+      ),
+  );
+
+  // Writing happens after every negotiation resolves, so a contract file cannot land
+  // in a region while another negotiation is still deciding what belongs there.
   const contracts: Contract[] = [];
-
-  for (const [providerId, requests] of [...grouped].sort(([a], [b]) => a.localeCompare(b))) {
-    const provider = graph.byId.get(providerId)!;
-    const id = `contract:${providerId}`;
-    const inputHash = hashJson({
-      provider: provider.chainHash,
-      model: inputs.model,
-      requests: requests
-        .map((r) => ({ id: r.node.id, chain: r.node.chainHash, ask: r.ask }))
-        .sort((a, b) => a.id.localeCompare(b.id)),
-    });
-
-    const cached = manifest.contracts[id];
-    if (!options.force && cached?.inputHash === inputHash) {
-      const restored = restoreContract(cached, inputs.root);
-      if (restored) {
-        reporter.nodeSkipped(id, "unchanged — reusing the settled contract");
-        contracts.push(restored);
-        continue;
+  for (const { contract, inputHash, fresh } of settled) {
+    if (fresh) {
+      const provider = graph.byId.get(contract.provider)!;
+      writeContractFiles(contract, provider, inputs.root);
+      if (contract.files.length > 0) {
+        reporter.note(
+          `  ${contract.files.length} contract file(s) written into ${provider.id}'s region`,
+        );
       }
+      updateManifestContract(manifest, contract, inputHash);
     }
-
-    reporter.nodeStart(
-      id,
-      `${provider.label} <-> ${requests.map((r) => r.node.id).join(", ")}`,
-    );
-
-    const outcome = await inputs.services.negotiator.negotiate({
-      provider: {
-        id: provider.id,
-        label: provider.provides ?? provider.id,
-        context: partyContext(provider),
-        instruction: provider.instruction,
-        regions: provider.regions,
-      },
-      requesters: requests.map((r) => ({
-        id: r.node.id,
-        label: r.node.provides ?? r.node.id,
-        context: partyContext(r.node),
-        instruction: r.node.instruction,
-        regions: r.node.regions,
-        ask: r.ask,
-      })),
-      maxRounds: inputs.config.negotiationRounds,
-      model: inputs.model,
-      apiKey: inputs.config.apiKey || undefined,
-    });
-
-    const contract: Contract = {
-      id,
-      provider: provider.id,
-      label: provider.provides ?? provider.id,
-      requesters: requests.map((r) => r.node.id),
-      summary: outcome.summary,
-      terms: outcome.terms,
-      files: outcome.files,
-      hash: hashJson({
-        label: provider.provides,
-        summary: outcome.summary,
-        terms: outcome.terms,
-        files: outcome.files,
-      }),
-    };
-
-    // The contract may *be* files — the provider writes them into its own region
-    // now, and its own run then treats them as decisions already made.
-    writeContractFiles(contract, provider, inputs.root);
-    if (contract.files.length > 0) {
-      reporter.note(
-        `  ${contract.files.length} contract file(s) written into ${provider.id}'s region`,
-      );
-    }
-
-    updateManifestContract(manifest, contract, inputHash);
     contracts.push(contract);
   }
 
   return contracts;
+}
+
+interface SettledContract {
+  readonly contract: Contract;
+  readonly inputHash: string;
+  /** False when it came back from the manifest unchanged. */
+  readonly fresh: boolean;
+}
+
+async function settleOne(
+  providerId: string,
+  requests: Array<{ node: AgentNode; ask: string }>,
+  graph: Graph,
+  inputs: BuildInputs,
+  manifest: ReturnType<typeof readManifest>,
+  reporter: Reporter,
+  options: BuildOptions,
+): Promise<SettledContract> {
+  const provider = graph.byId.get(providerId)!;
+  const id = `contract:${providerId}`;
+  const inputHash = hashJson({
+    provider: provider.chainHash,
+    model: inputs.model,
+    requests: requests
+      .map((r) => ({ id: r.node.id, chain: r.node.chainHash, ask: r.ask }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
+  });
+
+  const cached = manifest.contracts[id];
+  if (!options.force && cached?.inputHash === inputHash) {
+    const restored = restoreContract(cached, inputs.root);
+    if (restored) {
+      reporter.nodeSkipped(id, "unchanged — reusing the settled contract");
+      return { contract: restored, inputHash, fresh: false };
+    }
+  }
+
+  reporter.nodeStart(
+    id,
+    `${provider.label} <-> ${requests.map((r) => r.node.id).join(", ")}`,
+  );
+
+  const outcome = await inputs.services.negotiator.negotiate({
+    provider: {
+      id: provider.id,
+      label: provider.provides ?? provider.id,
+      context: partyContext(provider),
+      instruction: provider.instruction,
+      regions: provider.regions,
+    },
+    requesters: requests.map((r) => ({
+      id: r.node.id,
+      label: r.node.provides ?? r.node.id,
+      context: partyContext(r.node),
+      instruction: r.node.instruction,
+      regions: r.node.regions,
+      ask: r.ask,
+    })),
+    maxRounds: inputs.config.negotiationRounds,
+    model: inputs.model,
+    apiKey: inputs.config.apiKey || undefined,
+    onEvent: (event) => reporter.nodeEvent(id, event),
+  });
+
+  const contract: Contract = {
+    id,
+    provider: provider.id,
+    label: provider.provides ?? provider.id,
+    requesters: requests.map((r) => r.node.id),
+    summary: outcome.summary,
+    terms: outcome.terms,
+    files: outcome.files,
+    hash: hashJson({
+      label: provider.provides,
+      summary: outcome.summary,
+      terms: outcome.terms,
+      files: outcome.files,
+    }),
+  };
+
+  return { contract, inputHash, fresh: true };
 }
 
 function writeContractFiles(contract: Contract, provider: AgentNode, root: string): void {
@@ -343,6 +374,7 @@ async function executeNode(
       prompt,
       regions: node.regions,
       maxTurns: config.maxTurns,
+      onEvent: (event) => reporter.nodeEvent(node.id, event),
     });
     for (const file of result.files) written.add(file);
 

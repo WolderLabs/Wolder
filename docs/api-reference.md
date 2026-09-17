@@ -67,7 +67,9 @@ template rather than a node. Declaring is synchronous — there is no `await`.
 
 Claims a writable region. A file (`README.md`), a directory (`src/services/`, trailing
 slash optional when the last segment has no extension), or a glob (`src/**/*.test.ts`).
-Accumulates as a set. Writes outside every claimed region are refused at the tool layer.
+Accumulates as a set. Writes outside every claimed region are refused at the tool layer, as
+are reads above the project root — an agent may read the whole project and nothing beyond
+it. Agents are given no shell and no network access.
 
 Regions must be relative to the root and may not contain `..`. Two agents claiming
 overlapping regions is a pre-flight error.
@@ -116,6 +118,38 @@ const result = await w.build({ force: true })
 |---|---|---|
 | `reporter` | `Reporter` | Progress output. Defaults to the console reporter. |
 | `force` | `boolean` | Ignore the manifest and regenerate everything. |
+
+### Progress
+
+Generation takes minutes, so a build narrates itself. The default console reporter
+prints every tool an agent reaches for, stamped with how long that node has been
+running, plus each negotiation round and any API retry:
+
+```
+[wolder] src/services/** provides "Todo Service"
+       +2s Read src/models/TodoItem.ts
+       +9s Writing the service and its error type.
+      +11s Write src/services/TodoService.ts
+[wolder] src/services/** wrote 2 file(s) in 14.3s
+```
+
+`createConsoleReporter({ verbose: false })` keeps only the lines you would act on —
+refusals and retries. `createSilentReporter()` prints nothing.
+
+A custom reporter receives the same stream through `nodeEvent(id, event)`:
+
+```typescript
+type AgentEvent =
+  | { kind: "text"; text: string }
+  | { kind: "tool"; name: string; detail?: string }
+  | { kind: "denied"; name: string; detail?: string; reason: string }
+  | { kind: "retry"; attempt: number; maxAttempts: number; delayMs: number; reason: string }
+  | { kind: "note"; text: string }
+```
+
+Events are advisory — nothing in a build depends on them being consumed. Contract
+events arrive under the contract's id (`contract:package.json`), node events under
+the node's.
 
 ```typescript
 interface BuildResult {

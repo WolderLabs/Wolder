@@ -33,6 +33,7 @@ export function createNegotiator(chat: ChatFn): Negotiator {
   return {
     async negotiate(request: NegotiationRequest): Promise<NegotiationOutcome> {
       const transcript: NegotiationTurn[] = [];
+      const emit = request.onEvent ?? (() => {});
       const participants = [
         request.provider.id,
         ...request.requesters.map((r) => r.id),
@@ -41,13 +42,19 @@ export function createNegotiator(chat: ChatFn): Negotiator {
       let accepted = false;
 
       for (let round = 1; round <= request.maxRounds && !accepted; round++) {
+        emit({
+          kind: "note",
+          text: `round ${round}/${request.maxRounds} — ${request.provider.id} is making an offer`,
+        });
         const offer = await chat({
           system: PROVIDER_SYSTEM,
           messages: [{ role: "user", content: providerTurn(brief, transcript, round) }],
           maxTokens: 2048,
         });
         transcript.push({ speaker: request.provider.id, text: offer.trim() });
+        emit({ kind: "text", text: summarise(offer) });
 
+        emit({ kind: "note", text: `${requesterVoice(request)} is responding` });
         const replyText = await chat({
           system: REQUESTER_SYSTEM,
           messages: [{ role: "user", content: requesterTurn(brief, transcript) }],
@@ -57,6 +64,10 @@ export function createNegotiator(chat: ChatFn): Negotiator {
         const response = reply?.response?.trim() || replyText.trim();
         transcript.push({ speaker: requesterVoice(request), text: response });
         accepted = reply?.accepted === true;
+        emit({
+          kind: "text",
+          text: accepted ? `accepted: ${summarise(response)}` : `not yet: ${summarise(response)}`,
+        });
       }
 
       if (!accepted) {
@@ -69,6 +80,7 @@ export function createNegotiator(chat: ChatFn): Negotiator {
         );
       }
 
+      emit({ kind: "note", text: "writing the agreement down" });
       const settledText = await chat({
         system: SETTLE_SYSTEM,
         messages: [{ role: "user", content: settleTurn(brief, transcript) }],
@@ -196,6 +208,16 @@ function formatTranscript(transcript: NegotiationTurn[]): string {
 
 function requesterVoice(request: NegotiationRequest): string {
   return request.requesters.map((r) => r.id).join(" + ");
+}
+
+/** One line of an exchange, short enough for a progress line. */
+function summarise(text: string): string {
+  const line = text
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => l !== "" && !l.startsWith("{") && !l.startsWith("```"));
+  const chosen = line ?? text.trim();
+  return chosen.length <= 110 ? chosen : `${chosen.slice(0, 109)}…`;
 }
 
 /** Models wrap JSON in prose and fences often enough to be worth tolerating. */

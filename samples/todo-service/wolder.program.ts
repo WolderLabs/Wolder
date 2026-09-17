@@ -29,14 +29,22 @@ const readme = project
   `)
   .provides("Documentation")
 
+// Project setup owns both files that configure the project. One agent rather than
+// two, because package.json and tsconfig.json have to agree with each other — the
+// module system, the target, and the type packages are one decision, not two.
 const dependencies = project
   .scopedAgent()
   .canWrite("package.json")
+  .canWrite("tsconfig.json")
   .act(`
     Initialize an NPM project with the necessary dependencies,
     make assumptions about library selection as needed.
+
+    Write a matching tsconfig.json: strict, ESM with Node16 module resolution,
+    a modern ES target, compiling src/ to dist/. It must be consistent with the
+    "type" field and the dependencies you choose in package.json.
   `)
-  .provides("NPM dependencies")
+  .provides("NPM dependencies and TypeScript config")
 
 // Step 1: Generate the service.
 // It owns src/services/ outright, and asks the README agent to cover its usage.

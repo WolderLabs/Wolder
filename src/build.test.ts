@@ -8,9 +8,11 @@ import { createPermissionGuard } from "./runner.js";
 import { readManifest } from "./manifest.js";
 import { GateError, RegionViolationError } from "./errors.js";
 import type {
+  AgentEvent,
   AgentRunner,
   AgentRunRequest,
   Negotiator,
+  Reporter,
   WolderInstance,
   WolderServices,
 } from "./types.js";
@@ -565,5 +567,138 @@ describe("reading results", () => {
     await w.build(silent);
     expect(agent.artifact.files).toEqual(["a.ts"]);
     expect(agent.artifact.provides).toBe("A");
+  });
+});
+
+/** A reporter that keeps every event, so progress reporting can be asserted on. */
+function recordingReporter(): Reporter & { events: Array<[string, AgentEvent]> } {
+  const events: Array<[string, AgentEvent]> = [];
+  return {
+    events,
+    phase() {},
+    nodeStart() {},
+    nodeEvent(id, event) {
+      events.push([id, event]);
+    },
+    nodeSkipped() {},
+    nodeDone() {},
+    note() {},
+    warn() {},
+    summary() {},
+  };
+}
+
+describe("progress reporting", () => {
+  it("forwards an agent's events to the reporter, tagged with its node", async () => {
+    const reporter = recordingReporter();
+    const runner: AgentRunner = {
+      async run(request) {
+        request.onEvent?.({ kind: "tool", name: "Write", detail: "a.ts" });
+        request.onEvent?.({ kind: "text", text: "writing the file" });
+        return { files: [], text: "" };
+      },
+    };
+    const w = instance({ runner });
+    w.layer().scopedAgent().canWrite("a.ts").act("a");
+
+    await w.build({ reporter });
+
+    expect(reporter.events).toEqual([
+      ["a.ts", { kind: "tool", name: "Write", detail: "a.ts" }],
+      ["a.ts", { kind: "text", text: "writing the file" }],
+    ]);
+  });
+
+  it("forwards negotiation events under the contract's id", async () => {
+    const reporter = recordingReporter();
+    const negotiator: Negotiator = {
+      async negotiate(request) {
+        request.onEvent?.({ kind: "note", text: "round 1/3" });
+        return { summary: "agreed", terms: [], files: [], transcript: [] };
+      },
+    };
+    const w = instance({ runner: fakeRunner({}), negotiator });
+    const project = w.layer();
+    const provider = project
+      .scopedAgent()
+      .canWrite("package.json")
+      .act("deps")
+      .provides("NPM dependencies");
+    project.scopedAgent().canWrite("src/").requests(provider, "express").act("app");
+
+    await w.build({ reporter });
+
+    expect(reporter.events).toEqual([
+      ["contract:package.json", { kind: "note", text: "round 1/3" }],
+    ]);
+  });
+
+  it("does not require a runner to emit anything", async () => {
+    const reporter = recordingReporter();
+    const w = instance({ runner: fakeRunner({ "a.ts": { "a.ts": "a" } }) });
+    w.layer().scopedAgent().canWrite("a.ts").act("a");
+
+    await expect(w.build({ reporter })).resolves.toBeDefined();
+    expect(reporter.events).toEqual([]);
+  });
+});
+
+describe("contract settlement", () => {
+  it("negotiates independent contracts concurrently", async () => {
+    const live = { count: 0, peak: 0 };
+    const negotiator: Negotiator = {
+      async negotiate() {
+        live.count++;
+        live.peak = Math.max(live.peak, live.count);
+        await new Promise((r) => setTimeout(r, 10));
+        live.count--;
+        return { summary: "agreed", terms: [], files: [], transcript: [] };
+      },
+    };
+    const w = instance({ runner: fakeRunner({}), negotiator });
+    const project = w.layer();
+    const readme = project.scopedAgent().canWrite("README.md").act("readme").provides("Docs");
+    const deps = project.scopedAgent().canWrite("package.json").act("deps").provides("Deps");
+    project
+      .scopedAgent()
+      .canWrite("src/")
+      .requests(readme, "document me")
+      .requests(deps, "express")
+      .act("app");
+
+    await w.build(silent);
+    expect(live.peak).toBe(2);
+  });
+
+  it("returns contracts in a stable order however the negotiations resolve", async () => {
+    const run = async (delays: Record<string, number>) => {
+      root = mkdtempSync(resolve(tmpdir(), "wolder-order-"));
+      const negotiator: Negotiator = {
+        async negotiate(request) {
+          await new Promise((r) => setTimeout(r, delays[request.provider.id] ?? 0));
+          return { summary: request.provider.id, terms: [], files: [], transcript: [] };
+        },
+      };
+      const w = instance({ runner: fakeRunner({}), negotiator });
+      const project = w.layer();
+      const readme = project.scopedAgent().canWrite("README.md").act("readme").provides("Docs");
+      const deps = project.scopedAgent().canWrite("package.json").act("deps").provides("Deps");
+      project
+        .scopedAgent()
+        .canWrite("src/")
+        .requests(readme, "document me")
+        .requests(deps, "express")
+        .act("app");
+
+      const result = await w.build(silent);
+      return result.contracts.map((c) => c.id);
+    };
+
+    // Swap which negotiation finishes first; the reported order must not move.
+    const slowReadme = await run({ "README.md": 20, "package.json": 1 });
+    const slowDeps = await run({ "README.md": 1, "package.json": 20 });
+
+    expect(slowReadme).toEqual(slowDeps);
+    expect(slowReadme).toHaveLength(2);
   });
 });

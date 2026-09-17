@@ -227,6 +227,8 @@ export interface NegotiationRequest {
   readonly maxRounds: number;
   readonly model: string;
   readonly apiKey?: string;
+  /** Called as the exchange progresses, so a long negotiation is not a silent one. */
+  readonly onEvent?: (event: AgentEvent) => void;
 }
 
 export interface NegotiationParty {
@@ -260,6 +262,31 @@ export interface Negotiator {
 
 /* ----------------------------------------------------------- agent runner */
 
+/**
+ * Something an agent did, surfaced while it is still working.
+ *
+ * Generation is slow enough that silence is indistinguishable from a hang. Every
+ * one of these is a sign of life, and `retry` in particular explains a stall that
+ * would otherwise look like one.
+ */
+export type AgentEvent =
+  | { readonly kind: "text"; readonly text: string }
+  | { readonly kind: "tool"; readonly name: string; readonly detail?: string }
+  | {
+      readonly kind: "denied";
+      readonly name: string;
+      readonly detail?: string;
+      readonly reason: string;
+    }
+  | {
+      readonly kind: "retry";
+      readonly attempt: number;
+      readonly maxAttempts: number;
+      readonly delayMs: number;
+      readonly reason: string;
+    }
+  | { readonly kind: "note"; readonly text: string };
+
 export interface AgentRunRequest {
   readonly nodeId: string;
   readonly root: string;
@@ -270,6 +297,8 @@ export interface AgentRunRequest {
   /** Normalized globs. The runner must refuse every write outside these. */
   readonly regions: readonly string[];
   readonly maxTurns: number;
+  /** Called as the agent works. Nothing depends on it — it exists to break the silence. */
+  readonly onEvent?: (event: AgentEvent) => void;
 }
 
 export interface AgentRunResult {
@@ -287,6 +316,8 @@ export interface AgentRunner {
 export interface Reporter {
   phase(name: string): void;
   nodeStart(id: string, detail?: string): void;
+  /** Live progress from a node that is still working. */
+  nodeEvent(id: string, event: AgentEvent): void;
   nodeSkipped(id: string, reason: string): void;
   nodeDone(id: string, files: readonly string[]): void;
   note(message: string): void;

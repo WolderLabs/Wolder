@@ -39,7 +39,7 @@ These are load-bearing. Changing one changes the framework.
 - **A region has exactly one owner.** Overlap is a pre-flight error. Cross-region needs are edges (`uses`, `requests`), never a wider `canWrite`.
 - **`requests` is a content edge, not an ordering one.** Only `uses` orders execution.
 - **No expectation API.** Correctness comes from the agent's own loop plus layer gates. Do not reintroduce expectations to make gates configurable.
-- **Boundaries are enforced at the tool layer**, not requested in the prompt. Agents get no shell — gates are run by wolder.
+- **Boundaries are enforced at the tool layer**, not requested in the prompt. Writes are fenced to the agent's regions, reads to the project root. Agents get no shell and no network — gates are run by wolder. `allowedTools` must stay empty: anything listed there is auto-approved and never reaches `canUseTool`, which silently removes the fence.
 
 ## Build and test commands
 

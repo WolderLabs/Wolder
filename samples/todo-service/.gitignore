@@ -1,6 +1,9 @@
-# Everything the agents generate lives in ./project. Checked in there: the
-# developer-owned model, and the tsconfig that is inside nobody's region.
+# Everything the agents generate lives in ./project; only the developer-owned model
+# is checked in. Each directory level has to be re-included explicitly — git will not
+# look inside a directory it has already excluded, so a bare !/project/src/models/
+# would never match.
 /project/*
+!/project/src/
 /project/src/*
 !/project/src/models/
 .env

@@ -28,15 +28,16 @@ The reference program, and the one v2 was designed against. Four agents on disjo
 regions, two `requests` edges and one `uses` edge:
 
 - `README.md` provides Documentation
-- `package.json` provides NPM dependencies
+- `package.json` + `tsconfig.json` provide the project setup — one agent, because the two
+  files have to agree about the module system and the target
 - `src/services/` provides the Todo Service, and **requests** README coverage
 - `src/controllers/` provides the Todo API, **uses** the service, and **requests** a
   framework from the package agent
 
-Everything above is relative to `project/`. `project/src/models/TodoItem.ts` is
-developer-owned — included as context, inside nobody's region, never written; so is
-`project/tsconfig.json`. Those two and the program are all that is checked in. Watch the
-contract phase: the controller never touches `package.json`, but it ends up importing
+Everything above is relative to `project/`. `project/src/models/TodoItem.ts` is the only
+developer-owned file — included as context, inside nobody's region, never written. It and
+the program are all that is checked in; everything else you see after a run was generated.
+Watch the contract phase: the controller never touches `package.json`, but it ends up importing
 exactly the framework the package agent installed.
 
 ## `counting-react-agent-based`

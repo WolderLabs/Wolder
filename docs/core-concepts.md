@@ -42,6 +42,11 @@ only stays predictable if derivation cannot subtract.
 outside is off-limits, enforced at the agent's tool layer rather than asked for in the
 prompt.
 
+Writing and reading are fenced differently. An agent may **read** anything inside the
+project root — it needs to roam to understand the code — but nothing above it. An agent
+may **write** only inside its own regions. Both refusals happen at the tool layer, and
+both come back to the agent as an explanation rather than a silent failure.
+
 ```typescript
 .canWrite("README.md")          // one file
 .canWrite("src/services/")      // a directory, at any depth

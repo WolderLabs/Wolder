@@ -12,6 +12,12 @@ TODO for the human:
       with the future expect-and-test pattern.)
 - [x] Base cache keys off of the entire builder chain
 
+- [ ] Allow for post act requests, i.e. for documentation
+- [ ] Figure out how to allow command execution, if thats an explicit thing in the code... i.e. npm install
+- [x] Better tracing while it's running (tool-by-tool progress with per-node elapsed
+      time, negotiation rounds, and API retries; `createConsoleReporter({verbose:false})`
+      trims it to refusals and retries)
+
 Left open from the v2 plan (`PLAN.md` §8), decided but worth revisiting with evidence:
 
 - [ ] Negotiation currently shows both sides everything. Narrower framings are an

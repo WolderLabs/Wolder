@@ -17,10 +17,11 @@ import type { AgentRunner, Negotiator } from "./types.js";
 
 const WRITES: Record<string, Record<string, string>> = {
   "README.md": { "README.md": "# Todo Service\n\nSee TodoService usage below.\n" },
-  // The package agent regenerates its file, but keeps the dependency it agreed to —
-  // the contract file landed in its region before it ran, as a decision already made.
-  "package.json": {
+  // Project setup regenerates its files, but keeps the dependency it agreed to — the
+  // contract file landed in its region before it ran, as a decision already made.
+  "package.json+tsconfig.json": {
     "package.json": '{"name":"todo-service","dependencies":{"express":"^5.0.0"}}',
+    "tsconfig.json": '{"compilerOptions":{"module":"Node16","strict":true}}',
   },
   "src/services/**": {
     "src/services/todoService.ts": "export class TodoService {}",
@@ -54,7 +55,7 @@ function runner(): AgentRunner {
 
 const negotiator: Negotiator = {
   async negotiate(request) {
-    if (request.provider.id === "package.json") {
+    if (request.provider.id === "package.json+tsconfig.json") {
       return {
         summary: "package.json will depend on express@5.0.0; the controller imports it.",
         terms: [{ name: "express", detail: "express@^5.0.0 in dependencies" }],
@@ -101,11 +102,15 @@ function program() {
   const dependencies = project
     .scopedAgent()
     .canWrite("package.json")
+    .canWrite("tsconfig.json")
     .act(`
       Initialize an NPM project with the necessary dependencies,
       make assumptions about library selection as needed.
+
+      Write a matching tsconfig.json: strict, ESM with Node16 module resolution,
+      a modern ES target, compiling src/ to dist/.
     `)
-    .provides("NPM dependencies");
+    .provides("NPM dependencies and TypeScript config");
 
   const todoService = project
     .scopedAgent()
@@ -151,7 +156,7 @@ describe("the todo-service program", () => {
 
     expect([...result.artifacts].map((a) => a.id).sort()).toEqual([
       "README.md",
-      "package.json",
+      "package.json+tsconfig.json",
       "src/controllers/**",
       "src/services/**",
     ]);
@@ -179,7 +184,7 @@ describe("the todo-service program", () => {
 
     expect([...result.contracts].map((c) => c.id).sort()).toEqual([
       "contract:README.md",
-      "contract:package.json",
+      "contract:package.json+tsconfig.json",
     ]);
 
     // The README knows what it agreed to document; the service knows what it promised.
@@ -188,7 +193,7 @@ describe("the todo-service program", () => {
 
     // The controller may import express because the package agent agreed to install it —
     // and the controller never wrote package.json.
-    expect(prompts["package.json"]).toContain("express@^5.0.0");
+    expect(prompts["package.json+tsconfig.json"]).toContain("express@^5.0.0");
     expect(prompts["src/controllers/**"]).toContain("express@^5.0.0");
     expect(readFileSync(resolve(root, "package.json"), "utf-8")).toContain("express");
   });
@@ -235,7 +240,7 @@ describe("the todo-service program", () => {
     expect(prompts).toEqual({});
     expect([...second.skipped].sort()).toEqual([
       "README.md",
-      "package.json",
+      "package.json+tsconfig.json",
       "src/controllers/**",
       "src/services/**",
     ]);
