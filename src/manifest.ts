@@ -1,207 +1,190 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs"
-import { resolve } from "node:path"
-import { createHash } from "node:crypto"
-import type { Expectation, InputRef, Artifact, MemberRef } from "./types.js"
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import type { Contract } from "./types.js";
+import { sha256 } from "./util.js";
+
+export const MANIFEST_VERSION = 2;
+export const DEFAULT_MANIFEST_PATH = "wolder.manifest.json";
 
 export interface ManifestNode {
-  nodeId: string
-  inputHashes: Record<string, string>
-  outputHash: string
-  generatedFiles: string[]
-  expectations: Expectation[]
-  compiledAssertions: Record<string, string>
-  dependsOn: string[]
-  lastRun: string
+  nodeId: string;
+  /** Every structural and upstream input that feeds this node's cache key. */
+  inputHashes: Record<string, string>;
+  outputHash: string;
+  /** Discovered after the run — the agent decides what it writes, so we record it. */
+  files: string[];
+  dependsOn: string[];
+  lastRun: string;
+}
+
+/** A contract is a first-class artifact: recorded, inspectable, a cache input. */
+export interface ManifestContract {
+  id: string;
+  provider: string;
+  requesters: string[];
+  label: string;
+  /** Hash of the settled content — a cache input to every participant. */
+  hash: string;
+  /** Hash of what went into the negotiation — an unchanged contract must not re-settle. */
+  inputHash: string;
+  summary: string;
+  terms: Array<{ name: string; detail: string }>;
+  files: string[];
+  lastRun: string;
 }
 
 export interface Manifest {
-  version: number
-  nodes: Record<string, ManifestNode>
+  version: number;
+  nodes: Record<string, ManifestNode>;
+  contracts: Record<string, ManifestContract>;
 }
-
-const MANIFEST_VERSION = 1
 
 export function createEmptyManifest(): Manifest {
-  return { version: MANIFEST_VERSION, nodes: {} }
+  return { version: MANIFEST_VERSION, nodes: {}, contracts: {} };
 }
 
-export function readManifest(root: string, manifestPath = "wolder.manifest.json"): Manifest {
-  const absPath = resolve(root, manifestPath)
-  if (!existsSync(absPath)) {
-    return createEmptyManifest()
+export function readManifest(root: string, manifestPath = DEFAULT_MANIFEST_PATH): Manifest {
+  const abs = resolve(root, manifestPath);
+  if (!existsSync(abs)) return createEmptyManifest();
+
+  let parsed: Partial<Manifest>;
+  try {
+    parsed = JSON.parse(readFileSync(abs, "utf-8")) as Partial<Manifest>;
+  } catch {
+    return createEmptyManifest();
   }
-  const raw = readFileSync(absPath, "utf-8")
-  return JSON.parse(raw) as Manifest
+  // A v1 manifest describes expectations and fixed scopes; none of that survives.
+  if (parsed.version !== MANIFEST_VERSION) return createEmptyManifest();
+
+  return {
+    version: MANIFEST_VERSION,
+    nodes: parsed.nodes ?? {},
+    contracts: parsed.contracts ?? {},
+  };
 }
 
 export function writeManifest(
   manifest: Manifest,
   root: string,
-  manifestPath = "wolder.manifest.json",
+  manifestPath = DEFAULT_MANIFEST_PATH,
 ): void {
-  const absPath = resolve(root, manifestPath)
-  writeFileSync(absPath, JSON.stringify(manifest, null, 2) + "\n", "utf-8")
+  writeFileSync(
+    resolve(root, manifestPath),
+    JSON.stringify(manifest, null, 2) + "\n",
+    "utf-8",
+  );
 }
 
-export function computeOutputHash(files: Array<{ path: string; content: string }>): string {
-  const hash = createHash("sha256")
-  for (const file of files.sort((a, b) => a.path.localeCompare(b.path))) {
-    hash.update(file.path)
-    hash.update(file.content)
+/** Hash of a set of files as they currently sit on disk. Missing files hash as absent. */
+export function hashFiles(files: readonly string[], root: string): string {
+  const parts: string[] = [];
+  for (const file of [...files].sort()) {
+    const abs = resolve(root, file);
+    parts.push(file, existsSync(abs) ? sha256(readFileSync(abs, "utf-8")) : "<missing>");
   }
-  return hash.digest("hex")
-}
-
-function sha256(data: string): string {
-  return createHash("sha256").update(data).digest("hex")
-}
-
-export function computeInputHashes(
-  actInstruction: string,
-  inputs: Array<InputRef | Artifact | MemberRef>,
-  model: string,
-  root: string,
-  scopeFiles: string[],
-  expectations: Expectation[],
-): Record<string, string> {
-  const hashes: Record<string, string> = {
-    "act:sha256": sha256(actInstruction),
-    model,
-    "scope:sha256": sha256(JSON.stringify(scopeFiles)),
-    "expectations:sha256": sha256(JSON.stringify(expectations)),
-  }
-
-  for (const input of inputs) {
-    if (input.kind === "input") {
-      const absPath = resolve(root, input.path)
-      if (existsSync(absPath)) {
-        hashes[input.path] = sha256(readFileSync(absPath, "utf-8"))
-      }
-    } else if (input.kind === "member") {
-      const absPath = resolve(root, input.filePath)
-      if (existsSync(absPath)) {
-        hashes[`member:${input.filePath}:${input.name}`] = sha256(
-          readFileSync(absPath, "utf-8"),
-        )
-      }
-    } else {
-      // Artifact — use its outputHash directly as the cache key component
-      const artifact = input as Artifact
-      hashes[`artifact:${artifact.id}`] = artifact.outputHash
-    }
-  }
-
-  return hashes
+  return sha256(parts.join("\0"));
 }
 
 export function computeCacheKey(inputHashes: Record<string, string>): string {
-  return sha256(JSON.stringify(inputHashes, Object.keys(inputHashes).sort(), 0))
+  const sorted = Object.keys(inputHashes).sort();
+  return sha256(sorted.map((k) => `${k}=${inputHashes[k]}`).join("\0"));
 }
 
 export function isFresh(
   manifest: Manifest,
   nodeId: string,
-  currentInputHashes: Record<string, string>,
+  inputHashes: Record<string, string>,
 ): boolean {
-  const existing = manifest.nodes[nodeId]
-  if (!existing) return false
+  const existing = manifest.nodes[nodeId];
+  if (!existing) return false;
+  return computeCacheKey(existing.inputHashes) === computeCacheKey(inputHashes);
+}
 
-  const existingKey = computeCacheKey(existing.inputHashes)
-  const currentKey = computeCacheKey(currentInputHashes)
-  return existingKey === currentKey
+/** Have the files this node produced been deleted or hand-edited since? */
+export function isOutputFresh(manifest: Manifest, nodeId: string, root: string): boolean {
+  const node = manifest.nodes[nodeId];
+  if (!node) return false;
+  if (node.files.some((f) => !existsSync(resolve(root, f)))) return false;
+  return hashFiles(node.files, root) === node.outputHash;
 }
 
 export function updateManifestNode(
   manifest: Manifest,
   nodeId: string,
   data: {
-    inputHashes: Record<string, string>
-    outputHash: string
-    generatedFiles: string[]
-    expectations: Expectation[]
-    dependsOn: string[]
+    inputHashes: Record<string, string>;
+    outputHash: string;
+    files: string[];
+    dependsOn: string[];
   },
 ): void {
   manifest.nodes[nodeId] = {
     nodeId,
     inputHashes: data.inputHashes,
     outputHash: data.outputHash,
-    generatedFiles: data.generatedFiles,
-    expectations: data.expectations,
-    compiledAssertions: manifest.nodes[nodeId]?.compiledAssertions ?? {},
+    files: data.files,
     dependsOn: data.dependsOn,
     lastRun: new Date().toISOString(),
-  }
+  };
 }
 
-/**
- * Check whether the generated files on disk still match the stored output hash.
- * Returns false if any file is missing or has been manually modified.
- */
-export function isOutputFresh(manifest: Manifest, nodeId: string, root: string): boolean {
-  const node = manifest.nodes[nodeId]
-  if (!node) return false
-
-  const currentFiles = node.generatedFiles.map((f) => {
-    const absPath = resolve(root, f)
-    if (!existsSync(absPath)) return null
-    return { path: f, content: readFileSync(absPath, "utf-8") }
-  })
-
-  if (currentFiles.some((f) => f === null)) return false
-
-  return computeOutputHash(currentFiles as Array<{ path: string; content: string }>) === node.outputHash
+export function updateManifestContract(
+  manifest: Manifest,
+  contract: Contract,
+  inputHash: string,
+): void {
+  manifest.contracts[contract.id] = {
+    id: contract.id,
+    provider: contract.provider,
+    requesters: [...contract.requesters],
+    label: contract.label,
+    hash: contract.hash,
+    inputHash,
+    summary: contract.summary,
+    terms: contract.terms.map((t) => ({ name: t.name, detail: t.detail })),
+    files: contract.files.map((f) => f.path),
+    lastRun: new Date().toISOString(),
+  };
 }
 
-/**
- * Get all downstream node IDs that depend (directly or transitively) on the given node.
- */
-export function getDependents(manifest: Manifest, nodeId: string): string[] {
-  const result: string[] = []
-  const visited = new Set<string>()
-
-  function walk(id: string) {
-    for (const [candidateId, node] of Object.entries(manifest.nodes)) {
-      if (!visited.has(candidateId) && node.dependsOn.includes(id)) {
-        visited.add(candidateId)
-        result.push(candidateId)
-        walk(candidateId)
-      }
-    }
-  }
-
-  walk(nodeId)
-  return result
+/** The contract settled last time for this provider, if any. */
+export function cachedContract(
+  manifest: Manifest,
+  contractId: string,
+): ManifestContract | undefined {
+  return manifest.contracts[contractId];
 }
 
-/**
- * Return node IDs in topological order (dependencies before dependents).
- */
-export function topologicalSort(manifest: Manifest): string[] {
-  const sorted: string[] = []
-  const visited = new Set<string>()
-  const visiting = new Set<string>()
-
-  function visit(id: string) {
-    if (visited.has(id)) return
-    if (visiting.has(id)) throw new Error(`Cycle detected involving node "${id}"`)
-    visiting.add(id)
-
-    const node = manifest.nodes[id]
-    if (node) {
-      for (const dep of node.dependsOn) {
-        visit(dep)
-      }
-    }
-
-    visiting.delete(id)
-    visited.add(id)
-    sorted.push(id)
-  }
-
+/** Forget nodes and contracts that the current program no longer declares. */
+export function pruneManifest(
+  manifest: Manifest,
+  liveNodeIds: readonly string[],
+  liveContractIds: readonly string[],
+): void {
+  const nodes = new Set(liveNodeIds);
+  const contracts = new Set(liveContractIds);
   for (const id of Object.keys(manifest.nodes)) {
-    visit(id)
+    if (!nodes.has(id)) delete manifest.nodes[id];
+  }
+  for (const id of Object.keys(manifest.contracts)) {
+    if (!contracts.has(id)) delete manifest.contracts[id];
+  }
+}
+
+/** Node ids that depend, directly or transitively, on the given node. */
+export function getDependents(manifest: Manifest, nodeId: string): string[] {
+  const found: string[] = [];
+  const seen = new Set<string>();
+
+  function walk(id: string): void {
+    for (const [candidate, node] of Object.entries(manifest.nodes)) {
+      if (seen.has(candidate) || !node.dependsOn.includes(id)) continue;
+      seen.add(candidate);
+      found.push(candidate);
+      walk(candidate);
+    }
   }
 
-  return sorted
+  walk(nodeId);
+  return found;
 }

@@ -5,6 +5,9 @@ import * as log from "./log.js"
 
 function packageJson(name: string, local: boolean): string {
   const ver = local ? "*" : "latest"
+  // @wolder/core is the repository root rather than a workspace member, so a local
+  // install has to point at it by path.
+  const core = local ? "file:../.." : "latest"
   return (
     JSON.stringify(
       {
@@ -14,10 +17,12 @@ function packageJson(name: string, local: boolean): string {
         scripts: {
           generate: "wolder run",
         },
+        dependencies: {
+          "@wolder/core": core,
+          "@wolder/typescript": ver,
+        },
         devDependencies: {
           "@wolder/cli": ver,
-          "@wolder/tests": ver,
-          "@wolder/typescript": ver,
         },
       },
       null,
@@ -40,7 +45,7 @@ const TSCONFIG = `{
 }
 `
 
-const WOLDER_CONFIG = `import { defineConfig } from "@wolder/typescript"
+const WOLDER_CONFIG = `import { defineConfig } from "@wolder/core"
 
 export default defineConfig({
   model: "claude-sonnet-4-6",

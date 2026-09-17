@@ -1,98 +1,75 @@
 # Configuration
 
-Wolder loads configuration from `wolder.config.ts` at your project root.
-
-## Setup
+## `wolder.config.ts`
 
 ```typescript
-// wolder.config.ts
 import { defineConfig } from "@wolder/core"
 
 export default defineConfig({
   model: "claude-sonnet-4-6",
-  apiKey: process.env.ANTHROPIC_API_KEY,
-  temperature: 0,
   maxRetries: 3,
-  manifestPath: "wolder.manifest.json",
-  protectedPatterns: ["src/models/**", "src/interfaces/**"],
-
-  // For expectWebPage() — only needed if using browser validation
-  devCommand: "npm run dev",
-  devPort: 3000,
-  devReadyPattern: "listening on port",
+  negotiationRounds: 3,
+  maxTurns: 40,
 })
 ```
 
-## Options
+| Key | Default | Description |
+|---|---|---|
+| `model` | `"claude-sonnet-4-6"` | Model id used for generation and for negotiation. |
+| `apiKey` | `""` | Falls back to `ANTHROPIC_API_KEY` in the environment. |
+| `maxRetries` | `3` | Attempts per agent when a layer gate keeps failing. |
+| `manifestPath` | `"wolder.manifest.json"` | Where the manifest lives, relative to the root. |
+| `negotiationRounds` | `3` | Offer/reply exchanges before a contract is abandoned. |
+| `maxTurns` | `40` | Agent turns per generation run. |
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `model` | `string` | `"claude-sonnet-4-6"` | Anthropic model ID |
-| `apiKey` | `string` | `""` | API key. Falls back to `ANTHROPIC_API_KEY` env var |
-| `temperature` | `number` | `0` | LLM temperature. 0 = deterministic |
-| `maxRetries` | `number` | `3` | Retry attempts on expectation failure |
-| `manifestPath` | `string` | `"wolder.manifest.json"` | Path to the cache manifest |
-| `protectedPatterns` | `string[]` | `[]` | Glob patterns for files that should never be generated |
-| `devCommand` | `string` | `"npm run dev"` | Command to start dev server for `expectWebPage()` |
-| `devPort` | `number` | `3000` | Port the dev server listens on |
-| `devReadyPattern` | `string` | `"listening on port"` | Stdout string indicating server is ready |
+## Passing config to a program
 
-## Precedence
-
-Configuration merges with this priority:
-
-1. **CLI flags** (highest) — not yet implemented, reserved for future use
-2. **Config file** — `wolder.config.ts`
-3. **Defaults** (lowest)
-
-## API Key
-
-The API key is resolved in this order:
-
-1. `apiKey` in config file
-2. `ANTHROPIC_API_KEY` environment variable
-
-For local development, use a `.env` file:
-
-```
-ANTHROPIC_API_KEY=sk-ant-...
-```
-
-And load it when running:
-
-```bash
-npx tsx --env-file=.env wolder.program.ts
-```
-
-## Protected Patterns
-
-Files matching `protectedPatterns` globs are treated as inputs even if referenced in `scope()`. This is a safety net to prevent accidental overwriting of hand-authored code.
+`wolder.config.ts` is not loaded implicitly — pass it, so a program says what it depends on:
 
 ```typescript
-defineConfig({
-  protectedPatterns: ["src/models/**", "src/interfaces/**"],
+import { wolder } from "@wolder/core"
+import config from "./wolder.config.js"
+
+const w = wolder({ root: import.meta.dirname, model: config.model!, config })
+```
+
+Or inline it:
+
+```typescript
+const w = wolder({
+  root: import.meta.dirname,
+  model: "claude-sonnet-4-6",
+  config: { negotiationRounds: 5 },
 })
 ```
 
-## TypeScript Plugin
+`options.model` always wins over `config.model`.
 
-The `@wolder/ts-plugin` generates a `wolder.artifacts.d.ts` file with typed artifact exports. Configure it in your `tsconfig.json`:
+`loadConfig(root)` reads and merges `wolder.config.ts` if you would rather do it at runtime.
+
+## The API key
+
+Wolder never puts a key in the manifest or a prompt. Resolution order:
+
+1. `config.apiKey`
+2. `ANTHROPIC_API_KEY` in the environment
+
+For a sample or a local project, an `.env` file plus `tsx --env-file=.env` is the usual
+route:
 
 ```json
-{
-  "compilerOptions": {
-    "plugins": [
-      {
-        "name": "@wolder/ts-plugin",
-        "outputPath": "wolder.artifacts.d.ts",
-        "programFiles": ["wolder.program.ts"]
-      }
-    ]
-  }
-}
+{ "scripts": { "generate": "tsx --env-file=.env wolder.program.ts" } }
 ```
 
-| Plugin Option | Default | Description |
-|---------------|---------|-------------|
-| `outputPath` | `"wolder.artifacts.d.ts"` | Where to write the generated types |
-| `programFiles` | `["wolder.program.ts"]` | Which files to scan for `build()` chains |
+## Tuning
+
+**`negotiationRounds`** bounds how long two agents bargain before wolder gives up. Raise it
+when asks are open-ended ("a framework like Express.js"); lower it when they are narrow and
+you want to fail fast. Negotiation spends tokens before any generation does, so this is a
+real cost dial. Failing is deliberate: generating against a non-agreement is the worst
+available outcome.
+
+**`maxRetries`** bounds gate retries. A gate that fails three times usually means the
+`.act()` instruction is underspecified, not that the agent needs another go.
+
+**`maxTurns`** bounds one agent's run. Raise it for agents that own a large region.

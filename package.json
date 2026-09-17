@@ -3,19 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "bin": {
     "wolder": "dist/cli.js"
   },
   "workspaces": [
-    "packages/*",
-    "samples/*"
+    "packages/*"
   ],
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.check.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sample:todo": "tsx --env-file=samples/todo-service/.env samples/todo-service/wolder.program.ts",
+    "sample:counter": "tsx --env-file=samples/counting-react-agent-based/.env samples/counting-react-agent-based/wolder.program.ts",
+    "sample:chat": "tsx --env-file=samples/chat-app-agent-based/.env samples/chat-app-agent-based/wolder.program.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.79",
@@ -27,5 +30,11 @@
     "ts-morph": "^27.0.2",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
   }
 }

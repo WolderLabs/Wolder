@@ -1,6 +1,6 @@
-import { resolve } from "node:path"
-import { writeFileSync, mkdirSync } from "node:fs"
-import * as log from "./log.js"
+import { resolve } from "node:path";
+import { writeFileSync, mkdirSync } from "node:fs";
+import * as log from "./log.js";
 
 const SKILL = `---
 description: Generate a wolder.program.ts from a requirements document
@@ -8,285 +8,189 @@ argument-hint: [requirements-file]
 allowed-tools: Read, Write, Glob, Grep, Bash
 ---
 
-You are an expert Wolder programmer. Wolder is a TypeScript code-generation framework that uses LLMs to generate source files based on developer-written programs.
+You are an expert Wolder programmer. Wolder is a TypeScript framework for orchestrating
+code-generating agents. A developer writes a program that declares *agents with
+boundaries*; wolder checks the graph, settles the contracts between agents, and runs them.
 
-Your job is to read a requirements document and write a \`wolder.program.ts\` file that uses the Wolder API to orchestrate generation of the described software.
+Your job is to read a requirements document and write the \`wolder.program.ts\` that
+orchestrates generation of the described software.
 
-## What is wolder.program.ts?
-
-A \`wolder.program.ts\` is a top-level TypeScript script that:
-- Declares which source files to generate (via \`w.scope()\`)
-- Provides natural-language generation instructions (via \`.act()\`)
-- Specifies existing files as read-only context (via \`w.input()\` and \`.withInput()\`)
-- Sets expectations that validate the generated output (via \`.expect()\`, \`.expectFile()\`, etc.)
-- Chains steps into a DAG — later steps can take earlier artifacts as inputs
-
-## Core API
-
-### Initialise
+## The shape of a program
 
 \`\`\`typescript
-import { wolder, typescript, tests } from "@wolder/tests"
+import { wolder } from "@wolder/core"
+import { typescriptConventions } from "@wolder/typescript"
 
 const w = wolder({
-  root: import.meta.dirname, // always use this — resolves relative to the program file
+  root: import.meta.dirname,   // always this — resolves relative to the program file
   model: "claude-sonnet-4-6",
 })
+
+const project = w
+  .layer()
+  .apply(typescriptConventions)
+  .context(\`What this project is, in prose.\`)
+  .includeFile("src/models/TodoItem.ts")   // developer-owned, never written
+
+const readme = project
+  .scopedAgent()
+  .canWrite("README.md")
+  .act(\`Generate a README.md file for the project.\`)
+  .provides("Documentation")
+
+const service = project
+  .scopedAgent()
+  .canWrite("src/services/")
+  .requests(readme, "Document Todo Service usage")
+  .act(\`Create a TodoService class...\`)
+  .provides("Todo Service")
+
+await w.build()   // the one await in the program
 \`\`\`
 
-### w.input(path)
+## Layers are immutable values
 
-Declares a developer-owned file. The LLM sees its contents as context but cannot modify it.
+\`w.layer()\` returns a layer. Every method on it returns a **new** layer — the one you
+called it on never changes. So you hold a layer and derive from it as many times as you
+like:
 
 \`\`\`typescript
-const userModel = w.input("src/models/User.ts")
+const project = w.layer().context(\`A chat app.\`)
+const backend  = project.context(\`Backend code. Prefer async/await.\`)
+const frontend = project.context(\`React 19, function components only.\`)
+// \`project\` is untouched; backend and frontend cannot see each other's context
 \`\`\`
 
-Returns an \`InputRef\`.
+- \`.context(text)\` **accumulates** — a derived layer carries the parent's prose plus its
+  own, in declaration order. There is no way to remove inherited context. Write parent
+  layers you are happy for every descendant to inherit.
+- \`.includeFile(path)\` accumulates as a set. These are developer-owned files: agents read
+  them and must never write them.
+- \`.gate(command, { name })\` declares a check wolder runs over an agent's region after it
+  generates. A non-zero exit sends the output back to the agent to fix. \`npx tsc --noEmit\`
+  and \`npx vitest run\` are the usual two.
+- \`.apply(fn)\` applies a \`Layer => Layer\` function. Shipped layers are just such functions.
 
-### w.scope(path)
+## Agents own regions, and only their region
 
-Begins a generation chain. The file at \`path\` is owned by Wolder and will be generated/overwritten.
-Multiple scope files can be chained for co-generation in a single LLM call:
+\`.canWrite(region)\` claims a writable region — a file (\`README.md\`), a directory
+(\`src/services/\`), or a glob (\`src/**/*.test.ts\`). Writes outside it are refused at the
+tool layer, not merely discouraged.
+
+**Two agents may not claim overlapping regions.** Nesting counts: \`src/\` and
+\`src/services/\` overlap, and wolder rejects that before it spends a token. Broad grabby
+regions are the mistake this catches — give each agent the narrowest region that is
+genuinely its own.
+
+When an agent needs something that lives in another agent's region, that is an **edge**,
+not a reason to widen the region:
+
+- \`.uses(other)\` — a hard dependency. \`other\` runs first and its files become this
+  agent's read-only context. Use it when the other agent's output must already exist.
+- \`.requests(provider, ask)\` — an ask against something that does not exist yet. The two
+  agents negotiate a **contract** before either generates, and the settled contract is
+  injected into both. Use it when both sides need to agree on a shape.
+
+\`.requests()\` requires the target to have declared \`.provides("<label>")\` — asking an
+agent for a contract it never offered is a compile error.
+
+The canonical case: a controller needs Express, but does not own \`package.json\`.
 
 \`\`\`typescript
-w.scope("src/services/userService.ts")
- .scope("src/services/userService.test.ts")
+const dependencies = project
+  .scopedAgent()
+  .canWrite("package.json")
+  .act(\`Initialise an NPM project with the necessary dependencies.\`)
+  .provides("NPM dependencies")
+
+const controller = project
+  .scopedAgent()
+  .canWrite("src/controllers/")
+  .requests(dependencies, "A framework like Express.js for handling HTTP requests")
+  .uses(todoService)
+  .act(\`Create a TodoController class that wraps TodoService.\`)
+  .provides("Todo API")
 \`\`\`
 
-Returns a \`ScopeBuilder\`.
+The negotiation is where "a framework like Express.js" becomes one specific dependency at
+one specific version that one agent installs and the other imports. Neither could have
+reached that alone, and neither crossed into the other's region.
 
-### .act(instruction)
+## Nothing runs until build()
 
-The natural-language generation instruction, included verbatim in the LLM prompt.
-Be specific — include method signatures, import paths, storage strategy, key behaviours.
+Declaring an agent registers it and returns a handle — **synchronously**. There is no
+\`await\` on a \`scopedAgent\`. The whole graph is assembled, checked and executed by the
+single \`await w.build()\` at the end.
+
+Declaration order is not execution order, so \`.requests()\` may point at an agent declared
+*later* in the file. \`.uses()\` may too.
+
+Agents are immutable, so every builder call returns a new value. Always pass the value at
+the **end** of a chain to \`.uses()\` / \`.requests()\` — the one you assigned to a variable.
+
+Read results after the build:
 
 \`\`\`typescript
-.act(\`
-  Create a UserService class with CRUD operations for User objects.
-  Use an in-memory Map<string, User> for storage.
-  Generate IDs using crypto.randomUUID().
-  Import User from "../models/User.js".
-\`)
+await w.build()
+console.log(service.artifact.files)
 \`\`\`
 
-Returns an \`ActBuilder\`.
+## Writing a good program
 
-### .withInput(ref)
+1. Explore the project first — existing source, \`package.json\`, \`tsconfig.json\` — so the
+   program matches its conventions.
+2. Put everything true of the whole project in one root layer. Derive narrower layers for
+   areas (backend, frontend) rather than repeating prose per agent.
+3. \`.includeFile()\` anything the developer owns. Never give an agent a region over it.
+4. Carve regions so no two agents overlap. One owner per file, always.
+5. Prefer \`.uses()\` when one thing must exist before another, \`.requests()\` when two
+   agents must agree on a shape.
+6. Be specific in \`.act()\` — class names, method signatures, storage strategy, key
+   behaviours. It is the instruction, not a summary.
+7. Put \`.gate("npx tsc --noEmit")\` on the root layer for any TypeScript project, and
+   \`.gate("npx vitest run")\` where there are tests. Gates are how correctness is checked
+   in v2 — there is no expectation API.
+8. Import \`wolder\` from \`@wolder/core\`. Import shipped layers from \`@wolder/typescript\`.
 
-Provides read-only context to the generation step.
+## Generated TypeScript
 
-\`\`\`typescript
-.withInput(userModel)                        // InputRef — entire file
-.withInput(serviceArtifact)                  // Artifact — all files from a previous step
-.withInput(serviceArtifact.members.getUser)  // MemberRef — a specific member
-\`\`\`
-
-When given an Artifact, its output hash becomes part of this node's cache key — if the upstream regenerates with different output, this node becomes stale.
-
-### .expectFile(path)
-
-Asserts a file exists after generation.
-
-\`\`\`typescript
-.expectFile("src/services/userService.ts")
-\`\`\`
-
-### .expect(plugin, builder?)
-
-Plugin-specific structural expectations. The builder argument is optional — omitting it applies the plugin's default expectations.
-
-\`\`\`typescript
-.expect(typescript, (e) =>
-  e.hasClass("UserService")
-   .withFunction("getUser")
-   .withFunction("createUser")
-   .compiles()
-)
-.expect(tests)  // builder optional — uses inferred test file path
-\`\`\`
-
-### .expectWebPage(route, description)
-
-Validates a page renders correctly in a browser. Requires dev server config.
-
-\`\`\`typescript
-.expectWebPage("/users", "shows a list of users with names and email addresses")
-\`\`\`
-
-### .build()
-
-Finalises the chain and returns a \`Promise<Artifact>\`. Checks cache first, then calls LLM, validates expectations (with retries), updates manifest.
-
-\`\`\`typescript
-const userService = await w
-  .scope("src/services/userService.ts")
-  .act("Create UserService...")
-  .expect(typescript, (e) => e.hasClass("UserService").withFunction("getUser").compiles())
-  .expect(tests)
-  .build()
-
-// Typed member refs are accessible on the artifact:
-userService.members.getUser  // MemberRef<"getUser">
-\`\`\`
-
-## Plugins
-
-### @wolder/tests
-
-\`\`\`typescript
-import { wolder, typescript, tests } from "@wolder/tests"
-\`\`\`
-
-Re-exports everything from \`@wolder/typescript\`, plus:
-- \`tests\` plugin — before generation, auto-generates a vitest test file; after generation, runs the tests
-- \`e.file(path)\` — override the inferred test file path (default: same name as scope file with \`.test.ts\`)
-
-Usage:
-\`\`\`typescript
-.expect(tests)                                               // uses inferred test path (builder optional)
-.expect(tests, (e) => e.file("src/__tests__/user.test.ts"))  // explicit path
-\`\`\`
-
-### @wolder/typescript
-
-\`\`\`typescript
-import { wolder, typescript } from "@wolder/typescript"
-\`\`\`
-
-Builder methods on the \`typescript\` plugin:
-- \`e.hasClass(name)\` — assert a class exists
-- \`e.hasInterface(name)\` — assert an interface exists
-- \`e.withFunction(name)\` — assert a method exists on the preceding class; registers as a typed member on the artifact
-- \`e.withMethod(name)\` — assert a method exists on the preceding interface; registers as a typed member
-- \`e.compiles()\` — assert TypeScript compiles without errors (always add this)
-- \`e.implements(inputRef)\` — assert a class implements an interface from an input file
-
-### @wolder/browser
-
-\`\`\`typescript
-import { webPage } from "@wolder/browser"
-\`\`\`
-
-- \`e.hasPage(route, description)\` — validates that the page at \`route\` matches the description
-
-## Import conventions inside generated files
-
-Generated TypeScript files must use:
-- \`.js\` extensions in all imports (TypeScript ESM)
-- Relative paths for cross-file imports within the project
-- Example: \`import { UserService } from "../services/userService.js"\`
+Generated files use ESM with \`.js\` extensions in relative imports
+(\`import { TodoService } from "../services/todoService.js"\`). \`typescriptConventions\`
+already tells agents this; say it again in \`.act()\` if a specific import path matters.
 
 ## wolder.config.ts (optional)
-
-If the project needs non-default config, create a \`wolder.config.ts\` at the project root:
 
 \`\`\`typescript
 import { defineConfig } from "@wolder/core"
 
 export default defineConfig({
   model: "claude-sonnet-4-6",
-  maxRetries: 3,
-  // For browser validation only:
-  devCommand: "npm run dev",
-  devPort: 3000,
-  devReadyPattern: "listening on port",
+  maxRetries: 3,          // gate retries per agent
+  negotiationRounds: 3,   // exchanges before a contract is abandoned
+  maxTurns: 40,           // agent turns per generation run
 })
 \`\`\`
-
-## Complete example
-
-\`\`\`typescript
-import { wolder, typescript, tests } from "@wolder/tests"
-
-const w = wolder({
-  root: import.meta.dirname,
-  model: "claude-sonnet-4-6",
-})
-
-// Developer-owned model — context only, never overwritten
-const todoItem = w.input("src/models/TodoItem.ts")
-
-// Step 1: Generate the service
-const todoService = await w
-  .scope("src/services/todoService.ts")
-  .act(\`
-    Create a TodoService class that provides CRUD operations for TodoItem objects.
-    Use an in-memory Map<string, TodoItem> for storage.
-    Generate IDs using crypto.randomUUID().
-    Import TodoItem from "../models/TodoItem.js".
-  \`)
-  .withInput(todoItem)
-  .expect(typescript, (e) =>
-    e.hasClass("TodoService")
-     .withFunction("getAllItems")
-     .withFunction("getItem")
-     .withFunction("addItem")
-     .withFunction("updateItem")
-     .withFunction("deleteItem")
-     .compiles()
-  )
-  .expect(tests)
-  .build()
-
-// Step 2: Generate the controller — depends on service output
-const todoController = await w
-  .scope("src/controllers/todoController.ts")
-  .act(\`
-    Create a TodoController class that wraps TodoService.
-    Provide: list(), get(id), create(title), toggle(id), remove(id).
-    Import TodoService from "../services/todoService.js".
-    Import TodoItem from "../models/TodoItem.js".
-  \`)
-  .withInput(todoItem)
-  .withInput(todoService)
-  .expect(typescript, (e) =>
-    e.hasClass("TodoController")
-     .withFunction("list")
-     .withFunction("get")
-     .withFunction("create")
-     .withFunction("toggle")
-     .withFunction("remove")
-     .compiles()
-  )
-  .expect(tests)
-  .build()
-\`\`\`
-
-## Guidelines
-
-- Explore the current project directory first — check for existing source files, package.json, tsconfig.json — to understand naming conventions and project structure
-- Identify which files are developer-owned inputs (\`w.input()\`) vs files to be generated (\`w.scope()\`)
-- Chain steps in dependency order: generate foundational types/interfaces before consumers
-- Be specific in \`.act()\` — include class names, method signatures, import paths, and implementation notes
-- Always end expectations with \`.compiles()\` on TypeScript files
-- Use \`.withFunction()\` rather than just \`.hasClass()\` to track members for downstream steps
-- **Always use \`@wolder/tests\` instead of \`@wolder/typescript\`** — import from \`@wolder/tests\` in every program; it re-exports everything from \`@wolder/typescript\` plus the \`tests\` plugin
-- **Add \`.expect(tests)\` to every generated scope** unless there is a clear reason not to (e.g. a config file or type-only declaration file). Tests are the primary quality gate.
-- Write the output to \`wolder.program.ts\` in the current working directory
-
-## Workflow
-
-After writing \`wolder.program.ts\`, you must run the generation step and verify it succeeds:
-
-1. Write \`wolder.program.ts\`
-2. Run \`npx wolder run\` in the current directory
-3. If it fails, read the error output carefully:
-   - **Wolder program errors** (import errors, TypeScript errors in the program itself) — fix \`wolder.program.ts\`
-   - **Expectation failures** (generated code didn't meet expectations after all retries) — tighten the \`.act()\` instructions or adjust expectations
-4. Repeat until \`npx wolder run\` exits successfully
-5. Only report success once generation has completed without errors
 
 ## Task
 
-Read the requirements document at \`$ARGUMENTS\`. Explore the current directory to understand any existing project structure. Write \`wolder.program.ts\` in the current directory. Then run \`npx wolder run\` to execute the generation. Fix any errors and re-run until generation completes successfully.
-`
+Read the requirements document at \`$ARGUMENTS\`. Explore the current directory to
+understand the existing project. Write \`wolder.program.ts\` in the current directory. Then
+run \`npx wolder run\` and fix errors until it completes:
+
+- **Graph errors** (overlapping regions, an edge pointing at a template, an agent with no
+  region) are reported before anything runs — fix the program.
+- **Negotiation errors** mean two agents could not agree — loosen the ask or raise
+  \`negotiationRounds\`.
+- **Gate errors** mean the generated code did not compile or its tests failed after all
+  retries — tighten the \`.act()\` instruction.
+
+Only report success once \`npx wolder run\` exits cleanly.
+`;
 
 export function runAgent(): void {
-  const cwd = process.cwd()
-  const commandsDir = resolve(cwd, ".claude", "commands")
-  mkdirSync(commandsDir, { recursive: true })
-  writeFileSync(resolve(commandsDir, "wolder.md"), SKILL)
-  log.success("Wrote .claude/commands/wolder.md")
-  log.info("In Claude Code, run: /wolder <requirements-file>")
+  const commandsDir = resolve(process.cwd(), ".claude", "commands");
+  mkdirSync(commandsDir, { recursive: true });
+  writeFileSync(resolve(commandsDir, "wolder.md"), SKILL);
+  log.success("Wrote .claude/commands/wolder.md");
+  log.info("In Claude Code, run: /wolder <requirements-file>");
 }

@@ -9,7 +9,14 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "ts-morph": "^27.0.2"
+    "@wolder/core": "file:../.."
+  },
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

@@ -1,86 +1,100 @@
-# Manifest
+# The Manifest
 
-`wolder.manifest.json` is the cache and state file for your project. It should be committed to version control.
+`wolder.manifest.json` records what ran, what it wrote, and what it agreed to — so a second
+run of an unchanged program does no work.
 
-## Why commit it?
-
-- PRs show what changed in the generation cache
-- No build step needed after cloning — generated files are already on disk
-- CI can run `wolder check` to verify generated files are fresh
-- Compiled Playwright assertions are auditable and diffable
-
-## Structure
-
-```jsonc
+```json
 {
-  "version": 1,
+  "version": 2,
   "nodes": {
-    "src/services/todoService.ts": {
-      "nodeId": "src/services/todoService.ts",
+    "src/services/**": {
+      "nodeId": "src/services/**",
       "inputHashes": {
-        "act:sha256": "abc123...",
-        "src/models/TodoItem.ts": "def456...",
-        "model": "claude-sonnet-4-6"
+        "chain": "9f2c…",
+        "model": "claude-sonnet-4-6",
+        "include:src/models/TodoItem.ts": "4a1b…",
+        "uses:package.json": "77de…",
+        "contract:README.md": "0c31…"
       },
-      "outputHash": "789abc...",
-      "generatedFiles": ["src/services/todoService.ts"],
-      "expectations": [
-        { "type": "class", "name": "TodoService" },
-        { "type": "function", "className": "TodoService", "name": "getAllItems" },
-        { "type": "compiles" }
-      ],
-      "compiledAssertions": {},
+      "outputHash": "c4e8…",
+      "files": ["src/services/todoService.ts"],
       "dependsOn": [],
-      "lastRun": "2026-03-18T10:00:00.000Z"
+      "lastRun": "2026-09-16T21:48:00.000Z"
+    }
+  },
+  "contracts": {
+    "contract:README.md": {
+      "id": "contract:README.md",
+      "provider": "README.md",
+      "requesters": ["src/services/**"],
+      "label": "Documentation",
+      "hash": "0c31…",
+      "inputHash": "8ba2…",
+      "summary": "The README documents TodoService's CRUD surface…",
+      "terms": [{ "name": "Usage section", "detail": "…" }],
+      "files": ["README.md"],
+      "lastRun": "2026-09-16T21:47:12.000Z"
     }
   }
 }
 ```
 
-## Fields
+## Node ids
 
-### Node ID
+A node's id is its writable region — `README.md`, `src/services/**`. Regions are provably
+non-overlapping, so this is unique, and unlike a declaration counter it is stable when you
+reorder the program.
 
-Derived from the scope file paths joined with `+`. A single-file scope uses the file path directly.
+## What a node is keyed on
 
-### Input Hashes
+| Key | Source |
+|---|---|
+| `chain` | The **entire builder chain** plus the layer it spawned from |
+| `model` | The model id |
+| `include:<path>` | The contents of each file the layer includes |
+| `uses:<id>` | The output hash of each agent this one uses |
+| `contract:<id>` | The settled content of each contract it is party to |
 
-A record of all inputs that contribute to the cache key:
+`chain` covers every builder call in order — `canWrite`, `context`, `act`, `provides`, and
+the edges, with edge targets written as node ids so reordering the program does not
+invalidate them.
 
-- `act:sha256` — hash of the `.act()` instruction string
-- `model` — the model ID
-- `scope:sha256` — hash of the scope file path list
-- `expectations:sha256` — hash of the full expectations array
-- File paths — hash of each `.withInput()` file's content
-- `artifact:<id>` — the `outputHash` of upstream artifacts passed via `.withInput()`
-- `member:<path>:<name>` — hash of files containing referenced members
+Change one `.act()` and that node is stale. Its output hash then changes, which makes
+everything that `.uses()` it stale, and nothing else.
 
-### Output Hash
+## Discovered outputs
 
-SHA256 of all generated file contents (sorted by path for determinism). Used to detect manual edits between runs.
+Because the agent decides what it writes, the output set is not known up front. `files`
+records what was **actually** written, discovered after the run — including any files the
+provider committed to during the contract phase. That is what lets the next run detect a
+hand edit or a deletion.
 
-### Dependencies
+A node re-runs when either its inputs changed (`inputHashes`) or its outputs no longer
+match what was recorded (`outputHash` against the files on disk).
 
-`dependsOn` lists the node IDs of upstream artifacts passed via `withInput()`. This enables staleness propagation — if an upstream node regenerates with a different `outputHash`, downstream nodes become stale.
+## Contracts
 
-## What Triggers Regeneration
+A contract is a first-class entry, not a side note.
 
-A node regenerates if **any** of the following are true:
+- `inputHash` covers what went into the negotiation — the participants' chains and their
+  asks. An unchanged contract is restored from the manifest instead of re-settling, so a
+  settled agreement does not churn.
+- `hash` covers the settled content, and appears in every participant's `inputHashes`. A
+  changed contract invalidates everyone party to it.
+- `files` records paths only; the content lives on disk, in the provider's region. If one
+  of those files is missing, the contract re-settles.
 
-**Inputs changed**
-- The `.act()` instruction text changed
-- The model name changed
-- The scope file list changed (added, removed, or reordered `.scope()` calls)
-- The `.expect()` chain changed
-- A `.withInput(file)` content changed on disk
-- An upstream `.withInput(artifact)` was regenerated (its `outputHash` changed)
+Contract files written during the contract phase are **not** rolled back if the provider's
+own run later fails. They are the agreement, already recorded — the next attempt should
+build on them, not rediscover them.
 
-**Output drifted**
-- A generated file was manually edited
-- A generated file was deleted from disk
+## Pruning
 
-## Drift Detection
+Nodes and contracts the current program no longer declares are dropped from the manifest at
+the end of every build. The files they wrote are left on disk; `wolder clean` removes those
+that are still tracked.
 
-`wolder check` compares the current hash of each generated file against the stored `outputHash` and reports nodes as `fresh`, `drifted`, or `missing` — without regenerating anything.
+## Version
 
-`wolder run` does the same check and regenerates any drifted or missing nodes automatically.
+A v1 manifest is discarded on read. v1 keyed on declared expectations and fixed scopes,
+neither of which survives into v2.

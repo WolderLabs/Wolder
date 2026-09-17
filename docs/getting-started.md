@@ -1,109 +1,132 @@
 # Getting Started
 
-Wolder is a code-first agentic software generation framework. You write TypeScript programs that describe *what to build* and *what to expect*, and the framework generates code using LLMs, validates the output, and caches results so only stale steps are re-run.
-
-## Installation
+## Install
 
 ```bash
-npm install @wolder/core
+npx wolder init          # scaffolds package.json, tsconfig.json, wolder.config.ts
 ```
 
-## Quick Start
+Set an API key — wolder reads `ANTHROPIC_API_KEY` from the environment, or `apiKey` from
+config:
 
-### 1. Create a project
-
-```
-my-project/
-├── wolder.config.ts       # Optional configuration
-├── wolder.program.ts      # Your generation program
-├── src/
-│   └── models/
-│       └── TodoItem.ts    # Hand-written input file
-└── tsconfig.json
+```bash
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
 ```
 
-### 2. Write an input file
+## Your first program
 
-Input files are developer-owned — Wolder will never modify them. They serve as context for generation.
+Create `wolder.program.ts`:
+
+```typescript
+import { wolder } from "@wolder/core"
+import { typescriptConventions } from "@wolder/typescript"
+
+const w = wolder({
+  root: import.meta.dirname,   // always this — resolves relative to the program file
+  model: "claude-sonnet-4-6",
+})
+
+const project = w
+  .layer()
+  .apply(typescriptConventions)
+  .context(`
+    This project is a simple Todo service implemented in TypeScript.
+    It includes models, services, and controllers for managing Todo items.
+  `)
+  .includeFile("src/models/TodoItem.ts")
+  .gate("npx tsc --noEmit", { name: "typecheck" })
+
+const readme = project
+  .scopedAgent()
+  .canWrite("README.md")
+  .act(`Generate a README.md file for the project.`)
+  .provides("Documentation")
+
+const dependencies = project
+  .scopedAgent()
+  .canWrite("package.json")
+  .act(`
+    Initialize an NPM project with the necessary dependencies,
+    make assumptions about library selection as needed.
+  `)
+  .provides("NPM dependencies")
+
+const todoService = project
+  .scopedAgent()
+  .canWrite("src/services/")
+  .requests(readme, "Document Todo Service usage")
+  .act(`
+    Create a TodoService class that provides CRUD operations for TodoItem objects.
+    Use an in-memory Map<string, TodoItem> for storage.
+    Generate UUIDs randomly.
+  `)
+  .provides("Todo Service")
+
+project
+  .scopedAgent()
+  .canWrite("src/controllers/")
+  .requests(dependencies, "A framework like Express.js for handling HTTP requests")
+  .uses(todoService)
+  .act(`Create a TodoController class that wraps TodoService and provides a simple API.`)
+  .provides("Todo API")
+
+// Nothing above has run. The graph is assembled, checked, then executed here.
+await w.build()
+```
+
+Write the developer-owned model it references:
 
 ```typescript
 // src/models/TodoItem.ts
 export interface TodoItem {
   id: string
   title: string
-  completed: boolean
-  createdAt: Date
+  done: boolean
 }
 ```
 
-### 3. Write a generation program
-
-```typescript
-// wolder.program.ts
-import { wolder } from "@wolder/core"
-
-const w = wolder({
-  root: import.meta.dirname,
-  model: "claude-sonnet-4-6",
-})
-
-const todoItem = w.input("src/models/TodoItem.ts")
-
-const todoService = await w
-  .scope("src/services/todoService.ts")
-  .act(`
-    Create a TodoService class with CRUD operations for TodoItem.
-    Use an in-memory Map for storage.
-  `)
-  .withInput(todoItem)
-  .expectClass("TodoService")
-  .withFunction("getAllItems")
-  .withFunction("addItem")
-  .withFunction("deleteItem")
-  .expectCompiles()
-  .build()
-
-// todoService.members.getAllItems is typed as MemberRef<"getAllItems">
-```
-
-### 4. Set your API key
-
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-```
-
-Or create a `.env` file:
-
-```
-ANTHROPIC_API_KEY=sk-ant-...
-```
-
-### 5. Run it
-
-```bash
-npx tsx wolder.program.ts
-```
-
-Or with the CLI:
+## Run it
 
 ```bash
 npx wolder run
 ```
 
-On the first run, Wolder calls the LLM, writes the generated files, validates expectations (class exists, methods exist, compiles), and saves the result to `wolder.manifest.json`. On subsequent runs, if nothing changed, generation is skipped.
+You will see four phases:
 
-## What happens during `build()`
+```
+[wolder] Checking the graph
+[wolder] 4 agent(s), 3 edge(s) — boundaries and dependencies check out
 
-1. **Cache check** — Computes a hash of the act instruction + input file contents + model. If it matches the manifest, returns the cached artifact immediately.
-2. **LLM call** — Sends a prompt with scope files, input context, instruction, and expectations.
-3. **File parsing** — Extracts `=== FILE: path ===` blocks from the response and writes them to disk.
-4. **Expectation validation** — Runs checks in order: file existence → compilation → AST queries → semantic checks.
-5. **Retry** — If expectations fail, appends error feedback and retries (up to `maxRetries`).
-6. **Manifest update** — Records hashes and metadata for future cache hits.
+[wolder] Settling contracts
+[wolder] contract:README.md  Documentation <-> src/services/**
+[wolder] contract:package.json  NPM dependencies <-> src/controllers/**
 
-## Next steps
+[wolder] Generating
+[wolder] package.json provides "NPM dependencies"
+[wolder] README.md provides "Documentation"
+[wolder] src/services/** provides "Todo Service"
+[wolder] src/controllers/** provides "Todo API"
 
-- [Core Concepts](./core-concepts.md) — Scope vs Input, Artifacts, the DAG
-- [API Reference](./api-reference.md) — Complete DSL documentation
-- [Configuration](./configuration.md) — `wolder.config.ts` options
-- [CLI](./cli.md) — Command reference
+[wolder] 4 generated  ·  0 cached  ·  2 contract(s)  ·  38.2s
+```
+
+Run it again and nothing happens — every node is cached. Change one `.act()` and only that
+node and its dependents re-run.
+
+## What to reach for
+
+| You want to… | Use |
+|---|---|
+| Say something true of the whole project | `.context()` on a root layer |
+| Give agents a file you maintain yourself | `.includeFile()` |
+| Check the generated code compiles | `.gate("npx tsc --noEmit")` |
+| Make one agent read another's output | `.uses(other)` |
+| Make two agents agree on a shape | `.requests(other, ask)` + `.provides()` |
+| Reuse a half-built agent | Assign it to a variable and derive from it |
+
+## Next
+
+- [Core Concepts](./core-concepts.md) — layers, regions, contracts, deferred execution
+- [API Reference](./api-reference.md)
+- [Configuration](./configuration.md)
+- [CLI](./cli.md)

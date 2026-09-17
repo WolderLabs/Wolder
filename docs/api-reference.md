@@ -1,249 +1,202 @@
 # API Reference
 
+Everything is exported from `@wolder/core`.
+
 ## `wolder(options)`
 
-Creates a WolderInstance bound to a project root.
-
 ```typescript
-import { wolder } from "@wolder/core"
-
 const w = wolder({
-  root: process.cwd(),  // or import.meta.dirname
+  root: import.meta.dirname,
   model: "claude-sonnet-4-6",
+  config: { maxRetries: 3 },
 })
 ```
 
-**Parameters:**
-- `root` — absolute path to the project root. All file paths are resolved relative to this.
-- `model` — Anthropic model ID for generation.
+| Option | Type | Description |
+|---|---|---|
+| `root` | `string` | Project root. Always `import.meta.dirname`. |
+| `model` | `string` | Model id. Overrides `config.model`. |
+| `config` | `WolderConfig` | See [Configuration](./configuration.md). |
+| `services` | `Partial<WolderServices>` | Replaces the machinery that talks to models. For tests. |
 
-**Returns:** `WolderInstance`
+Returns a `WolderInstance` with `.layer()` and `.build()`.
 
----
+## `Layer`
 
-## `w.input(path)`
+A persistent value. Every method returns a **new** layer.
 
-Declares a developer-owned file. The file is read-only context — the LLM sees its contents but cannot modify it.
+### `.context(text): Layer`
 
-```typescript
-const todoModel = w.input("src/models/TodoItem.ts")
-```
+Appends prose. Accumulates in declaration order; a derived layer carries the parent's
+context plus its own. Template-literal indentation is stripped.
 
-**Returns:** `InputRef`
+### `.includeFile(path): Layer`
 
----
+Declares a developer-owned file. Agents receive its contents as read-only context and can
+never write it. Accumulates as a set. Its contents are part of every descendant agent's
+cache key.
 
-## `w.scope(path)`
+### `.gate(command, options?): Layer`
 
-Begins a generation chain. The file at `path` is owned by the framework and will be generated or overwritten.
-
-```typescript
-w.scope("src/services/todoService.ts")
-```
-
-Multiple scope files can be chained for a single generation step:
-
-```typescript
-w.scope("src/services/todoService.ts")
- .scope("src/services/todoService.test.ts")
-```
-
-**Returns:** `ScopeBuilder`
-
----
-
-## `.act(instruction)`
-
-Provides the generation instruction. This is included verbatim in the LLM prompt and hashed as part of the cache key.
+Declares a check run over an agent's writable region after it generates. A non-zero exit
+sends the output back to the agent, up to `maxRetries`.
 
 ```typescript
-.act("Create a TodoService class with CRUD operations for TodoItem")
+.gate("npx tsc --noEmit", { name: "typecheck" })
+.gate("npx vitest run {files}", { name: "tests" })
 ```
 
-**Returns:** `ActBuilder`
+`{files}` expands to the node's written files; `{regions}` to its claimed regions.
+`options.name` labels it in output and in feedback to the agent; it defaults to the command.
 
----
+### `.apply(fn): Layer`
 
-## `.withInput(ref)`
+Applies a `(Layer) => Layer`. Exactly `fn(layer)`, but it keeps a long composition reading
+left-to-right and makes shipped layers look like part of the chain.
 
-Provides read-only context to the generation step. Accepts:
+### `.scopedAgent(): ScopedAgent`
 
-- `InputRef` — an entire input file
-- `Artifact` — all generated files from a previous step
-- `MemberRef` — a specific member from a previous artifact
+Spawns an agent inheriting the layer's whole accumulated state.
+
+## `ScopedAgent`
+
+Immutable. Every method returns a new value; a value that is derived from becomes a
+template rather than a node. Declaring is synchronous — there is no `await`.
+
+### `.canWrite(region): ScopedAgent`
+
+Claims a writable region. A file (`README.md`), a directory (`src/services/`, trailing
+slash optional when the last segment has no extension), or a glob (`src/**/*.test.ts`).
+Accumulates as a set. Writes outside every claimed region are refused at the tool layer.
+
+Regions must be relative to the root and may not contain `..`. Two agents claiming
+overlapping regions is a pre-flight error.
+
+### `.context(text): ScopedAgent`
+
+Extra prose for this agent only, on top of its layer's context.
+
+### `.act(instruction): ScopedAgent`
+
+The generation instruction. An agent without one is treated as an unused template rather
+than a node.
+
+### `.uses(target): ScopedAgent`
+
+A hard dependency. `target` runs first and its files become this agent's read-only context.
+Its output hash is part of this node's cache key.
+
+### `.requests(target, ask): ScopedAgent`
+
+Asks a provider for something it owns. The two negotiate a contract before either
+generates, and the settled contract is injected into both. A content edge — it does not
+imply an order, so `target` may be declared later in the program.
+
+`target` must have declared `.provides()`; otherwise it is a compile error.
+
+### `.provides(label): ScopedAgent<AgentProvides>`
+
+Labels what this agent holds up for others, and makes it a valid `.requests()` target.
+Labels need not be unique — edges are drawn against the handle, not resolved by name.
+
+### `.artifact: Artifact`
+
+The result of this node's run. Throws with an explanation if read before `build()`.
+
+## `w.build(options?): Promise<BuildResult>`
+
+Assembles the graph, checks it, settles contracts, and executes. The one await in a
+program.
 
 ```typescript
-.withInput(todoModel)                         // InputRef
-.withInput(serviceArtifact)                   // Artifact
-.withInput(serviceArtifact.members.getAllItems) // MemberRef
+const result = await w.build({ force: true })
 ```
 
-When given an Artifact, its `outputHash` becomes part of this node's cache key. If the upstream regenerates with different output, this node becomes stale.
-
-**Returns:** `ActBuilder`
-
----
-
-## `.expectFile(path)`
-
-Asserts that a file exists after generation.
+| Option | Type | Description |
+|---|---|---|
+| `reporter` | `Reporter` | Progress output. Defaults to the console reporter. |
+| `force` | `boolean` | Ignore the manifest and regenerate everything. |
 
 ```typescript
-.expectFile("src/services/todoService.ts")
+interface BuildResult {
+  artifacts: readonly Artifact[]
+  contracts: readonly Contract[]
+  skipped: readonly string[]   // node ids served from cache
+  durationMs: number
+}
 ```
 
-**Validation:** `fs.existsSync(path)` — cheapest check, runs first.
-
-**Returns:** `ActBuilder`
-
----
-
-## `.expectClass(name)`
-
-Asserts that a class with the given name exists in the scope files.
+## `Artifact`
 
 ```typescript
-.expectClass("TodoService")
+interface Artifact {
+  kind: "artifact"
+  id: string                    // the node's region(s)
+  outputHash: string
+  files: readonly string[]      // paths actually written, discovered after the run
+  provides?: string
+}
 ```
 
-**Validation:** ts-morph `sourceFile.getClass(name) !== undefined`
-
-**Returns:** `ClassExpectationBuilder` — enables `.withFunction()` chaining.
-
----
-
-## `.withFunction(name)`
-
-Asserts that a method exists on the preceding class. Also registers the name as a typed member on the artifact.
+## `Contract`
 
 ```typescript
-.expectClass("TodoService")
-.withFunction("getAllItems")
-.withFunction("addItem")
+interface Contract {
+  id: string                    // "contract:<provider node id>"
+  provider: string
+  label: string
+  requesters: readonly string[]
+  summary: string
+  terms: readonly { name: string; detail: string }[]
+  files: readonly { path: string; content: string }[]
+  hash: string
+}
 ```
 
-**Validation:** ts-morph `classDecl.getMethod(name) !== undefined`
-
-The function name is available on the returned artifact as `artifact.members.getAllItems` with type `MemberRef<"getAllItems">`.
-
-**Returns:** `ClassExpectationBuilder`
-
----
-
-## `.expectInterface(name)`
-
-Asserts that an interface with the given name exists in the scope files.
-
-```typescript
-.expectInterface("ITodoService")
-```
-
-**Returns:** `InterfaceExpectationBuilder` — enables `.withMethod()` chaining.
-
----
-
-## `.withMethod(name)`
-
-Asserts that a method exists on the preceding interface.
-
-```typescript
-.expectInterface("ITodoService")
-.withMethod("getAllItems")
-.withMethod("addItem")
-```
-
-**Returns:** `InterfaceExpectationBuilder`
-
----
-
-## `.expectImplements(interfaceRef)`
-
-Asserts that a generated class implements an interface from the given input file.
-
-```typescript
-const iface = w.input("src/interfaces/ITodoService.ts")
-
-w.scope("src/services/todoService.ts")
- .act("Implement ITodoService")
- .withInput(iface)
- .expectImplements(iface)
-```
-
-**Validation:** ts-morph type checker verifies the class satisfies the interface contract. Missing methods produce specific error messages.
-
-**Returns:** same builder type (preserves chaining context)
-
----
-
-## `.expectCompiles()`
-
-Asserts that the scope files compile without TypeScript errors.
-
-```typescript
-.expectCompiles()
-```
-
-**Validation:** ts-morph `project.getPreEmitDiagnostics()` scoped to generated files. Errors include file name, line number, and compiler message — all fed back to the LLM on retry.
-
-**Returns:** `ActBuilder`
-
----
-
-## `.expectWebPage(route, description)`
-
-Asserts that a page renders correctly in a browser.
-
-```typescript
-.expectWebPage("/todos", "shows a list of todo items with checkboxes")
-```
-
-**Validation:**
-1. Starts the dev server (`config.devCommand`)
-2. Opens the route with Playwright
-3. First run: takes ARIA snapshot, asks LLM to compile a Playwright assertion
-4. Stores compiled assertion in manifest (no LLM call on subsequent runs)
-5. Executes the assertion
-
-The compiled assertion is invalidated if the description string changes.
-
-Requires `devCommand`, `devPort`, and `devReadyPattern` in config.
-
-**Returns:** `ActBuilder`
-
----
-
-## `.build()`
-
-Finalizes the chain and returns an Artifact.
-
-```typescript
-const artifact = await w
-  .scope("src/services/todoService.ts")
-  .act("Create TodoService")
-  .expectClass("TodoService")
-  .withFunction("getAllItems")
-  .build()
-```
-
-**Behavior:**
-1. Checks the manifest cache — returns immediately if fresh
-2. Calls the LLM, parses output, writes files
-3. Validates expectations (with retries on failure)
-4. Updates the manifest
-
-**Returns:** `Promise<Artifact<ExtractMembers<TMembers>>>` where `TMembers` is inferred from `withFunction`/`withMethod` calls.
-
----
+Recorded in the manifest and a cache input to every participant. A settled contract that
+does not change does not force regeneration; a changed one invalidates its participants.
 
 ## `defineConfig(config)`
 
-Helper for creating a typed configuration object. See [Configuration](./configuration.md).
+Identity, typed. See [Configuration](./configuration.md).
+
+## Errors
+
+| Error | Raised when |
+|---|---|
+| `GraphError` | A pre-flight problem: overlapping regions, a `uses` cycle, an edge pointing at a template, a `requests` against a non-provider, an agent with no region. |
+| `RegionViolationError` | An agent — or a contract — tried to write outside its region. |
+| `NegotiationError` | Two agents could not settle within `negotiationRounds`. Names the participants and quotes the last exchange. |
+| `GateError` | A gate kept failing after `maxRetries`. |
+
+## Testing hooks
+
+`services` replaces everything that reaches a model, so a program's graph, caching and
+boundaries can be exercised end to end without one:
 
 ```typescript
-import { defineConfig } from "@wolder/core"
-
-export default defineConfig({
-  model: "claude-sonnet-4-6",
-  maxRetries: 5,
+const w = wolder({
+  root,
+  model: "test-model",
+  services: {
+    runner: { async run(request) { /* … */ return { files: [], text: "" } } },
+    negotiator: { async negotiate(request) { /* … */ } },
+  },
 })
 ```
+
+`createPermissionGuard(request)` is the same region check the real runner uses — call it
+from a fake runner so boundary enforcement is exercised rather than assumed.
+
+## Shipped layers
+
+`@wolder/typescript` exports layers, not plugins:
+
+```typescript
+import { typescriptConventions, vitestConventions } from "@wolder/typescript"
+
+w.layer().apply(typescriptConventions)
+w.layer().apply(vitestConventions)   // composes typescriptConventions plus testing prose
+```
+
+A shipped layer is just a `(Layer) => Layer` function. Write your own the same way.

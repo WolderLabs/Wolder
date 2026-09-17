@@ -1,8 +1,11 @@
 # Wolder v2 — DSL Revamp Plan
 
-**Status:** ready to implement. All design questions are closed; §9 is the handoff.
+**Status:** implemented. Kept as the design record and the reasoning behind it; §8 lists the
+questions that were open when it was written and the step each was decided in.
 
-**North star:** `samples/todo-service/wolder.program.terse.example.ts`
+**North star:** now the real program at `samples/todo-service/wolder.program.ts` — it was
+promoted from `wolder.program.terse.example.ts` rather than duplicated, so there is one
+copy to keep true. `src/acceptance.test.ts` mirrors it against scripted agents.
 
 **v2 is a breaking replacement.** `w.scope()/.act()/.expect()/.build()` is removed, not
 deprecated alongside. One DSL.
@@ -303,8 +306,8 @@ None blocking. Decide each in the step that reaches it:
 ## 9. Handoff
 
 For an agent picking this up cold. Read `CLAUDE.md` first, then this file, then
-`samples/todo-service/wolder.program.terse.example.ts` — that example **is** the
-acceptance criterion. When it runs as written, v2 is done.
+`samples/todo-service/wolder.program.ts` — that program **is** the acceptance criterion.
+When it runs as written, v2 is done.
 
 ### Ground rules from CLAUDE.md that bite here
 

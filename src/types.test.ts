@@ -1,100 +1,84 @@
-import { describe, it, expect, vi, expectTypeOf } from "vitest"
-import { wolder } from "./wolder.js"
-import type { MemberRef, ExtractMembers } from "./types.js"
-import { typescript } from "../packages/typescript/src/index.js"
+import { describe, it, expectTypeOf } from "vitest";
+import type {
+  AgentDoesNotProvideAnything,
+  AgentProvides,
+  Artifact,
+  Layer,
+  ScopedAgent,
+} from "./types.js";
+import { LayerImpl } from "./layer.js";
+import { Registry } from "./program.js";
 
-// Mock generate + manifest so tests don't call LLM or write to disk
-vi.mock("./generate.js", () => ({
-  generate: vi.fn(async (node: { scopeFiles: string[] }) => ({
-    files: node.scopeFiles.map((p: string) => ({ path: p, content: "" })),
-    rawResponse: "",
-    attempts: 1,
-  })),
-}))
-vi.mock("./manifest.js", () => ({
-  readManifest: vi.fn(() => ({ version: 1, nodes: {} })),
-  writeManifest: vi.fn(),
-  updateManifestNode: vi.fn(),
-  computeOutputHash: vi.fn(() => "fakehash"),
-  computeInputHashes: vi.fn(() => ({ "act:sha256": "fake", model: "test" })),
-  isFresh: vi.fn(() => false),
-  isOutputFresh: vi.fn(() => true),
-}))
+// A real layer, so these assertions are checked by the compiler *and* exercise the
+// implementation rather than a declared shape that could drift from it.
+const layer: Layer = new LayerImpl(new Registry());
 
-describe("type-level member inference", () => {
-  const w = wolder({ root: "/tmp/test", model: "test" })
+describe("Layer types", () => {
+  it("returns a Layer from every method, so composition never narrows", () => {
+    expectTypeOf(layer.context("x")).toEqualTypeOf<Layer>();
+    expectTypeOf(layer.includeFile("x.ts")).toEqualTypeOf<Layer>();
+    expectTypeOf(layer.gate("npx tsc --noEmit")).toEqualTypeOf<Layer>();
+    expectTypeOf(layer.apply((l) => l.context("x"))).toEqualTypeOf<Layer>();
+  });
 
-  it("artifact.members is typed from withFunction calls in expect(typescript, fn)", async () => {
-    const artifact = await w
-      .scope("svc.ts")
-      .act("Create service")
-      .expect(typescript, (e) => e.hasClass("Svc").withFunction("getAllItems").withFunction("addItem"))
-      .build()
+  it("takes a plain layer→layer function in apply, so shipped layers are just functions", () => {
+    const conventions = (l: Layer): Layer => l.context("conventions");
+    expectTypeOf(layer.apply(conventions)).toEqualTypeOf<Layer>();
+  });
+});
 
-    // Runtime checks
-    expect(artifact.members.getAllItems.name).toBe("getAllItems")
-    expect(artifact.members.addItem.name).toBe("addItem")
+describe("ScopedAgent types", () => {
+  it("starts out providing nothing", () => {
+    expectTypeOf(layer.scopedAgent()).toEqualTypeOf<
+      ScopedAgent<AgentDoesNotProvideAnything>
+    >();
+  });
 
-    // Type-level checks
-    expectTypeOf(artifact.members.getAllItems).toEqualTypeOf<MemberRef<"getAllItems">>()
-    expectTypeOf(artifact.members.addItem).toEqualTypeOf<MemberRef<"addItem">>()
-  })
+  it("is synchronous — a declaration is not a promise", () => {
+    expectTypeOf(layer.scopedAgent().canWrite("a.ts").act("go")).not.toMatchTypeOf<
+      Promise<unknown>
+    >();
+  });
 
-  it("artifact.members is typed from withMethod calls in expect(typescript, fn)", async () => {
-    const artifact = await w
-      .scope("iface.ts")
-      .act("Create interface")
-      .expect(typescript, (e) => e.hasInterface("ISvc").withMethod("getAll").withMethod("create"))
-      .build()
+  it("carries the provides state forward through later builder calls", () => {
+    const provider = layer.scopedAgent().act("go").provides("Docs");
+    expectTypeOf(provider).toEqualTypeOf<ScopedAgent<AgentProvides>>();
+    expectTypeOf(provider.canWrite("README.md")).toEqualTypeOf<ScopedAgent<AgentProvides>>();
+    expectTypeOf(provider.context("more")).toEqualTypeOf<ScopedAgent<AgentProvides>>();
+  });
 
-    expectTypeOf(artifact.members.getAll).toEqualTypeOf<MemberRef<"getAll">>()
-    expectTypeOf(artifact.members.create).toEqualTypeOf<MemberRef<"create">>()
-  })
+  it("gives back a plain runtime Artifact — v2 has no typed members", () => {
+    expectTypeOf<ScopedAgent["artifact"]>().toEqualTypeOf<Artifact>();
+    expectTypeOf<Artifact>().toHaveProperty("files");
+    expectTypeOf<Artifact>().not.toHaveProperty("members");
+  });
+});
 
-  it("mixed hasClass + hasInterface accumulates all members", async () => {
-    const artifact = await w
-      .scope("combo.ts")
-      .act("Create combo")
-      .expect(typescript, (e) =>
-        e.hasClass("Impl").withFunction("run").hasInterface("IRunner").withMethod("execute"),
-      )
-      .build()
+describe(".requests() requires .provides()", () => {
+  it("accepts a provider", () => {
+    const provider = layer.scopedAgent().canWrite("README.md").act("readme").provides("Docs");
+    expectTypeOf(layer.scopedAgent().requests(provider, "cover me")).toEqualTypeOf<
+      ScopedAgent<AgentDoesNotProvideAnything>
+    >();
+  });
 
-    expectTypeOf(artifact.members.run).toEqualTypeOf<MemberRef<"run">>()
-    expectTypeOf(artifact.members.execute).toEqualTypeOf<MemberRef<"execute">>()
-  })
+  it("is a compile error against an agent that provides nothing", () => {
+    const notAProvider = layer.scopedAgent().canWrite("README.md").act("readme");
+    // @ts-expect-error — "agent does not provide anything — call .provides(label) on it first"
+    layer.scopedAgent().requests(notAProvider, "cover me");
+  });
 
-  it("empty chain produces empty members", async () => {
-    const artifact = await w.scope("empty.ts").act("Create something").build()
+  it("is a compile error against a value taken before .provides()", () => {
+    const beforeProvides = layer.scopedAgent().canWrite("README.md").act("readme");
+    beforeProvides.provides("Docs");
+    // @ts-expect-error — immutability means the earlier value still provides nothing
+    layer.scopedAgent().requests(beforeProvides, "cover me");
+  });
 
-    expectTypeOf(artifact.members).toEqualTypeOf<ExtractMembers<[]>>()
-  })
-
-  it("withArtifactTrait produces typed member without plugin callback", async () => {
-    const artifact = await w
-      .scope("svc.ts")
-      .act("Create service")
-      .withArtifactTrait("doThing")
-      .build()
-
-    expectTypeOf(artifact.members.doThing).toEqualTypeOf<MemberRef<"doThing">>()
-  })
-
-  it("member refs from artifacts are typed for withInput", async () => {
-    const svc = await w
-      .scope("svc.ts")
-      .act("Create service")
-      .expect(typescript, (e) => e.hasClass("Svc").withFunction("getAllItems"))
-      .build()
-
-    const ref = svc.members.getAllItems
-    expectTypeOf(ref.kind).toEqualTypeOf<"member">()
-    expectTypeOf(ref.name).toEqualTypeOf<"getAllItems">()
-
-    const _controller = await w
-      .scope("ctrl.ts")
-      .act("Create controller")
-      .withInput(svc.members.getAllItems)
-      .build()
-  })
-})
+  it("accepts any agent in .uses(), provider or not", () => {
+    const plain = layer.scopedAgent().canWrite("a.ts").act("a");
+    expectTypeOf(layer.scopedAgent().uses(plain)).toEqualTypeOf<
+      ScopedAgent<AgentDoesNotProvideAnything>
+    >();
+  });
+});

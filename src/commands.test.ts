@@ -1,230 +1,113 @@
-import { describe, it, expect, beforeEach } from "vitest"
-import { mkdtempSync, writeFileSync, existsSync, mkdirSync } from "node:fs"
-import { join } from "node:path"
-import { tmpdir } from "node:os"
-import { check, clean } from "./commands.js"
-import { createEmptyManifest, writeManifest, updateManifestNode, computeOutputHash } from "./manifest.js"
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { check, clean } from "./commands.js";
+import { createEmptyManifest, hashFiles, updateManifestNode, writeManifest } from "./manifest.js";
+
+let root: string;
+
+beforeEach(() => {
+  root = mkdtempSync(resolve(tmpdir(), "wolder-commands-"));
+});
+
+afterEach(() => {
+  rmSync(root, { recursive: true, force: true });
+});
+
+function write(path: string, content: string): void {
+  const abs = resolve(root, path);
+  mkdirSync(dirname(abs), { recursive: true });
+  writeFileSync(abs, content, "utf-8");
+}
+
+/** Record a node exactly as a build would, with the files it actually wrote. */
+function record(nodeId: string, files: string[]): void {
+  const manifest = createEmptyManifest();
+  updateManifestNode(manifest, nodeId, {
+    inputHashes: { chain: "x" },
+    outputHash: hashFiles(files, root),
+    files,
+    dependsOn: [],
+  });
+  writeManifest(manifest, root);
+}
 
 describe("check", () => {
-  let root: string
+  it("reports nothing for an empty manifest", () => {
+    expect(check(root)).toEqual([]);
+  });
 
-  beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "wolder-cmd-"))
-  })
+  it("reports a node as fresh while its files are untouched", () => {
+    write("src/services/todo.ts", "generated");
+    record("src/services/**", ["src/services/todo.ts"]);
 
-  it("returns empty array when manifest has no nodes", () => {
-    const results = check(root)
-    expect(results).toEqual([])
-  })
+    expect(check(root)).toEqual([
+      { nodeId: "src/services/**", status: "fresh", files: ["src/services/todo.ts"] },
+    ]);
+  });
 
-  it("reports fresh when file hashes match", () => {
-    const content = "export class Svc {}"
-    mkdirSync(join(root, "src"), { recursive: true })
-    writeFileSync(join(root, "src/svc.ts"), content)
+  it("reports a node as drifted once a file is edited by hand", () => {
+    write("a.ts", "generated");
+    record("a.ts", ["a.ts"]);
+    write("a.ts", "edited by hand");
 
-    const m = createEmptyManifest()
-    const hash = computeOutputHash([{ path: "src/svc.ts", content }])
-    updateManifestNode(m, "svc", {
-      inputHashes: {},
-      outputHash: hash,
-      generatedFiles: ["src/svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    writeManifest(m, root)
+    const [result] = check(root);
+    expect(result!.status).toBe("drifted");
+    expect(result!.details).toContain("modified by hand");
+  });
 
-    const results = check(root)
-    expect(results).toHaveLength(1)
-    expect(results[0]!.status).toBe("fresh")
-  })
+  it("reports a node as missing once a file is deleted", () => {
+    write("a.ts", "generated");
+    record("a.ts", ["a.ts"]);
+    rmSync(resolve(root, "a.ts"));
 
-  it("reports drifted when file has been modified", () => {
-    mkdirSync(join(root, "src"), { recursive: true })
-    writeFileSync(join(root, "src/svc.ts"), "original content")
-
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: {},
-      outputHash: computeOutputHash([{ path: "src/svc.ts", content: "original content" }]),
-      generatedFiles: ["src/svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    writeManifest(m, root)
-
-    // Simulate manual edit
-    writeFileSync(join(root, "src/svc.ts"), "modified content")
-
-    const results = check(root)
-    expect(results).toHaveLength(1)
-    expect(results[0]!.status).toBe("drifted")
-    expect(results[0]!.details).toContain("manually modified")
-    expect(results[0]!.details).toContain("wolder run")
-    expect(results[0]!.details).not.toContain("accept")
-  })
-
-  it("reports missing when generated file was deleted", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: {},
-      outputHash: "abc",
-      generatedFiles: ["src/svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    writeManifest(m, root)
-
-    const results = check(root)
-    expect(results).toHaveLength(1)
-    expect(results[0]!.status).toBe("missing")
-    expect(results[0]!.details).toContain("src/svc.ts")
-  })
-
-  it("reports multiple nodes independently", () => {
-    mkdirSync(join(root, "src"), { recursive: true })
-    writeFileSync(join(root, "src/a.ts"), "a")
-    writeFileSync(join(root, "src/b.ts"), "modified")
-
-    const m = createEmptyManifest()
-    updateManifestNode(m, "a", {
-      inputHashes: {},
-      outputHash: computeOutputHash([{ path: "src/a.ts", content: "a" }]),
-      generatedFiles: ["src/a.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    updateManifestNode(m, "b", {
-      inputHashes: {},
-      outputHash: computeOutputHash([{ path: "src/b.ts", content: "original" }]),
-      generatedFiles: ["src/b.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    writeManifest(m, root)
-
-    const results = check(root)
-    expect(results).toHaveLength(2)
-
-    const a = results.find((r) => r.nodeId === "a")!
-    const b = results.find((r) => r.nodeId === "b")!
-    expect(a.status).toBe("fresh")
-    expect(b.status).toBe("drifted")
-  })
-})
+    const [result] = check(root);
+    expect(result!.status).toBe("missing");
+    expect(result!.details).toContain("a.ts");
+  });
+});
 
 describe("clean", () => {
-  let root: string
+  it("removes every file the manifest attributes to an agent", () => {
+    write("src/services/todo.ts", "generated");
+    write("README.md", "generated");
+    record("src/services/**", ["src/services/todo.ts", "README.md"]);
 
-  beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "wolder-clean-"))
-  })
+    expect(clean(root).sort()).toEqual(["README.md", "src/services/todo.ts"]);
+    expect(existsSync(resolve(root, "src/services/todo.ts"))).toBe(false);
+  });
 
-  it("returns empty array when no generated files exist", () => {
-    const m = createEmptyManifest()
-    writeManifest(m, root)
+  it("removes directories it has emptied", () => {
+    write("src/services/todo.ts", "generated");
+    record("src/services/**", ["src/services/todo.ts"]);
 
-    const deleted = clean(root)
-    expect(deleted).toEqual([])
-  })
+    clean(root);
+    expect(existsSync(resolve(root, "src/services"))).toBe(false);
+    expect(existsSync(resolve(root, "src"))).toBe(false);
+  });
 
-  it("deletes generated files", () => {
-    mkdirSync(join(root, "src"), { recursive: true })
-    writeFileSync(join(root, "src/svc.ts"), "content")
+  it("leaves a directory that still holds a developer-owned file", () => {
+    write("src/services/todo.ts", "generated");
+    write("src/services/notes.md", "mine");
+    record("src/services/**", ["src/services/todo.ts"]);
 
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: {},
-      outputHash: "hash",
-      generatedFiles: ["src/svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    writeManifest(m, root)
+    clean(root);
+    expect(existsSync(resolve(root, "src/services/notes.md"))).toBe(true);
+  });
 
-    const deleted = clean(root)
-    expect(deleted).toEqual(["src/svc.ts"])
-    expect(existsSync(join(root, "src/svc.ts"))).toBe(false)
-  })
+  it("leaves developer-owned files and the manifest alone", () => {
+    write("a.ts", "generated");
+    write("src/models/TodoItem.ts", "mine");
+    record("a.ts", ["a.ts"]);
 
-  it("removes empty parent directories", () => {
-    mkdirSync(join(root, "src/services"), { recursive: true })
-    writeFileSync(join(root, "src/services/svc.ts"), "content")
+    clean(root);
+    expect(existsSync(resolve(root, "src/models/TodoItem.ts"))).toBe(true);
+    expect(existsSync(resolve(root, "wolder.manifest.json"))).toBe(true);
+  });
 
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: {},
-      outputHash: "hash",
-      generatedFiles: ["src/services/svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    writeManifest(m, root)
-
-    clean(root)
-    expect(existsSync(join(root, "src/services"))).toBe(false)
-  })
-
-  it("preserves non-empty parent directories", () => {
-    mkdirSync(join(root, "src/services"), { recursive: true })
-    writeFileSync(join(root, "src/services/svc.ts"), "generated")
-    writeFileSync(join(root, "src/services/other.ts"), "keep me")
-
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: {},
-      outputHash: "hash",
-      generatedFiles: ["src/services/svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    writeManifest(m, root)
-
-    clean(root)
-    expect(existsSync(join(root, "src/services/svc.ts"))).toBe(false)
-    expect(existsSync(join(root, "src/services/other.ts"))).toBe(true)
-    expect(existsSync(join(root, "src/services"))).toBe(true)
-  })
-
-  it("handles multiple nodes", () => {
-    mkdirSync(join(root, "src"), { recursive: true })
-    writeFileSync(join(root, "src/a.ts"), "a")
-    writeFileSync(join(root, "src/b.ts"), "b")
-
-    const m = createEmptyManifest()
-    updateManifestNode(m, "a", {
-      inputHashes: {},
-      outputHash: "h1",
-      generatedFiles: ["src/a.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    updateManifestNode(m, "b", {
-      inputHashes: {},
-      outputHash: "h2",
-      generatedFiles: ["src/b.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    writeManifest(m, root)
-
-    const deleted = clean(root)
-    expect(deleted).toHaveLength(2)
-    expect(deleted).toContain("src/a.ts")
-    expect(deleted).toContain("src/b.ts")
-  })
-
-  it("skips already-deleted files gracefully", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: {},
-      outputHash: "hash",
-      generatedFiles: ["src/gone.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    writeManifest(m, root)
-
-    const deleted = clean(root)
-    expect(deleted).toEqual([])
-  })
-})
+  it("ignores a file that is already gone", () => {
+    record("a.ts", ["a.ts"]);
+    expect(clean(root)).toEqual([]);
+  });
+});

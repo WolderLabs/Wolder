@@ -1,104 +1,86 @@
-import { readFileSync, existsSync, unlinkSync, rmdirSync, readdirSync } from "node:fs"
-import { resolve, dirname } from "node:path"
-import { createHash } from "node:crypto"
-import { readManifest, computeOutputHash } from "./manifest.js"
+import { existsSync, readdirSync, rmdirSync, unlinkSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { hashFiles, readManifest } from "./manifest.js";
 
 export interface NodeStatus {
-  nodeId: string
-  status: "fresh" | "drifted" | "missing"
-  generatedFiles: string[]
-  details?: string
+  nodeId: string;
+  status: "fresh" | "drifted" | "missing";
+  files: string[];
+  details?: string;
 }
 
 /**
- * wolder check — compare current file hashes against manifest.
- * Reports which nodes are fresh, drifted (manually edited), or missing files.
+ * `wolder check` — compare what is on disk against the manifest.
+ *
+ * v2 records the files an agent *actually* wrote, discovered after the run, since
+ * the output set is not known up front.
  */
 export function check(root: string): NodeStatus[] {
-  const manifest = readManifest(root)
-  const results: NodeStatus[] = []
+  const manifest = readManifest(root);
+  const results: NodeStatus[] = [];
 
   for (const [nodeId, node] of Object.entries(manifest.nodes)) {
-    const missingFiles: string[] = []
-    const files: Array<{ path: string; content: string }> = []
+    const missing = node.files.filter((file) => !existsSync(resolve(root, file)));
 
-    for (const file of node.generatedFiles) {
-      const absPath = resolve(root, file)
-      if (!existsSync(absPath)) {
-        missingFiles.push(file)
-      } else {
-        files.push({ path: file, content: readFileSync(absPath, "utf-8") })
-      }
-    }
-
-    if (missingFiles.length > 0) {
+    if (missing.length > 0) {
       results.push({
         nodeId,
         status: "missing",
-        generatedFiles: node.generatedFiles,
-        details: `Missing files: ${missingFiles.join(", ")}`,
-      })
-      continue
+        files: node.files,
+        details: `Missing files: ${missing.join(", ")}`,
+      });
+      continue;
     }
 
-    const currentHash = computeOutputHash(files)
-
-    if (currentHash === node.outputHash) {
-      results.push({
-        nodeId,
-        status: "fresh",
-        generatedFiles: node.generatedFiles,
-      })
+    const current = hashFiles(node.files, root);
+    if (current === node.outputHash) {
+      results.push({ nodeId, status: "fresh", files: node.files });
     } else {
       results.push({
         nodeId,
         status: "drifted",
-        generatedFiles: node.generatedFiles,
+        files: node.files,
         details:
-          `Files have been manually modified.\n` +
-          `  Expected: ${node.outputHash.slice(0, 12)}...  Current: ${currentHash.slice(0, 12)}...\n` +
-          `  Run 'wolder run' to regenerate`,
-      })
+          `Files have been modified by hand since the agent wrote them.\n` +
+          `  Recorded: ${node.outputHash.slice(0, 12)}...  Current: ${current.slice(0, 12)}...\n` +
+          `  Run 'wolder run' to regenerate.`,
+      });
     }
   }
 
-  return results
+  return results;
 }
 
 /**
- * wolder clean — remove all generated files tracked in the manifest.
- * Preserves inputs, the program file, and the manifest itself.
- * Returns the list of deleted files.
+ * `wolder clean` — remove every file the manifest attributes to an agent.
+ * Developer-owned files, the program, and the manifest itself are untouched.
  */
 export function clean(root: string): string[] {
-  const manifest = readManifest(root)
-  const deleted: string[] = []
+  const manifest = readManifest(root);
+  const deleted: string[] = [];
 
   for (const node of Object.values(manifest.nodes)) {
-    for (const file of node.generatedFiles) {
-      const absPath = resolve(root, file)
-      if (existsSync(absPath)) {
-        unlinkSync(absPath)
-        deleted.push(file)
-
-        // Remove empty parent directories
-        let dir = dirname(absPath)
-        while (dir !== root && dir !== resolve(root)) {
-          try {
-            const entries = readdirSync(dir)
-            if (entries.length === 0) {
-              rmdirSync(dir)
-              dir = dirname(dir)
-            } else {
-              break
-            }
-          } catch {
-            break
-          }
-        }
-      }
+    for (const file of node.files) {
+      const abs = resolve(root, file);
+      if (!existsSync(abs)) continue;
+      unlinkSync(abs);
+      deleted.push(file);
+      removeEmptyParents(dirname(abs), resolve(root));
     }
   }
 
-  return deleted
+  return deleted;
+}
+
+function removeEmptyParents(dir: string, root: string): void {
+  let current = dir;
+  while (current !== root && current.startsWith(root)) {
+    try {
+      if (readdirSync(current).length > 0) return;
+      rmdirSync(current);
+      current = dirname(current);
+    } catch {
+      return;
+    }
+  }
 }

@@ -1,603 +1,221 @@
-import { describe, it, expect, beforeEach } from "vitest"
-import { mkdtempSync, existsSync } from "node:fs"
-import { writeFileSync } from "node:fs"
-import { join } from "node:path"
-import { tmpdir } from "node:os"
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync, unlinkSync } from "node:fs";
+import { resolve } from "node:path";
+import { tmpdir } from "node:os";
 import {
-  createEmptyManifest,
-  readManifest,
-  writeManifest,
-  updateManifestNode,
-  computeOutputHash,
-  computeInputHashes,
   computeCacheKey,
+  createEmptyManifest,
+  getDependents,
+  hashFiles,
   isFresh,
   isOutputFresh,
-  getDependents,
-  topologicalSort,
-} from "./manifest.js"
+  pruneManifest,
+  readManifest,
+  updateManifestContract,
+  updateManifestNode,
+  writeManifest,
+  MANIFEST_VERSION,
+} from "./manifest.js";
+import type { Contract } from "./types.js";
 
-describe("manifest", () => {
-  let root: string
+let root: string;
 
-  beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "wolder-manifest-"))
-  })
+beforeEach(() => {
+  root = mkdtempSync(resolve(tmpdir(), "wolder-manifest-"));
+});
 
-  it("createEmptyManifest returns version 1 with no nodes", () => {
-    const m = createEmptyManifest()
-    expect(m.version).toBe(1)
-    expect(m.nodes).toEqual({})
-  })
+afterEach(() => {
+  rmSync(root, { recursive: true, force: true });
+});
 
-  it("readManifest returns empty manifest when file does not exist", () => {
-    const m = readManifest(root)
-    expect(m.version).toBe(1)
-    expect(m.nodes).toEqual({})
-  })
+function write(path: string, content: string): void {
+  writeFileSync(resolve(root, path), content, "utf-8");
+}
 
-  it("writeManifest then readManifest round-trips", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "todoService", {
-      inputHashes: { "act:sha256": "abc123", model: "claude-sonnet-4-6" },
-      outputHash: "def456",
-      generatedFiles: ["src/services/todoService.ts"],
-      expectations: [{ type: "class", name: "TodoService" }],
+describe("reading and writing", () => {
+  it("returns an empty manifest when there is no file", () => {
+    expect(readManifest(root)).toEqual({ version: MANIFEST_VERSION, nodes: {}, contracts: {} });
+  });
+
+  it("round-trips", () => {
+    const manifest = createEmptyManifest();
+    updateManifestNode(manifest, "a.ts", {
+      inputHashes: { chain: "x" },
+      outputHash: "h",
+      files: ["a.ts"],
       dependsOn: [],
-    })
+    });
+    writeManifest(manifest, root);
+    expect(readManifest(root).nodes["a.ts"]!.files).toEqual(["a.ts"]);
+  });
 
-    writeManifest(m, root)
+  it("discards a v1 manifest — expectations and fixed scopes do not survive", () => {
+    write(
+      "wolder.manifest.json",
+      JSON.stringify({ version: 1, nodes: { "src/a.ts": { expectations: [] } } }),
+    );
+    expect(readManifest(root).nodes).toEqual({});
+  });
 
-    expect(existsSync(join(root, "wolder.manifest.json"))).toBe(true)
+  it("survives a corrupt manifest rather than crashing the build", () => {
+    write("wolder.manifest.json", "{ not json");
+    expect(readManifest(root).nodes).toEqual({});
+  });
+});
 
-    const loaded = readManifest(root)
-    expect(loaded.version).toBe(1)
-    expect(loaded.nodes.todoService).toBeDefined()
-    expect(loaded.nodes.todoService!.nodeId).toBe("todoService")
-    expect(loaded.nodes.todoService!.outputHash).toBe("def456")
-    expect(loaded.nodes.todoService!.generatedFiles).toEqual([
-      "src/services/todoService.ts",
-    ])
-    expect(loaded.nodes.todoService!.expectations).toEqual([
-      { type: "class", name: "TodoService" },
-    ])
-    expect(loaded.nodes.todoService!.dependsOn).toEqual([])
-    expect(loaded.nodes.todoService!.lastRun).toBeDefined()
-  })
+describe("cache keys", () => {
+  it("ignores key order", () => {
+    expect(computeCacheKey({ a: "1", b: "2" })).toBe(computeCacheKey({ b: "2", a: "1" }));
+  });
 
-  it("updateManifestNode preserves existing compiledAssertions", () => {
-    const m = createEmptyManifest()
-    m.nodes.app = {
-      nodeId: "app",
+  it("changes with any value", () => {
+    expect(computeCacheKey({ a: "1" })).not.toBe(computeCacheKey({ a: "2" }));
+  });
+
+  it("distinguishes a missing key from an empty one", () => {
+    expect(computeCacheKey({ a: "1" })).not.toBe(computeCacheKey({ a: "1", b: "" }));
+  });
+});
+
+describe("freshness", () => {
+  it("is stale when the node is unknown", () => {
+    expect(isFresh(createEmptyManifest(), "a.ts", { chain: "x" })).toBe(false);
+  });
+
+  it("is fresh when the inputs match, stale when they do not", () => {
+    const manifest = createEmptyManifest();
+    updateManifestNode(manifest, "a.ts", {
+      inputHashes: { chain: "x" },
+      outputHash: "h",
+      files: [],
+      dependsOn: [],
+    });
+    expect(isFresh(manifest, "a.ts", { chain: "x" })).toBe(true);
+    expect(isFresh(manifest, "a.ts", { chain: "y" })).toBe(false);
+  });
+});
+
+describe("output freshness", () => {
+  function recorded(): ReturnType<typeof createEmptyManifest> {
+    write("a.ts", "generated");
+    const manifest = createEmptyManifest();
+    updateManifestNode(manifest, "a.ts", {
       inputHashes: {},
-      outputHash: "old",
-      generatedFiles: ["src/app.ts"],
-      expectations: [],
-      compiledAssertions: { "/todos": "await expect(page).toHaveTitle('Todos')" },
+      outputHash: hashFiles(["a.ts"], root),
+      files: ["a.ts"],
       dependsOn: [],
-      lastRun: "2026-01-01T00:00:00Z",
+    });
+    return manifest;
+  }
+
+  it("is fresh while the files are untouched", () => {
+    expect(isOutputFresh(recorded(), "a.ts", root)).toBe(true);
+  });
+
+  it("is stale once a file is edited by hand", () => {
+    const manifest = recorded();
+    write("a.ts", "edited");
+    expect(isOutputFresh(manifest, "a.ts", root)).toBe(false);
+  });
+
+  it("is stale once a file is deleted", () => {
+    const manifest = recorded();
+    unlinkSync(resolve(root, "a.ts"));
+    expect(isOutputFresh(manifest, "a.ts", root)).toBe(false);
+  });
+});
+
+describe("hashFiles", () => {
+  it("ignores the order the files are listed in", () => {
+    write("a.ts", "a");
+    write("b.ts", "b");
+    expect(hashFiles(["a.ts", "b.ts"], root)).toBe(hashFiles(["b.ts", "a.ts"], root));
+  });
+
+  it("distinguishes the same content under different names", () => {
+    write("a.ts", "same");
+    write("b.ts", "same");
+    expect(hashFiles(["a.ts"], root)).not.toBe(hashFiles(["b.ts"], root));
+  });
+
+  it("hashes a missing file as absent rather than throwing", () => {
+    expect(hashFiles(["gone.ts"], root)).toBe(hashFiles(["gone.ts"], root));
+    write("gone.ts", "here now");
+    expect(hashFiles(["gone.ts"], root)).not.toBe(hashFiles(["missing.ts"], root));
+  });
+});
+
+describe("contracts in the manifest", () => {
+  const contract: Contract = {
+    id: "contract:package.json",
+    provider: "package.json",
+    label: "NPM dependencies",
+    requesters: ["src/controllers/**"],
+    summary: "express@5",
+    terms: [{ name: "express", detail: "express@5.0.0" }],
+    files: [{ path: "package.json", content: "{}" }],
+    hash: "content-hash",
+  };
+
+  it("records a contract as a first-class entry, with its negotiation inputs", () => {
+    const manifest = createEmptyManifest();
+    updateManifestContract(manifest, contract, "input-hash");
+
+    const stored = manifest.contracts["contract:package.json"]!;
+    expect(stored.hash).toBe("content-hash");
+    expect(stored.inputHash).toBe("input-hash");
+    expect(stored.terms).toEqual([{ name: "express", detail: "express@5.0.0" }]);
+    // Only the paths — the content lives on disk in the provider's region.
+    expect(stored.files).toEqual(["package.json"]);
+  });
+});
+
+describe("pruning", () => {
+  it("forgets nodes and contracts the program no longer declares", () => {
+    const manifest = createEmptyManifest();
+    for (const id of ["a.ts", "b.ts"]) {
+      updateManifestNode(manifest, id, {
+        inputHashes: {},
+        outputHash: "h",
+        files: [],
+        dependsOn: [],
+      });
     }
-
-    updateManifestNode(m, "app", {
-      inputHashes: {},
-      outputHash: "new",
-      generatedFiles: ["src/app.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-
-    expect(m.nodes.app!.outputHash).toBe("new")
-    expect(m.nodes.app!.compiledAssertions).toEqual({
-      "/todos": "await expect(page).toHaveTitle('Todos')",
-    })
-  })
-
-  it("updateManifestNode adds multiple nodes", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "a", {
-      inputHashes: {},
-      outputHash: "hash-a",
-      generatedFiles: ["a.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    updateManifestNode(m, "b", {
-      inputHashes: {},
-      outputHash: "hash-b",
-      generatedFiles: ["b.ts"],
-      expectations: [],
-      dependsOn: ["a"],
-    })
-
-    expect(Object.keys(m.nodes)).toEqual(["a", "b"])
-    expect(m.nodes.b!.dependsOn).toEqual(["a"])
-  })
-
-  it("computeOutputHash is deterministic and order-independent", () => {
-    const files = [
-      { path: "b.ts", content: "const b = 2" },
-      { path: "a.ts", content: "const a = 1" },
-    ]
-    const hash1 = computeOutputHash(files)
-    const hash2 = computeOutputHash([...files].reverse())
-    expect(hash1).toBe(hash2)
-    expect(hash1).toMatch(/^[a-f0-9]{64}$/)
-  })
-
-  it("computeOutputHash changes when content changes", () => {
-    const hash1 = computeOutputHash([{ path: "a.ts", content: "v1" }])
-    const hash2 = computeOutputHash([{ path: "a.ts", content: "v2" }])
-    expect(hash1).not.toBe(hash2)
-  })
-
-  it("writeManifest uses custom path", () => {
-    const m = createEmptyManifest()
-    writeManifest(m, root, "custom.manifest.json")
-    expect(existsSync(join(root, "custom.manifest.json"))).toBe(true)
-
-    const loaded = readManifest(root, "custom.manifest.json")
-    expect(loaded.version).toBe(1)
-  })
-})
-
-describe("cache key + freshness", () => {
-  let root: string
-
-  beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "wolder-cache-"))
-  })
-
-  it("computeInputHashes includes act hash and model", () => {
-    const hashes = computeInputHashes("Create a service", [], "claude-sonnet-4-6", root, [], [])
-    expect(hashes["act:sha256"]).toMatch(/^[a-f0-9]{64}$/)
-    expect(hashes.model).toBe("claude-sonnet-4-6")
-  })
-
-  it("computeInputHashes includes input file hashes", () => {
-    writeFileSync(join(root, "input.ts"), "export const x = 1")
-    const hashes = computeInputHashes(
-      "Generate",
-      [{ path: "input.ts", kind: "input" }],
-      "test",
-      root,
-      [],
-      [],
-    )
-    expect(hashes["input.ts"]).toMatch(/^[a-f0-9]{64}$/)
-  })
-
-  it("computeInputHashes includes artifact outputHash", () => {
-    const hashes = computeInputHashes(
-      "Generate",
-      [{ kind: "artifact", id: "svc", outputHash: "abc123", generatedFiles: ["svc.ts"], members: {} }],
-      "test",
-      root,
-      [],
-      [],
-    )
-    expect(hashes["artifact:svc"]).toBe("abc123")
-  })
-
-  it("computeInputHashes changes when input file content changes", () => {
-    writeFileSync(join(root, "input.ts"), "v1")
-    const h1 = computeInputHashes("Go", [{ path: "input.ts", kind: "input" }], "test", root, [], [])
-
-    writeFileSync(join(root, "input.ts"), "v2")
-    const h2 = computeInputHashes("Go", [{ path: "input.ts", kind: "input" }], "test", root, [], [])
-
-    expect(h1["input.ts"]).not.toBe(h2["input.ts"])
-  })
-
-  it("computeInputHashes changes when act instruction changes", () => {
-    const h1 = computeInputHashes("Create a service", [], "test", root, [], [])
-    const h2 = computeInputHashes("Create a controller", [], "test", root, [], [])
-    expect(h1["act:sha256"]).not.toBe(h2["act:sha256"])
-  })
-
-  it("computeInputHashes includes scope:sha256", () => {
-    const hashes = computeInputHashes("Go", [], "test", root, ["src/svc.ts"], [])
-    expect(hashes["scope:sha256"]).toMatch(/^[a-f0-9]{64}$/)
-  })
-
-  it("computeInputHashes scope:sha256 changes when scope files change", () => {
-    const h1 = computeInputHashes("Go", [], "test", root, ["src/svc.ts"], [])
-    const h2 = computeInputHashes("Go", [], "test", root, ["src/ctrl.ts"], [])
-    expect(h1["scope:sha256"]).not.toBe(h2["scope:sha256"])
-  })
-
-  it("computeInputHashes scope:sha256 changes when a scope file is added", () => {
-    const h1 = computeInputHashes("Go", [], "test", root, ["src/svc.ts"], [])
-    const h2 = computeInputHashes("Go", [], "test", root, ["src/svc.ts", "src/svc.test.ts"], [])
-    expect(h1["scope:sha256"]).not.toBe(h2["scope:sha256"])
-  })
-
-  it("computeInputHashes scope:sha256 is sensitive to scope file order", () => {
-    const h1 = computeInputHashes("Go", [], "test", root, ["src/a.ts", "src/b.ts"], [])
-    const h2 = computeInputHashes("Go", [], "test", root, ["src/b.ts", "src/a.ts"], [])
-    expect(h1["scope:sha256"]).not.toBe(h2["scope:sha256"])
-  })
-
-  it("computeInputHashes includes expectations:sha256", () => {
-    const hashes = computeInputHashes("Go", [], "test", root, [], [{ type: "compiles" }])
-    expect(hashes["expectations:sha256"]).toMatch(/^[a-f0-9]{64}$/)
-  })
-
-  it("computeInputHashes expectations:sha256 changes when an expectation is added", () => {
-    const h1 = computeInputHashes("Go", [], "test", root, [], [])
-    const h2 = computeInputHashes("Go", [], "test", root, [], [{ type: "compiles" }])
-    expect(h1["expectations:sha256"]).not.toBe(h2["expectations:sha256"])
-  })
-
-  it("computeInputHashes expectations:sha256 changes when expectation details change", () => {
-    const h1 = computeInputHashes("Go", [], "test", root, [], [{ type: "class", name: "Foo" }])
-    const h2 = computeInputHashes("Go", [], "test", root, [], [{ type: "class", name: "Bar" }])
-    expect(h1["expectations:sha256"]).not.toBe(h2["expectations:sha256"])
-  })
-
-  it("computeInputHashes expectations:sha256 is sensitive to expectation order", () => {
-    const h1 = computeInputHashes("Go", [], "test", root, [], [
-      { type: "class", name: "Foo" },
-      { type: "compiles" },
-    ])
-    const h2 = computeInputHashes("Go", [], "test", root, [], [
-      { type: "compiles" },
-      { type: "class", name: "Foo" },
-    ])
-    expect(h1["expectations:sha256"]).not.toBe(h2["expectations:sha256"])
-  })
-
-  it("isFresh returns false when scope files change", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: computeInputHashes("Go", [], "test", root, ["src/svc.ts"], []),
-      outputHash: "out",
-      generatedFiles: ["src/svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-
-    const newHashes = computeInputHashes("Go", [], "test", root, ["src/svc.ts", "src/svc.test.ts"], [])
-    expect(isFresh(m, "svc", newHashes)).toBe(false)
-  })
-
-  it("isFresh returns false when expectations change", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: computeInputHashes("Go", [], "test", root, ["src/svc.ts"], []),
-      outputHash: "out",
-      generatedFiles: ["src/svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-
-    const newHashes = computeInputHashes("Go", [], "test", root, ["src/svc.ts"], [{ type: "compiles" }])
-    expect(isFresh(m, "svc", newHashes)).toBe(false)
-  })
-
-  it("isFresh returns true when scope files and expectations are unchanged", () => {
-    const hashes = computeInputHashes(
-      "Go", [], "test", root,
-      ["src/svc.ts"],
-      [{ type: "class", name: "Svc" }],
-    )
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: hashes,
-      outputHash: "out",
-      generatedFiles: ["src/svc.ts"],
-      expectations: [{ type: "class", name: "Svc" }],
-      dependsOn: [],
-    })
-
-    expect(isFresh(m, "svc", hashes)).toBe(true)
-  })
-
-  it("computeCacheKey is deterministic regardless of key insertion order", () => {
-    const a = { "act:sha256": "abc", model: "test", "input.ts": "def" }
-    const b = { model: "test", "input.ts": "def", "act:sha256": "abc" }
-    expect(computeCacheKey(a)).toBe(computeCacheKey(b))
-  })
-
-  it("isFresh returns false when node not in manifest", () => {
-    const m = createEmptyManifest()
-    expect(isFresh(m, "missing", { "act:sha256": "abc" })).toBe(false)
-  })
-
-  it("isFresh returns true when input hashes match", () => {
-    const hashes = { "act:sha256": "abc", model: "test" }
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: hashes,
-      outputHash: "out",
-      generatedFiles: ["svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-
-    expect(isFresh(m, "svc", hashes)).toBe(true)
-  })
-
-  it("isFresh returns false when act hash changes", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: { "act:sha256": "old", model: "test" },
-      outputHash: "out",
-      generatedFiles: ["svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-
-    expect(isFresh(m, "svc", { "act:sha256": "new", model: "test" })).toBe(false)
-  })
-
-  it("isFresh returns false when input file hash changes", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: { "act:sha256": "abc", model: "test", "input.ts": "hash1" },
-      outputHash: "out",
-      generatedFiles: ["svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-
-    expect(
-      isFresh(m, "svc", { "act:sha256": "abc", model: "test", "input.ts": "hash2" }),
-    ).toBe(false)
-  })
-
-  it("isFresh returns false when model changes", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: { "act:sha256": "abc", model: "claude-sonnet-4-6" },
-      outputHash: "out",
-      generatedFiles: ["svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-
-    expect(
-      isFresh(m, "svc", { "act:sha256": "abc", model: "claude-opus-4-6" }),
-    ).toBe(false)
-  })
-
-  it("isFresh returns false when upstream artifact outputHash changes", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "controller", {
-      inputHashes: { "act:sha256": "abc", model: "test", "artifact:svc": "hash-v1" },
-      outputHash: "out",
-      generatedFiles: ["controller.ts"],
-      expectations: [],
-      dependsOn: ["svc"],
-    })
-
-    // Upstream re-ran and produced a new outputHash
-    expect(
-      isFresh(m, "controller", { "act:sha256": "abc", model: "test", "artifact:svc": "hash-v2" }),
-    ).toBe(false)
-  })
-})
-
-describe("isOutputFresh", () => {
-  let root: string
-
-  beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "wolder-manifest-test-"))
-  })
-
-  it("returns false when node not in manifest", () => {
-    const manifest = createEmptyManifest()
-    expect(isOutputFresh(manifest, "node-a", root)).toBe(false)
-  })
-
-  it("returns true when generated files match stored output hash", () => {
-    writeFileSync(join(root, "svc.ts"), "export class Svc {}", "utf-8")
-
-    const manifest = createEmptyManifest()
-    updateManifestNode(manifest, "svc.ts", {
-      inputHashes: {},
-      outputHash: computeOutputHash([{ path: "svc.ts", content: "export class Svc {}" }]),
-      generatedFiles: ["svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-
-    expect(isOutputFresh(manifest, "svc.ts", root)).toBe(true)
-  })
-
-  it("returns false when a generated file has been manually modified", () => {
-    writeFileSync(join(root, "svc.ts"), "export class Svc { extra() {} }", "utf-8")
-
-    const manifest = createEmptyManifest()
-    updateManifestNode(manifest, "svc.ts", {
-      inputHashes: {},
-      outputHash: computeOutputHash([{ path: "svc.ts", content: "export class Svc {}" }]),
-      generatedFiles: ["svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-
-    expect(isOutputFresh(manifest, "svc.ts", root)).toBe(false)
-  })
-
-  it("returns false when a generated file is missing from disk", () => {
-    const manifest = createEmptyManifest()
-    updateManifestNode(manifest, "svc.ts", {
-      inputHashes: {},
-      outputHash: "somehash",
-      generatedFiles: ["svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-
-    expect(isOutputFresh(manifest, "svc.ts", root)).toBe(false)
-  })
-})
-
-describe("DAG operations", () => {
-  it("getDependents returns direct dependents", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "svc", {
-      inputHashes: {},
-      outputHash: "h1",
-      generatedFiles: ["svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    updateManifestNode(m, "controller", {
-      inputHashes: {},
-      outputHash: "h2",
-      generatedFiles: ["controller.ts"],
-      expectations: [],
-      dependsOn: ["svc"],
-    })
-
-    expect(getDependents(m, "svc")).toEqual(["controller"])
-    expect(getDependents(m, "controller")).toEqual([])
-  })
-
-  it("getDependents returns transitive dependents", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "model", {
-      inputHashes: {},
-      outputHash: "h1",
-      generatedFiles: ["model.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    updateManifestNode(m, "svc", {
-      inputHashes: {},
-      outputHash: "h2",
-      generatedFiles: ["svc.ts"],
-      expectations: [],
-      dependsOn: ["model"],
-    })
-    updateManifestNode(m, "controller", {
-      inputHashes: {},
-      outputHash: "h3",
-      generatedFiles: ["controller.ts"],
-      expectations: [],
-      dependsOn: ["svc"],
-    })
-    updateManifestNode(m, "app", {
-      inputHashes: {},
-      outputHash: "h4",
-      generatedFiles: ["app.ts"],
-      expectations: [],
-      dependsOn: ["controller"],
-    })
-
-    expect(getDependents(m, "model")).toEqual(["svc", "controller", "app"])
-    expect(getDependents(m, "svc")).toEqual(["controller", "app"])
-    expect(getDependents(m, "controller")).toEqual(["app"])
-  })
-
-  it("topologicalSort returns nodes in dependency order", () => {
-    const m = createEmptyManifest()
-    // Insert in reverse order to verify sorting
-    updateManifestNode(m, "app", {
-      inputHashes: {},
-      outputHash: "h3",
-      generatedFiles: ["app.ts"],
-      expectations: [],
-      dependsOn: ["controller"],
-    })
-    updateManifestNode(m, "controller", {
-      inputHashes: {},
-      outputHash: "h2",
-      generatedFiles: ["controller.ts"],
-      expectations: [],
-      dependsOn: ["svc"],
-    })
-    updateManifestNode(m, "svc", {
-      inputHashes: {},
-      outputHash: "h1",
-      generatedFiles: ["svc.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-
-    const sorted = topologicalSort(m)
-    const svcIdx = sorted.indexOf("svc")
-    const ctrlIdx = sorted.indexOf("controller")
-    const appIdx = sorted.indexOf("app")
-
-    expect(svcIdx).toBeLessThan(ctrlIdx)
-    expect(ctrlIdx).toBeLessThan(appIdx)
-  })
-
-  it("topologicalSort handles diamond dependencies", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "base", {
-      inputHashes: {},
-      outputHash: "h1",
-      generatedFiles: ["base.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-    updateManifestNode(m, "left", {
-      inputHashes: {},
-      outputHash: "h2",
-      generatedFiles: ["left.ts"],
-      expectations: [],
-      dependsOn: ["base"],
-    })
-    updateManifestNode(m, "right", {
-      inputHashes: {},
-      outputHash: "h3",
-      generatedFiles: ["right.ts"],
-      expectations: [],
-      dependsOn: ["base"],
-    })
-    updateManifestNode(m, "top", {
-      inputHashes: {},
-      outputHash: "h4",
-      generatedFiles: ["top.ts"],
-      expectations: [],
-      dependsOn: ["left", "right"],
-    })
-
-    const sorted = topologicalSort(m)
-    const baseIdx = sorted.indexOf("base")
-    const leftIdx = sorted.indexOf("left")
-    const rightIdx = sorted.indexOf("right")
-    const topIdx = sorted.indexOf("top")
-
-    expect(baseIdx).toBeLessThan(leftIdx)
-    expect(baseIdx).toBeLessThan(rightIdx)
-    expect(leftIdx).toBeLessThan(topIdx)
-    expect(rightIdx).toBeLessThan(topIdx)
-  })
-
-  it("topologicalSort detects cycles", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "a", {
-      inputHashes: {},
-      outputHash: "h1",
-      generatedFiles: ["a.ts"],
-      expectations: [],
-      dependsOn: ["b"],
-    })
-    updateManifestNode(m, "b", {
-      inputHashes: {},
-      outputHash: "h2",
-      generatedFiles: ["b.ts"],
-      expectations: [],
-      dependsOn: ["a"],
-    })
-
-    expect(() => topologicalSort(m)).toThrow(/Cycle detected/)
-  })
-
-  it("getDependents with no dependents returns empty array", () => {
-    const m = createEmptyManifest()
-    updateManifestNode(m, "standalone", {
-      inputHashes: {},
-      outputHash: "h1",
-      generatedFiles: ["standalone.ts"],
-      expectations: [],
-      dependsOn: [],
-    })
-
-    expect(getDependents(m, "standalone")).toEqual([])
-  })
-})
+    manifest.contracts["contract:a.ts"] = {
+      id: "contract:a.ts",
+      provider: "a.ts",
+      requesters: [],
+      label: "A",
+      hash: "h",
+      inputHash: "i",
+      summary: "",
+      terms: [],
+      files: [],
+      lastRun: "",
+    };
+
+    pruneManifest(manifest, ["a.ts"], []);
+    expect(Object.keys(manifest.nodes)).toEqual(["a.ts"]);
+    expect(Object.keys(manifest.contracts)).toEqual([]);
+  });
+});
+
+describe("getDependents", () => {
+  it("finds direct and transitive dependents", () => {
+    const manifest = createEmptyManifest();
+    const add = (id: string, dependsOn: string[]) =>
+      updateManifestNode(manifest, id, {
+        inputHashes: {},
+        outputHash: "h",
+        files: [],
+        dependsOn,
+      });
+    add("a.ts", []);
+    add("b.ts", ["a.ts"]);
+    add("c.ts", ["b.ts"]);
+    add("d.ts", []);
+
+    expect(getDependents(manifest, "a.ts").sort()).toEqual(["b.ts", "c.ts"]);
+    expect(getDependents(manifest, "d.ts")).toEqual([]);
+  });
+});

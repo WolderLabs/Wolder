@@ -1,104 +1,88 @@
 # Type Safety
 
-Wolder provides two layers of type safety for artifact members.
+v2 has one compile-time guarantee, and it is the one that matters: **you cannot ask an
+agent for a contract it never offered to hold up.**
 
-## Layer 1: Generic Inference (built-in)
-
-The DSL uses TypeScript generics to track member names through the chain. When you write a chain in a single expression, the return type is fully typed:
-
-```typescript
-const svc = await w
-  .scope("svc.ts")
-  .act("Create service")
-  .expectClass("Svc")
-  .withFunction("getAllItems")   // TMembers = ["getAllItems"]
-  .withFunction("addItem")      // TMembers = ["getAllItems", "addItem"]
-  .build()
-// typeof svc = Artifact<{
-//   getAllItems: MemberRef<"getAllItems">
-//   addItem: MemberRef<"addItem">
-// }>
-
-svc.members.getAllItems  // MemberRef<"getAllItems"> — autocomplete works
-svc.members.addItem     // MemberRef<"addItem">
-svc.members.oops        // Compile error
-```
-
-This works with TypeScript 4.7+ and requires no plugin. The `withFunction<N>` and `withMethod<N>` methods use generic parameter inference to accumulate member names as a type-level tuple.
-
-### How it works
+## `requests` requires `provides`
 
 ```typescript
-interface ClassExpectationBuilder<TMembers extends readonly string[]> {
-  withFunction<N extends string>(name: N): ClassExpectationBuilder<[...TMembers, N]>
-  build(): Promise<Artifact<ExtractMembers<TMembers>>>
-}
+const readme = project
+  .scopedAgent()
+  .canWrite("README.md")
+  .act(`Generate a README.md.`)
+  .provides("Documentation")          // ← makes it a valid target
 
-type ExtractMembers<T extends readonly string[]> = {
-  [K in T[number]]: MemberRef<K>
-}
+const service = project
+  .scopedAgent()
+  .canWrite("src/services/")
+  .requests(readme, "Document Todo Service usage")   // ✓
 ```
 
-Each `withFunction("name")` call produces a new type with `name` appended to the tuple. `build()` converts the tuple to a members record.
-
-## Layer 2: TypeScript Plugin (for cross-file use)
-
-Generic inference only works within a single expression. If you pass an artifact to another module or assign it to an intermediate variable, TypeScript may widen the type and lose member information.
-
-The `@wolder/ts-plugin` solves this by generating a `wolder.artifacts.d.ts` file with explicit types:
+Without `.provides()`:
 
 ```typescript
-// wolder.artifacts.d.ts (auto-generated)
-import type { Artifact, MemberRef } from "@wolder/core"
+const readme = project.scopedAgent().canWrite("README.md").act(`…`)
 
-export type TodoServiceArtifact = Artifact<{
-  getAllItems: MemberRef<"getAllItems">
-  addItem: MemberRef<"addItem">
-}>
+service.requests(readme, "Document usage")
+// ✗ Type '"agent does not provide anything — call .provides(label) on it first"'
+//   is not assignable to type '"provides"'.
 ```
 
-### Setup
+This is a compile-time constraint, not a build-time one. The handle carries its provided
+state in a phantom type parameter — `ScopedAgent<TProvides>` — which `.provides()` sets and
+`.requests()` demands. The brand is a string literal so the error reads as an instruction
+rather than a raw type mismatch.
 
-```json
-// tsconfig.json
-{
-  "compilerOptions": {
-    "plugins": [
-      { "name": "@wolder/ts-plugin" }
-    ]
-  }
+## Immutability makes it sound
+
+Agents are immutable, so a handle passed to `.requests()` is already a finished value.
+There is no "provides comes later" case to reason about — and the type system catches the
+mistake of pointing at an earlier value in a chain:
+
+```typescript
+const draft = project.scopedAgent().canWrite("README.md").act(`…`)
+const readme = draft.provides("Documentation")
+
+service.requests(draft, "…")    // ✗ `draft` still provides nothing
+service.requests(readme, "…")   // ✓
+```
+
+The runtime catches the same mistake for `.uses()`, where there is no type to catch it
+with: passing a value that was later derived from is a pre-flight `GraphError` naming the
+agent and telling you to pass the end of its chain.
+
+## What the type system deliberately does not do
+
+v1 threaded generated member names through a phantom tuple, so `artifact.members.getUser`
+was typed. That came from the expectation chain, and "the agent decides what exists" is
+incompatible with knowing those names before it runs. `Artifact` is now a plain runtime
+handle:
+
+```typescript
+interface Artifact {
+  kind: "artifact"
+  id: string
+  outputHash: string
+  files: readonly string[]
+  provides?: string
 }
 ```
 
-### How it works
+`ExtractMembers`, `MemberRef` and the `wolder.artifacts.d.ts` language-service plugin are
+all gone. Some expect-and-test pattern is wanted again later; it should arrive as a plugin
+on top of a working v2 rather than as a constraint on its design.
 
-The plugin:
-1. Parses your `wolder.program.ts` file
-2. Walks the AST to find all `await ...build()` expressions
-3. Extracts `withFunction`/`withMethod` string literals from the chain
-4. Generates a `.d.ts` file with typed exports
-5. Regenerates when the program file changes
+## Everything else is a pre-flight error
 
-Since it outputs a real `.d.ts` file, it works with `tsc`, all editors, and CI — no runtime magic.
+The rest of what could be wrong with a program is caught by `build()` before a generation
+token is spent — which is what deferred execution buys, since the whole graph is known:
 
-## Using Member Refs
-
-Members are used with `withInput()` to pass specific code elements as context to downstream steps:
-
-```typescript
-const svc = await w
-  .scope("svc.ts")
-  .act("Create service")
-  .expectClass("Svc")
-  .withFunction("getAllItems")
-  .build()
-
-// Pass a specific member as context
-const ctrl = await w
-  .scope("ctrl.ts")
-  .act("Create controller")
-  .withInput(svc.members.getAllItems)  // only this member's file is included
-  .build()
-```
-
-A `MemberRef` carries the member's name, class name, and file path — enough information for the prompt builder to include the relevant source code.
+| Mistake | Caught by |
+|---|---|
+| `requests` against a non-provider | The compiler |
+| Two agents claiming overlapping regions | `GraphError` |
+| A cycle in `uses` | `GraphError` |
+| An edge pointing at a template | `GraphError` |
+| An agent with an `.act()` but no `.canWrite()` | `GraphError` |
+| Reading `.artifact` before `build()` | A throw that explains why |
+| An agent writing outside its region | `RegionViolationError`, at the tool layer |
