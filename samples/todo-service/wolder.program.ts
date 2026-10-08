@@ -47,12 +47,12 @@ const dependencies = project
   .provides("NPM dependencies and TypeScript config")
 
 // Step 1: Generate the service.
-// It owns src/services/ outright, and asks the README agent to cover its usage.
+// It owns exactly one file, src/services/TodoService.ts, and asks the README agent to cover its usage.
 // The two settle a contract before either generates, so the README is written
 // knowing what it has to document — and the service knowing what it promised.
 const todoService = project
   .agent()
-  .owns("src/services/")
+  .owns("src/services/TodoService.ts")
   .asks(readme, "Document Todo Service usage")
   .goal(`
     Create a TodoService class that provides CRUD operations for TodoItem objects.
@@ -67,7 +67,7 @@ const todoService = project
 // agent installs and the other imports. Two agents, one contract, no shared region.
 const todoController = project
   .agent()
-  .owns("src/controllers/")
+  .owns("src/controllers/TodoController.ts")
   .asks(dependencies, "A framework like Express.js for handling HTTP requests")
   .after(todoService)
   .goal(`

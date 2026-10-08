@@ -31,8 +31,8 @@ regions, two `asks` edges and one `after` edge:
 - `README.md` provides Documentation
 - `package.json` + `tsconfig.json` provide the project setup — one agent, because the two
   files have to agree about the module system and the target
-- `src/services/` provides the Todo Service, and **asks** README coverage
-- `src/controllers/` provides the Todo API, **after** the service, and **asks** a
+- `src/services/TodoService.ts` provides the Todo Service, and **asks** README coverage
+- `src/controllers/TodoController.ts` provides the Todo API, **after** the service, and **asks** a
   framework from the package agent
 
 Everything above is relative to `project/`. `project/src/models/TodoItem.ts` is the only

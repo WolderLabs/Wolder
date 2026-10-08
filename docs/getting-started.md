@@ -53,7 +53,7 @@ const dependencies = project
 
 const todoService = project
   .agent()
-  .owns("src/services/")
+  .owns("src/services/TodoService.ts")
   .asks(readme, "Document Todo Service usage")
   .goal(`
     Create a TodoService class that provides CRUD operations for TodoItem objects.
@@ -64,7 +64,7 @@ const todoService = project
 
 project
   .agent()
-  .owns("src/controllers/")
+  .owns("src/controllers/TodoController.ts")
   .asks(dependencies, "A framework like Express.js for handling HTTP requests")
   .after(todoService)
   .goal(`Create a TodoController class that wraps TodoService and provides a simple API.`)
@@ -98,14 +98,14 @@ You will see four phases:
 [wolder] 4 agent(s), 3 edge(s) — boundaries and dependencies check out
 
 [wolder] Settling contracts
-[wolder] contract:README.md  Documentation <-> src/services/**
-[wolder] contract:package.json  NPM dependencies <-> src/controllers/**
+[wolder] contract:README.md  Documentation <-> src/services/TodoService.ts
+[wolder] contract:package.json  NPM dependencies <-> src/controllers/TodoController.ts
 
 [wolder] Generating
 [wolder] package.json provides "NPM dependencies"
 [wolder] README.md provides "Documentation"
-[wolder] src/services/** provides "Todo Service"
-[wolder] src/controllers/** provides "Todo API"
+[wolder] src/services/TodoService.ts provides "Todo Service"
+[wolder] src/controllers/TodoController.ts provides "Todo API"
 
 [wolder] 4 generated  ·  0 cached  ·  2 contract(s)  ·  38.2s
 ```

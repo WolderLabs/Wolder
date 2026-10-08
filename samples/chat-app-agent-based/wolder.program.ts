@@ -52,6 +52,8 @@ const readme = project
   `)
   .provides("Documentation")
 
+// The server agents own directories rather than files: each one genuinely produces
+// several modules (routes, storage, types) whose names are its own decision.
 const auth = backend
   .agent()
   .owns("src/server/auth/")

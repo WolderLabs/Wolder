@@ -141,11 +141,11 @@ prints every tool an agent reaches for, stamped with how long that node has been
 running, plus each negotiation round and any API retry:
 
 ```
-[wolder] src/services/** provides "Todo Service"
+[wolder] src/services/TodoService.ts provides "Todo Service"
        +2s Read src/models/TodoItem.ts
        +9s Writing the service and its error type.
       +11s Write src/services/TodoService.ts
-[wolder] src/services/** wrote 2 file(s) in 14.3s
+[wolder] src/services/TodoService.ts wrote 2 file(s) in 14.3s
 ```
 
 `createConsoleReporter({ verbose: false })` keeps only the lines you would act on —

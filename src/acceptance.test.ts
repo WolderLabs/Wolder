@@ -23,11 +23,11 @@ const WRITES: Record<string, Record<string, string>> = {
     "package.json": '{"name":"todo-service","dependencies":{"express":"^5.0.0"}}',
     "tsconfig.json": '{"compilerOptions":{"module":"Node16","strict":true}}',
   },
-  "src/services/**": {
-    "src/services/todoService.ts": "export class TodoService {}",
+  "src/services/TodoService.ts": {
+    "src/services/TodoService.ts": "export class TodoService {}",
   },
-  "src/controllers/**": {
-    "src/controllers/todoController.ts":
+  "src/controllers/TodoController.ts": {
+    "src/controllers/TodoController.ts":
       'import express from "express";\nexport class TodoController {}',
   },
 };
@@ -114,7 +114,7 @@ function program() {
 
   const todoService = project
     .agent()
-    .owns("src/services/")
+    .owns("src/services/TodoService.ts")
     .asks(readme, "Document Todo Service usage")
     .goal(`
       Create a TodoService class that provides CRUD operations for TodoItem objects.
@@ -125,7 +125,7 @@ function program() {
 
   const todoController = project
     .agent()
-    .owns("src/controllers/")
+    .owns("src/controllers/TodoController.ts")
     .asks(dependencies, "A framework like Express.js for handling HTTP requests")
     .after(todoService)
     .goal(`Create a TodoController class that wraps TodoService and provides a simple API.`)
@@ -157,13 +157,13 @@ describe("the todo-service program", () => {
     expect([...result.artifacts].map((a) => a.id).sort()).toEqual([
       "README.md",
       "package.json+tsconfig.json",
-      "src/controllers/**",
-      "src/services/**",
+      "src/controllers/TodoController.ts",
+      "src/services/TodoService.ts",
     ]);
-    expect(todoService.artifact.files).toEqual(["src/services/todoService.ts"]);
+    expect(todoService.artifact.files).toEqual(["src/services/TodoService.ts"]);
     expect(todoController.artifact.provides).toBe("Todo API");
     expect(
-      readFileSync(resolve(root, "src/controllers/todoController.ts"), "utf-8"),
+      readFileSync(resolve(root, "src/controllers/TodoController.ts"), "utf-8"),
     ).toContain("TodoController");
   });
 
@@ -189,12 +189,12 @@ describe("the todo-service program", () => {
 
     // The README knows what it agreed to document; the service knows what it promised.
     expect(prompts["README.md"]).toContain("Usage section");
-    expect(prompts["src/services/**"]).toContain("Usage section");
+    expect(prompts["src/services/TodoService.ts"]).toContain("Usage section");
 
     // The controller may import express because the package agent agreed to install it —
     // and the controller never wrote package.json.
     expect(prompts["package.json+tsconfig.json"]).toContain("express@^5.0.0");
-    expect(prompts["src/controllers/**"]).toContain("express@^5.0.0");
+    expect(prompts["src/controllers/TodoController.ts"]).toContain("express@^5.0.0");
     expect(readFileSync(resolve(root, "package.json"), "utf-8")).toContain("express");
   });
 
@@ -217,15 +217,15 @@ describe("the todo-service program", () => {
     const readme = project.agent().owns("README.md").goal("readme").provides("Docs");
     const service = project
       .agent()
-      .owns("src/services/")
+      .owns("src/services/TodoService.ts")
       .asks(readme, "Document Todo Service usage")
       .goal("service")
       .provides("Todo Service");
-    project.agent().owns("src/controllers/").after(service).goal("controller");
+    project.agent().owns("src/controllers/TodoController.ts").after(service).goal("controller");
 
     await w.run({ reporter: createSilentReporter() });
 
-    expect(order.indexOf("src/services/**")).toBeLessThan(order.indexOf("src/controllers/**"));
+    expect(order.indexOf("src/services/TodoService.ts")).toBeLessThan(order.indexOf("src/controllers/TodoController.ts"));
     // The README is not ordered against the service — an asks edge carries content,
     // not sequence.
     expect(order).toContain("README.md");
@@ -241,8 +241,8 @@ describe("the todo-service program", () => {
     expect([...second.skipped].sort()).toEqual([
       "README.md",
       "package.json+tsconfig.json",
-      "src/controllers/**",
-      "src/services/**",
+      "src/controllers/TodoController.ts",
+      "src/services/TodoService.ts",
     ]);
   });
 });
