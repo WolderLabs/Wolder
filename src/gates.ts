@@ -26,11 +26,21 @@ export function runGate(
     .replace(/\{regions\}/g, regions.map(quote).join(" "));
 
   try {
-    const output = execSync(command, { cwd: root, stdio: "pipe", encoding: "utf-8" });
+    const output = execSync(command, { cwd: root, stdio: "pipe", encoding: "utf-8", env: plainEnv() });
     return { gate, pass: true, output };
   } catch (err: unknown) {
     return { gate, pass: false, output: captureOutput(err) };
   }
+}
+
+/**
+ * The environment a gate runs in: the caller's, with colour turned off. Gate output
+ * is read by an agent and kept in the run record, where colour codes are only noise.
+ */
+function plainEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env, NO_COLOR: "1" };
+  delete env.FORCE_COLOR;
+  return env;
 }
 
 /** Runs every gate, in order, and returns every result. The caller finds the first failure. */
