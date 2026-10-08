@@ -17,6 +17,7 @@ import type {
   Reporter,
   RunResult,
 } from "./types.js";
+import type { SerializedGraph } from "./serialize.js";
 import { sha256 } from "./util.js";
 
 export const RECORD_DIR = ".wolder";
@@ -58,7 +59,7 @@ export interface RunMeta {
   readonly status: "running" | "ok" | "failed";
   readonly error?: string;
   /** The serialised graph; null until the graph is assembled. */
-  readonly graph: unknown;
+  readonly graph: SerializedGraph | null;
 }
 
 export interface Recorder extends Reporter {
@@ -192,6 +193,10 @@ export function createRecorder(root: string, options: { keepRuns?: number } = {}
       }, "write a prompt");
       append("note", { node: target, data: { prompt: rel } });
     },
+    graphAssembled(graph) {
+      meta = { ...meta, graph };
+      writeMeta();
+    },
     gate: (target, report: GateReport) => append("gate", { node: target, data: report }),
     contractSettled(contract: Contract, transcript: readonly NegotiationTurn[]) {
       guarded(() => {
@@ -242,6 +247,7 @@ const METHODS = [
   "gate",
   "failed",
   "contractSettled",
+  "graphAssembled",
 ] as const;
 
 /** Forward every call to every reporter, in order, skipping optional methods that are absent. */

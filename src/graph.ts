@@ -28,6 +28,7 @@ export function assembleGraph(registry: Registry): Graph {
     throw new GraphError(
       "This program declares no agents to run.\n" +
         "An agent becomes a node once it has a .goal() and nothing is derived from it.",
+      { agents: [] },
     );
   }
 
@@ -37,6 +38,7 @@ export function assembleGraph(registry: Registry): Graph {
       throw new GraphError(
         `${describe(spec)} has a .goal() but owns no region, so there is nowhere for it ` +
           `to put its output. Give it a region it owns exclusively.`,
+        { agents: [describe(spec)] },
       );
     }
     specToNode.set(spec.id, nodeId(spec));
@@ -83,6 +85,7 @@ export function assembleGraph(registry: Registry): Graph {
           `${node.id} .asks() ${target.id}, which does not provide anything.\n` +
             `Add .provides("<label>") to it — you cannot ask an agent for a contract it ` +
             `never offered to hold up.`,
+          { agents: [node.id, target.id] },
         );
       }
     }
@@ -124,6 +127,10 @@ function checkRegionOverlap(
 ` +
               `If both agents come from the same recipe — a function that returns an agent — ` +
               `give each call its own region. A recipe's region is a parameter, not a constant.`,
+            {
+              agents: [specToNode.get(a.id)!, specToNode.get(b.id)!],
+              regions: [ra, rb],
+            },
           );
         }
       }
@@ -149,10 +156,12 @@ function resolveEdge(
         `points at is a template rather than a node.\n` +
         `Agents are immutable: every builder call returns a new value. Pass the value at the ` +
         `end of ${name}'s chain — the one you assigned to a variable — not an intermediate one.`,
+      { agents: [describe(from), name] },
     );
   }
   throw new GraphError(
     `${describe(from)} uses .${method}() on ${name}, which never runs because it has no .goal().`,
+    { agents: [describe(from), name] },
   );
 }
 
@@ -200,6 +209,7 @@ export function topologicalOrder(nodes: readonly AgentNode[]): string[] {
           `A .after() edge means "run that first, then give me its files". If these agents ` +
           `instead need to agree on something, use .asks() — a content edge that does ` +
           `not imply an order.`,
+        { agents: [...new Set(cycle)] },
       );
     }
     visiting.add(id);

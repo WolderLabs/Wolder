@@ -1,8 +1,21 @@
+import type { GraphDiagnostic } from "./serialize.js";
+
 /** A problem found before any generation token is spent. */
 export class GraphError extends Error {
-  constructor(message: string) {
+  /** The same problem as data: the first line, who is involved, and the advice. */
+  readonly diagnostic: GraphDiagnostic;
+
+  constructor(message: string, info: Omit<GraphDiagnostic, "message"> = { agents: [] }) {
     super(message);
     this.name = "GraphError";
+    // `.message` stays the full text so CLI output is unchanged; the diagnostic splits
+    // it at the first line break into the problem and the "what you probably want".
+    const [head = message, ...rest] = message.split("\n");
+    this.diagnostic = {
+      message: head,
+      ...info,
+      hint: info.hint ?? (rest.length > 0 ? rest.join("\n") : undefined),
+    };
   }
 }
 

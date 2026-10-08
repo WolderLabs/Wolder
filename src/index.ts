@@ -17,6 +17,7 @@ export {
   snapshotTree,
   RECORD_DIR,
 } from "./record.js";
+export { serializeGraph } from "./serialize.js";
 export { createConsoleReporter, createSilentReporter } from "./reporter.js";
 export { hashLayer, layerContext } from "./layer.js";
 export { GraphError, RegionViolationError, NegotiationError, GateError } from "./errors.js";
@@ -37,6 +38,7 @@ export type { ChatFn, ChatMessage } from "./negotiate.js";
 export type { Graph } from "./graph.js";
 export type { AgentSpec, ChainEntry } from "./program.js";
 export type { GateResult } from "./gates.js";
+export type { SerializedGraph, SerializedNode, GraphDiagnostic } from "./serialize.js";
 export type { RunEvent, RunMeta } from "./record.js";
 export type { Manifest, ManifestNode, ManifestContract } from "./manifest.js";
 export type {
@@ -55,6 +57,7 @@ export type {
   Gate,
   GateReport,
   AgentTurn,
+  AssembleOutcome,
   GateOptions,
   Layer,
   LayerState,

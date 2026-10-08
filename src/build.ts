@@ -29,6 +29,7 @@ import {
   writeManifest,
 } from "./manifest.js";
 import { createConsoleReporter } from "./reporter.js";
+import { serializeGraph } from "./serialize.js";
 import { composeReporters, createRecorder } from "./record.js";
 
 export interface RunInputs {
@@ -51,6 +52,10 @@ export async function runProgram(
   options: RunOptions = {},
 ): Promise<RunResult> {
   const { root, config } = inputs;
+  // `WOLDER_FORCE=1` lets a parent process (the inspector) force a run it spawns.
+  if (process.env.WOLDER_FORCE === "1" && options.force === undefined) {
+    options = { ...options, force: true };
+  }
   const base = options.reporter ?? createConsoleReporter();
   const reporter =
     options.record === false
@@ -75,6 +80,7 @@ async function executeProgram(
   const { root, config, registry, services } = inputs;
 
   const graph = assembleGraph(registry);
+  reporter.graphAssembled?.(serializeGraph(graph, root));
   reporter.note(
     `${graph.nodes.length} agent(s), ${countEdges(graph)} edge(s) — boundaries and ` +
       `dependencies check out`,

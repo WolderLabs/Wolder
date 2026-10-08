@@ -1,3 +1,5 @@
+import type { GraphDiagnostic, SerializedGraph } from "./serialize.js";
+
 /**
  * Wolder v2 — public types.
  *
@@ -42,7 +44,14 @@ export interface WolderInstance {
   layer(): Layer;
   /** Assemble the declared graph, check it, and execute it. The one await in a program. */
   run(options?: RunOptions): Promise<RunResult>;
+  /** Assemble and check the graph without running it. Never touches a model. */
+  assemble(): AssembleOutcome;
 }
+
+/** The result of assembling a program without running it. */
+export type AssembleOutcome =
+  | { ok: true; graph: SerializedGraph }
+  | { ok: false; diagnostic: GraphDiagnostic };
 
 /* ------------------------------------------------------------------ layers */
 
@@ -355,4 +364,6 @@ export interface Reporter {
   failed?(error: Error): void;
   /** A contract negotiated this run, with the full exchange that produced it. */
   contractSettled?(contract: Contract, transcript: readonly NegotiationTurn[]): void;
+  /** The checked graph, right after assembly. */
+  graphAssembled?(graph: SerializedGraph): void;
 }
