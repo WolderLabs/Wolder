@@ -17,6 +17,7 @@ export {
   snapshotTree,
   RECORD_DIR,
 } from "./record.js";
+export { DSL_REFERENCE } from "./skill.js";
 export { serializeGraph } from "./serialize.js";
 export { createConsoleReporter, createSilentReporter } from "./reporter.js";
 export { hashLayer, layerContext } from "./layer.js";

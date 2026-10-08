@@ -208,6 +208,12 @@ run \`npx wolder run\` and fix errors until it completes:
 Only report success once \`npx wolder run\` exits cleanly.
 `;
 
+/** The DSL reference: the skill without its frontmatter and its task section. */
+export const DSL_REFERENCE: string = SKILL.slice(
+  SKILL.indexOf("You are an expert"),
+  SKILL.indexOf("## Task"),
+).trim();
+
 export function runSkill(): void {
   const commandsDir = resolve(process.cwd(), ".claude", "commands");
   mkdirSync(commandsDir, { recursive: true });

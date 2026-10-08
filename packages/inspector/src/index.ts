@@ -1,6 +1,7 @@
 import { createStore, reloadProgram } from "./api.js";
 import type { Store } from "./api.js";
 import { startHttpServer } from "./http.js";
+import { mcpRoute } from "./mcp.js";
 import { startWatching } from "./watch.js";
 
 export interface InspectorOptions {
@@ -21,7 +22,7 @@ export interface Inspector {
 export async function createInspector(options: InspectorOptions): Promise<Inspector> {
   const store = createStore(options.program);
   await reloadProgram(store);
-  const http = await startHttpServer(store, { port: options.port });
+  const http = await startHttpServer(store, { port: options.port, extraRoute: mcpRoute(store) });
   const stopWatching = await startWatching(store, http.broadcast);
   return {
     store,
@@ -36,5 +37,6 @@ export async function createInspector(options: InspectorOptions): Promise<Inspec
 
 export { createStore, reloadProgram, handlers, callHandler } from "./api.js";
 export { loadProgram, findProgramFiles } from "./program.js";
+export { createMcpServer, runMcpStdio, mcpRoute } from "./mcp.js";
 export type { Store, HandlerName } from "./api.js";
 export type { ProgramResult } from "./program.js";
