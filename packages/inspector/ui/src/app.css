@@ -127,3 +127,19 @@ td, th { border-bottom: 1px solid var(--border); padding: 3px 6px; text-align: l
 .tick { position: absolute; width: 2px; height: 8px; background: var(--fresh-b); transform: translateX(-1px); }
 .graph-fallback { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .node-box { border: 1.5px solid var(--err); background: var(--err-bg); border-radius: 8px; padding: 8px 12px; }
+
+.program-pane { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.program-view { flex: 3; min-height: 0; display: flex; flex-direction: column; }
+.program-view .tabs { display: flex; gap: 2px; padding: 2px; border-bottom: 1px solid #333; }
+.program-view .tab { background: none; border: 0; color: inherit; padding: 4px 8px; cursor: pointer; }
+.program-view .tab.active { border-bottom: 2px solid #6aa0ff; }
+.program-view .status { font-size: 11px; padding: 2px 8px; opacity: 0.7; }
+.program-view .editor { flex: 1; min-height: 0; overflow: hidden; }
+.chat-view { flex: 2; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid #333; }
+.chat-view .messages { flex: 1; overflow: auto; padding: 6px 8px; font-size: 12px; }
+.chat-view .msg { margin: 4px 0; white-space: pre-wrap; }
+.chat-view .msg.user { opacity: 0.8; }
+.chat-view .msg.error { color: #ff7b7b; }
+.chat-view .activity, .chat-view .muted { opacity: 0.6; font-style: italic; }
+.chat-view .chat-input { display: flex; gap: 4px; padding: 4px; }
+.chat-view .chat-input input { flex: 1; }

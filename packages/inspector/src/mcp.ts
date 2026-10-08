@@ -113,7 +113,10 @@ function text(value: unknown) {
 }
 
 /** One MCP tool per API handler, plus `wolder_explain`. */
-export function createMcpServer(store: Store): McpServer {
+export function createMcpServer(
+  store: Store,
+  options: { exclude?: readonly string[] } = {},
+): McpServer {
   const server = new McpServer({ name: "wolder-inspector", version: "0.1.0" });
 
   // The SDK's generic inference over a dynamic zod shape is excessively deep under
@@ -125,6 +128,7 @@ export function createMcpServer(store: Store): McpServer {
   ) => void;
 
   for (const tool of TOOLS) {
+    if (options.exclude?.includes(tool.name)) continue;
     register(
       tool.name,
       { description: tool.description, inputSchema: tool.shape },

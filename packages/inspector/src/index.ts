@@ -1,5 +1,8 @@
+import { DEFAULTS } from "@wolder/core";
 import { createStore, reloadProgram } from "./api.js";
 import type { Store } from "./api.js";
+import type { ChatOptions } from "./chat.js";
+import { createChatSession } from "./chat.js";
 import { startHttpServer } from "./http.js";
 import { mcpRoute } from "./mcp.js";
 import { ensureUiBuilt } from "./ui-build.js";
@@ -12,6 +15,10 @@ export interface InspectorOptions {
   port?: number;
   /** Build ui/dist first if it is missing (and say so). `wolder inspect` sets this. */
   buildUi?: boolean;
+  /** Model for the chat agent. Default: core default model. */
+  chatModel?: string;
+  /** Test seam: replaces the SDK `query` for chat. */
+  chatQuery?: ChatOptions["query"];
 }
 
 export interface Inspector {
@@ -26,7 +33,16 @@ export async function createInspector(options: InspectorOptions): Promise<Inspec
   if (options.buildUi) ensureUiBuilt();
   const store = createStore(options.program);
   await reloadProgram(store);
-  const http = await startHttpServer(store, { port: options.port, extraRoute: mcpRoute(store) });
+  const chat = createChatSession(store, {
+    model: options.chatModel ?? DEFAULTS.model,
+    apiKey: process.env["ANTHROPIC_API_KEY"],
+    query: options.chatQuery,
+  });
+  const http = await startHttpServer(store, {
+    port: options.port,
+    extraRoute: mcpRoute(store),
+    chat: (text, emit) => chat.send(text, emit),
+  });
   const stopWatching = await startWatching(store, http.broadcast);
   return {
     store,
@@ -45,3 +61,4 @@ export { ensureUiBuilt } from "./ui-build.js";
 export { createMcpServer, runMcpStdio, mcpRoute } from "./mcp.js";
 export type { Store, HandlerName } from "./api.js";
 export type { ProgramResult } from "./program.js";
+export { createChatSession } from "./chat.js";

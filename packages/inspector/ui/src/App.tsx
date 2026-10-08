@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
+import { ChatView } from "./ChatView";
+import { ProgramView } from "./ProgramView";
 import { GraphView } from "./GraphView";
 import { ProjectView } from "./ProjectView";
 import { Scrubber } from "./Scrubber";
@@ -6,6 +9,7 @@ import { InspectorContext, useInspector } from "./useInspector";
 
 export function App() {
   const inspector = useInspector();
+  const [refreshKey, setRefreshKey] = useState(0);
   const { graph, runs, runId, setRunId, connected, error, meta } = inspector;
 
   return (
@@ -42,17 +46,20 @@ export function App() {
           </div>
         )}
         <Group orientation="horizontal" className="columns">
-          <Panel defaultSize="20%" minSize="10%">
-            <div className="pane placeholder">Program — step 6</div>
+          <Panel defaultSize="30%" minSize="10%">
+            <div className="pane program-pane">
+              <ProgramView refreshKey={refreshKey} />
+              <ChatView onTurnEnd={() => setRefreshKey((n) => n + 1)} />
+            </div>
           </Panel>
           <Separator className="divider" />
-          <Panel defaultSize="45%" minSize="20%">
+          <Panel defaultSize="38%" minSize="20%">
             <div className="pane graph-pane">
               <GraphView />
             </div>
           </Panel>
           <Separator className="divider" />
-          <Panel defaultSize="35%" minSize="15%">
+          <Panel defaultSize="32%" minSize="15%">
             <div className="pane project-pane">
               <Scrubber />
               <ProjectView />

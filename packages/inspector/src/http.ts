@@ -20,6 +20,9 @@ const TYPES: Record<string, string> = {
   ".map": "application/json",
 };
 
+/** Handles POST /api/chat: stream NDJSON events, then `{done:true,text}`. */
+export type ChatHandler = (text: string, emit: (event: unknown) => void) => Promise<string>;
+
 export interface HttpServer {
   readonly server: Server;
   readonly port: number;
@@ -64,7 +67,7 @@ function serveStatic(urlPath: string, res: ServerResponse): void {
 /** Bind to 127.0.0.1 only: the API can write program files and start runs. */
 export async function startHttpServer(
   store: Store,
-  options: { port?: number; extraRoute?: ExtraRoute } = {},
+  options: { port?: number; extraRoute?: ExtraRoute; chat?: ChatHandler } = {},
 ): Promise<HttpServer> {
   const server = createServer(async (req, res) => {
     try {
@@ -72,6 +75,22 @@ export async function startHttpServer(
       if (options.extraRoute && (await options.extraRoute(req, res))) return;
       if (url.pathname.startsWith("/api/")) {
         const name = url.pathname.slice("/api/".length);
+        if (name === "chat") {
+          if (req.method !== "POST") return json(res, 405, { error: "Use POST with a JSON body." });
+          if (!options.chat) return json(res, 404, { error: "Chat is not enabled." });
+          const { text } = JSON.parse((await readBody(req)) || "{}") as { text?: string };
+          if (typeof text !== "string" || text.trim() === "") return json(res, 400, { error: "Missing text." });
+          res.writeHead(200, { "content-type": "application/x-ndjson" });
+          const line = (value: unknown) => res.write(`${JSON.stringify(value)}
+`);
+          try {
+            line({ done: true, text: await options.chat(text, line) });
+          } catch (err) {
+            line({ done: true, error: (err as Error).message });
+          }
+          res.end();
+          return;
+        }
         if (req.method !== "POST") return json(res, 405, { error: "Use POST with a JSON body." });
         if (!isHandlerName(name)) return json(res, 404, { error: `No API handler "${name}".` });
         const raw = await readBody(req);
