@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { handlers } from "./api.js";
+import { handlers, projectRoot } from "./api.js";
 import type { Store } from "./api.js";
 import { recordedProject } from "./fixture.js";
 import type { RunEvent } from "@wolder/core";
@@ -111,5 +111,17 @@ describe("program.edit", () => {
     await expect(
       handlers["program.edit"](store, { path: "../outside.ts", content: "x" }),
     ).rejects.toThrow(/not one of the program files/);
+  });
+});
+
+describe("projectRoot", () => {
+  it("resolves a relative root against the program's directory, not the inspector's cwd", () => {
+    const program = resolve("some", "where", "wolder.program.ts");
+    expect(projectRoot(program, "./project")).toBe(resolve("some", "where", "project"));
+  });
+
+  it("keeps an absolute root as it is", () => {
+    const absolute = resolve("elsewhere", "project");
+    expect(projectRoot(resolve("some", "wolder.program.ts"), absolute)).toBe(absolute);
   });
 });
