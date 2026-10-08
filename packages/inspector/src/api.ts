@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { RECORD_DIR, isFresh, isOutputFresh, readManifest, safeDirName } from "@wolder/core";
+import { RECORD_DIR, readManifest, safeDirName } from "@wolder/core";
 import type { GateReport, NegotiationTurn, RunEvent, RunMeta } from "@wolder/core";
 import { findProgramFiles, loadProgram, tsxCommand } from "./program.js";
 import type { ProgramResult } from "./program.js";
@@ -74,30 +74,26 @@ export const handlers = {
     };
   },
 
-  async graph(store: Store) {
-    const loaded = await ensureLoaded(store);
+  /**
+   * The graph plus freshness and the reasons for it, all from the plan the program
+   * itself computed. Pass `refresh` to re-plan, e.g. after a run changed the manifest.
+   */
+  async graph(store: Store, params: Params = {}) {
+    const loaded = params.refresh === true ? await reloadProgram(store) : await ensureLoaded(store);
     const freshness: Record<string, Freshness> = {};
+    const contractFreshness: Record<string, Freshness> = {};
+    const reasons: Record<string, string[]> = {};
     if (loaded.ok) {
-      const manifest = readManifest(loaded.graph.root);
-      for (const node of loaded.graph.nodes) {
-        const recorded = manifest.nodes[node.id];
-        if (!recorded) {
-          freshness[node.id] = "never";
-          continue;
-        }
-        // The chain hash is the part of the cache key computable without a run.
-        // Upstream and contract hashes are not, so this can say "fresh" for a node
-        // the next run would re-run because an upstream changed.
-        const unchanged = isFresh(manifest, node.id, recorded.inputHashes);
-        freshness[node.id] =
-          unchanged &&
-          recorded.inputHashes.chain === node.chainHash &&
-          isOutputFresh(manifest, node.id, loaded.graph.root)
-            ? "fresh"
-            : "stale";
+      for (const [id, entry] of Object.entries(loaded.plan.nodes)) {
+        freshness[id] = entry.status;
+        reasons[id] = [...entry.reasons];
+      }
+      for (const [id, entry] of Object.entries(loaded.plan.contracts)) {
+        contractFreshness[id] = entry.status;
+        reasons[id] = [...entry.reasons];
       }
     }
-    return { ...loaded, freshness };
+    return { ...loaded, freshness, contractFreshness, reasons };
   },
 
   async runs(store: Store): Promise<RunMeta[]> {

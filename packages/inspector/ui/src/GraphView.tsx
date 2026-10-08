@@ -128,7 +128,7 @@ export function GraphView() {
             return (
               <g
                 key={c.id}
-                className={`contract-node ${isSelected ? "selected" : ""}`}
+                className={`contract-node ${graph.contractFreshness?.[c.id] ?? ""} ${isSelected ? "selected" : ""}`}
                 transform={`translate(${c.x},${c.y})`}
                 onClick={() => select({ kind: "contract", id: c.id })}
               >

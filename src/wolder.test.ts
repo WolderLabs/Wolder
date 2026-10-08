@@ -119,3 +119,31 @@ describe("WOLDER_FORCE", () => {
     expect(runner.calls).toBe(2);
   });
 });
+
+describe("WOLDER_PLAN", () => {
+  it("writes the plan, returns an empty result and runs nothing", async () => {
+    const runner = countingRunner();
+    const w = wolder({ root: dir, model: "m", services: { runner } });
+    w.layer().agent().owns("a.ts").goal("a");
+    const out = resolve(dir, "plan.json");
+    process.env.WOLDER_PLAN = "1";
+    process.env.WOLDER_PLAN_OUT = out;
+
+    const result = await w.run({ reporter: createSilentReporter() });
+    expect(result).toEqual({ artifacts: [], contracts: [], skipped: [], durationMs: 0 });
+    expect(runner.calls).toBe(0);
+    const written = JSON.parse(readFileSync(out, "utf-8"));
+    expect(written.ok).toBe(true);
+    expect(written.plan.nodes["a.ts"].status).toBe("never");
+    expect(existsSync(resolve(dir, RECORD_DIR))).toBe(false);
+    expect(existsSync(resolve(dir, "wolder.manifest.json"))).toBe(false);
+  });
+
+  it("fails clearly when the output path is missing", async () => {
+    const w = wolder({ root: dir, model: "m" });
+    w.layer().agent().owns("a.ts").goal("a");
+    process.env.WOLDER_PLAN = "1";
+    delete process.env.WOLDER_PLAN_OUT;
+    await expect(w.run()).rejects.toThrow(/WOLDER_PLAN_OUT/);
+  });
+});

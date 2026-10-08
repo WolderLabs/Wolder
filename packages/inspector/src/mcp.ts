@@ -26,7 +26,7 @@ const TOOLS: ToolSpec[] = [
     name: "graph",
     handler: "graph",
     description:
-      "The assembled agent graph (nodes, edges, contracts, execution order) with each node's cache freshness, or the diagnostic explaining why the program does not assemble. Call this first to learn what the program declares.",
+      "The assembled agent graph (nodes, edges, contracts, execution order) with each node and contract's freshness and the reasons it would re-run (from a dry-run plan), or the diagnostic explaining why the program does not assemble. Call this first to learn what the program declares.",
     shape: {},
   },
   {

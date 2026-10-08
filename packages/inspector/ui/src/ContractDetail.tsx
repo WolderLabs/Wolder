@@ -1,8 +1,9 @@
 import type { ContractInfo } from "./types";
 import { useInspectorContext } from "./useInspector";
+import { FreshnessNote } from "./FreshnessNote";
 
 export function ContractDetail() {
-  const { selection, runId, select, api } = useInspectorContext();
+  const { selection, graph, runId, select, api } = useInspectorContext();
   const id = selection?.kind === "contract" ? selection.id : null;
   const info = api<ContractInfo>("contract", id && runId ? { run: runId, id } : null);
   if (!id) return null;
@@ -16,6 +17,7 @@ export function ContractDetail() {
         <button onClick={() => select(null)} aria-label="Close">x</button>
       </div>
       <div className="drawer-body">
+        <FreshnessNote id={id} status={graph?.ok ? graph.contractFreshness[id] : undefined} />
         {!runId && <div className="muted">No recorded run, so no negotiation to show.</div>}
         {info.error && <div className="banner error">{info.error}</div>}
         {info.loading && <div className="muted">loading...</div>}

@@ -36,7 +36,13 @@ export type GraphResult = (
   | { ok: true; graph: SerializedGraph }
   | { ok: false; diagnostic: GraphDiagnostic }
   | { ok: false; crash: string }
-) & { programFiles: string[]; freshness: Record<string, Freshness> };
+) & {
+  programFiles: string[];
+  freshness: Record<string, Freshness>;
+  contractFreshness: Record<string, Freshness>;
+  /** Why each node or contract would re-run; keyed by node id or contract id. */
+  reasons: Record<string, string[]>;
+};
 
 export type EventKind =
   | "phase" | "note" | "warn" | "node:start" | "node:event" | "node:skipped" | "node:done"

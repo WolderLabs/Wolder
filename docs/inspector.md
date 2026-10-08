@@ -15,6 +15,18 @@ npx wolder inspect [program] [--port 4747] [--no-open]
   with the contents at the selected point in time.
 - **Editor**: the program source itself. Saves re-assemble the graph immediately.
 
+## Freshness
+
+Node colour (fresh, stale, never run) and the reasons in the node and contract panels
+come from a dry-run plan the program computes itself (`w.plan()`, requested by the
+inspector with `WOLDER_PLAN=1`). It builds every cache key exactly as `run` does,
+including upstream output hashes and contract hashes, and compares against the manifest,
+without calling a model or writing anything. Reasons read like "goal, context or layer
+changed", "src/x.ts changed", "upstream `api` is stale" or "contract
+`contract:src/services` must be renegotiated". A stale upstream makes everything after it
+stale; a real run may still skip a downstream node if the regenerated upstream output
+turns out identical, so "stale" is an upper bound.
+
 ## Scrubber
 
 Each run is recorded with prompts, turns, gates and file snapshots. The time scrubber

@@ -3,10 +3,10 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import type { GraphDiagnostic, SerializedGraph } from "@wolder/core";
+import type { GraphDiagnostic, Plan, SerializedGraph } from "@wolder/core";
 
 export type ProgramResult =
-  | { ok: true; graph: SerializedGraph; programFiles: string[] }
+  | { ok: true; graph: SerializedGraph; plan: Plan; programFiles: string[] }
   | { ok: false; diagnostic: GraphDiagnostic; programFiles: string[] }
   | { ok: false; crash: string; programFiles: string[] };
 
@@ -45,19 +45,19 @@ export function tsxCommand(): { command: string; args: string[] } {
   }
 }
 
-/** Assemble the program in a child `tsx` process, without ever touching a model. */
+/** Assemble and plan the program in a child `tsx` process: the checked graph plus what the next run would redo. No model is touched. */
 export async function loadProgram(programPath: string): Promise<ProgramResult> {
   const program = resolve(programPath);
   const programFiles = findProgramFiles(program);
   const dir = mkdtempSync(join(tmpdir(), "wolder-inspect-"));
-  const out = join(dir, "assemble.json");
+  const out = join(dir, "plan.json");
   const { command, args } = tsxCommand();
 
   try {
     const exit = await new Promise<{ code: number | null; text: string }>((done) => {
       const child = spawn(command, [...args, program], {
         cwd: dirname(program),
-        env: { ...process.env, WOLDER_ASSEMBLE_ONLY: "1", WOLDER_ASSEMBLE_OUT: out },
+        env: { ...process.env, WOLDER_PLAN: "1", WOLDER_PLAN_OUT: out },
         stdio: ["ignore", "ignore", "pipe"],
         windowsHide: true,
       });
@@ -75,7 +75,7 @@ export async function loadProgram(programPath: string): Promise<ProgramResult> {
       };
     }
     const outcome = JSON.parse(readFileSync(out, "utf-8")) as
-      | { ok: true; graph: SerializedGraph }
+      | { ok: true; graph: SerializedGraph; plan: Plan }
       | { ok: false; diagnostic: GraphDiagnostic };
     return { ...outcome, programFiles };
   } finally {

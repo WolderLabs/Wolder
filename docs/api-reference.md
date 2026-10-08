@@ -112,6 +112,14 @@ builder calls inside `fn` are. See [Recipes](recipes.md) for the pattern this en
 
 The result of this node's run. Throws with an explanation if read before `run()`.
 
+## `w.plan(options?): PlanOutcome`
+
+Dry run. Assembles the graph and reports, per node and per contract, whether the next
+`run` would redo it (`fresh`, `stale` or `never`) and why. Calls no model, writes no
+file, leaves the manifest alone. `{ force: true }` (or `WOLDER_FORCE=1`) reports
+everything stale with reason `forced`. `WOLDER_PLAN=1` with `WOLDER_PLAN_OUT=<path>`
+makes `run()` write `{ ok, graph, plan }` to that path and return an empty result.
+
 ## `w.run(options?): Promise<RunResult>`
 
 Assembles the graph, checks it, settles contracts, and executes. The one await in a

@@ -48,7 +48,29 @@ export interface WolderInstance {
   run(options?: RunOptions): Promise<RunResult>;
   /** Assemble and check the graph without running it. Never touches a model. */
   assemble(): AssembleOutcome;
+  /**
+   * Dry run: assemble, then say which nodes and contracts the next `run` would redo
+   * and why. Never touches a model, writes no file and leaves the manifest alone.
+   */
+  plan(options?: { force?: boolean }): PlanOutcome;
 }
+
+/** What the next run would do with one node or contract. */
+export interface PlanEntry {
+  readonly status: "fresh" | "stale" | "never";
+  /** Why it would run; empty when fresh. */
+  readonly reasons: readonly string[];
+}
+
+export interface Plan {
+  readonly nodes: Readonly<Record<string, PlanEntry>>;
+  /** Keyed by contract id, `contract:<provider>`. */
+  readonly contracts: Readonly<Record<string, PlanEntry>>;
+}
+
+export type PlanOutcome =
+  | { ok: true; graph: SerializedGraph; plan: Plan }
+  | { ok: false; diagnostic: GraphDiagnostic };
 
 /** The result of assembling a program without running it. */
 export type AssembleOutcome =

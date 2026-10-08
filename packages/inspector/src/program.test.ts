@@ -14,7 +14,11 @@ describe("loadProgram", () => {
   it("assembles the todo sample into four nodes", async () => {
     const result = await loadProgram(resolve(repo, "samples/todo-service/wolder.program.ts"));
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.graph.nodes).toHaveLength(4);
+    if (result.ok) {
+      expect(result.graph.nodes).toHaveLength(4);
+      expect(Object.keys(result.plan.nodes)).toHaveLength(4);
+      expect(Object.keys(result.plan.contracts)).toHaveLength(2);
+    }
   }, 30_000);
 
   it("returns a diagnostic for an overlapping program", async () => {

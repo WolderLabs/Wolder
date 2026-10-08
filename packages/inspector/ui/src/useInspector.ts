@@ -72,9 +72,9 @@ export function useInspector(): Inspector {
     bump((n) => n + 1);
   }, []);
 
-  const loadGraph = useCallback(async () => {
+  const loadGraph = useCallback(async (refresh = false) => {
     try {
-      setGraph(await call<GraphResult>("graph"));
+      setGraph(await call<GraphResult>("graph", refresh ? { refresh: true } : {}));
     } catch (err) {
       setError((err as Error).message);
     }
@@ -161,7 +161,7 @@ export function useInspector(): Inspector {
             if (event.kind === "run:done" || event.kind === "run:failed") {
               void refreshRuns();
               void loadRun(eventRun);
-              void loadGraph();
+              void loadGraph(true);
             }
           })();
         }

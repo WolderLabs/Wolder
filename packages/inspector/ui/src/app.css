@@ -143,3 +143,9 @@ td, th { border-bottom: 1px solid var(--border); padding: 3px 6px; text-align: l
 .chat-view .activity, .chat-view .muted { opacity: 0.6; font-style: italic; }
 .chat-view .chat-input { display: flex; gap: 4px; padding: 4px; }
 .chat-view .chat-input input { flex: 1; }
+.contract-node.stale rect { stroke: var(--stale-b); fill: var(--stale); }
+.contract-node.fresh rect { stroke: var(--fresh-b); }
+.freshness-note { padding: 8px 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid var(--never-b); }
+.freshness-note.fresh { border-color: var(--fresh-b); background: var(--fresh); }
+.freshness-note.stale { border-color: var(--stale-b); background: var(--stale); }
+.freshness-note ul { margin: 4px 0 0; padding-left: 18px; }

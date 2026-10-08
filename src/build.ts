@@ -5,6 +5,8 @@ import type {
   Artifact,
   RunOptions,
   RunResult,
+  Plan,
+  PlanEntry,
   Contract,
   ContractFile,
   Reporter,
@@ -170,14 +172,7 @@ async function settleContracts(
   reporter: Reporter,
   options: RunOptions,
 ): Promise<Contract[]> {
-  const grouped = new Map<string, Array<{ node: AgentNode; ask: string }>>();
-  for (const node of graph.nodes) {
-    for (const edge of node.asks) {
-      const list = grouped.get(edge.targetId) ?? [];
-      list.push({ node, ask: edge.ask });
-      grouped.set(edge.targetId, list);
-    }
-  }
+  const grouped = groupAsks(graph);
   if (grouped.size === 0) return [];
 
   reporter.phase("Settling contracts");
@@ -212,6 +207,32 @@ async function settleContracts(
   return contracts;
 }
 
+type AskRequests = Array<{ node: AgentNode; ask: string }>;
+
+/** `asks` edges grouped per provider — one contract per provider, shared by plan and run. */
+function groupAsks(graph: Graph): Map<string, AskRequests> {
+  const grouped = new Map<string, AskRequests>();
+  for (const node of graph.nodes) {
+    for (const edge of node.asks) {
+      const list = grouped.get(edge.targetId) ?? [];
+      list.push({ node, ask: edge.ask });
+      grouped.set(edge.targetId, list);
+    }
+  }
+  return grouped;
+}
+
+/** What went into a negotiation. An unchanged hash means the contract need not re-settle. */
+function contractInputHash(provider: AgentNode, requests: AskRequests, model: string): string {
+  return hashJson({
+    provider: provider.chainHash,
+    model,
+    requests: requests
+      .map((r) => ({ id: r.node.id, chain: r.node.chainHash, ask: r.ask }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
+  });
+}
+
 interface SettledContract {
   readonly contract: Contract;
   readonly inputHash: string;
@@ -230,13 +251,7 @@ async function settleOne(
 ): Promise<SettledContract> {
   const provider = graph.byId.get(providerId)!;
   const id = `contract:${providerId}`;
-  const inputHash = hashJson({
-    provider: provider.chainHash,
-    model: inputs.model,
-    requests: requests
-      .map((r) => ({ id: r.node.id, chain: r.node.chainHash, ask: r.ask }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
-  });
+  const inputHash = contractInputHash(provider, requests, inputs.model);
 
   const cached = manifest.contracts[id];
   if (!options.force && cached?.inputHash === inputHash) {
@@ -357,13 +372,14 @@ async function executeNode(
 ): Promise<Artifact> {
   const { root, config, model, services } = inputs;
   const upstreamFiles = node.after.flatMap((id) => artifacts.get(id)?.files ?? []);
-  const inputHashes = computeInputHashes(node, inputs, contracts, artifacts);
+  const inputHashes = computeInputHashes(
+    node,
+    inputs,
+    contracts,
+    (id) => artifacts.get(id)?.outputHash,
+  );
 
-  if (
-    !options.force &&
-    isFresh(manifest, node.id, inputHashes) &&
-    isOutputFresh(manifest, node.id, root)
-  ) {
+  if (!options.force && isNodeFresh(manifest, node.id, inputHashes, root)) {
     const cached = manifest.nodes[node.id]!;
     reporter.nodeSkipped(node.id, "unchanged — nothing to do");
     skipped.push(node.id);
@@ -454,8 +470,8 @@ async function executeNode(
 function computeInputHashes(
   node: AgentNode,
   inputs: RunInputs,
-  contracts: readonly Contract[],
-  artifacts: ReadonlyMap<string, Artifact>,
+  contracts: ReadonlyArray<{ id: string; hash: string }>,
+  outputHashOf: (id: string) => string | undefined,
 ): Record<string, string> {
   const hashes: Record<string, string> = {
     chain: node.chainHash,
@@ -469,7 +485,7 @@ function computeInputHashes(
       : "<missing>";
   }
   for (const id of node.after) {
-    hashes[`after:${id}`] = artifacts.get(id)?.outputHash ?? "<unbuilt>";
+    hashes[`after:${id}`] = outputHashOf(id) ?? "<unbuilt>";
   }
   for (const contract of contracts) {
     hashes[contract.id] = contract.hash;
@@ -478,6 +494,145 @@ function computeInputHashes(
   return hashes;
 }
 
+/** The one freshness test: same cache key, and the files it wrote untouched. */
+function isNodeFresh(
+  manifest: ReturnType<typeof readManifest>,
+  id: string,
+  inputHashes: Record<string, string>,
+  root: string,
+): boolean {
+  return isFresh(manifest, id, inputHashes) && isOutputFresh(manifest, id, root);
+}
+
 function countEdges(graph: Graph): number {
   return graph.nodes.reduce((sum, n) => sum + n.after.length + n.asks.length, 0);
+}
+
+/* ------------------------------------------------------------------ plan */
+
+/**
+ * Dry run: what would `run` do, and why? Walks the graph in dependency order and
+ * computes every cache key through the same functions a real run uses, then compares
+ * against the manifest. It never calls the runner or the negotiator, never writes a
+ * file, and never creates a recorder.
+ *
+ * A fresh upstream means its files on disk are current, so downstream keys are exact.
+ * A stale upstream or contract makes everything that depends on it stale: its new
+ * output is unknowable without running it. (A real run may still skip such a node if
+ * the regenerated output happens to be identical, so "stale" is an upper bound there.)
+ */
+export function planGraph(graph: Graph, inputs: RunInputs, options: RunOptions = {}): Plan {
+  const { root, config } = inputs;
+  const force = options.force ?? process.env.WOLDER_FORCE === "1";
+  const manifest = readManifest(root, config.manifestPath);
+
+  const contractEntries: Record<string, PlanEntry> = {};
+  const contractHash = new Map<string, string>(); // fresh contracts only
+  const contractsOf = new Map<string, string[]>();
+
+  const grouped = [...groupAsks(graph)].sort(([a], [b]) => a.localeCompare(b));
+  for (const [providerId, requests] of grouped) {
+    const provider = graph.byId.get(providerId)!;
+    const id = `contract:${providerId}`;
+    const cached = manifest.contracts[id];
+    let entry: PlanEntry;
+    if (force) {
+      entry = { status: "stale", reasons: ["forced"] };
+    } else if (!cached) {
+      entry = { status: "never", reasons: ["never settled"] };
+    } else if (cached.inputHash !== contractInputHash(provider, requests, inputs.model)) {
+      entry = {
+        status: "stale",
+        reasons: [
+          `${providerId} or an agent asking it changed (goal, context, layer, ask or model), ` +
+            `so ${id} must be renegotiated`,
+        ],
+      };
+    } else if (!restoreContract(cached, root)) {
+      entry = {
+        status: "stale",
+        reasons: [`a file of ${id} was deleted, so it must be renegotiated`],
+      };
+    } else {
+      entry = { status: "fresh", reasons: [] };
+      contractHash.set(id, cached.hash);
+    }
+    contractEntries[id] = entry;
+    for (const party of [providerId, ...requests.map((r) => r.node.id)]) {
+      const list = contractsOf.get(party) ?? [];
+      if (!list.includes(id)) list.push(id);
+      contractsOf.set(party, list);
+    }
+  }
+
+  const nodeEntries: Record<string, PlanEntry> = {};
+  const outputHash = new Map<string, string>(); // fresh nodes only
+
+  for (const nodeId of graph.order) {
+    const node = graph.byId.get(nodeId)!;
+    const recorded = manifest.nodes[nodeId];
+    const myContracts = contractsOf.get(nodeId) ?? [];
+
+    if (force) {
+      nodeEntries[nodeId] = { status: "stale", reasons: ["forced"] };
+      continue;
+    }
+    if (!recorded) {
+      nodeEntries[nodeId] = { status: "never", reasons: ["never run"] };
+      continue;
+    }
+
+    const reasons: string[] = [];
+    const staleUpstream = node.after.filter((id) => !outputHash.has(id));
+    const staleContracts = myContracts.filter((id) => !contractHash.has(id));
+    for (const id of staleUpstream) reasons.push(`upstream \`${id}\` is stale`);
+    for (const id of staleContracts) {
+      reasons.push(`contract \`${id}\` must be renegotiated`);
+    }
+
+    const current = computeInputHashes(
+      node,
+      inputs,
+      myContracts
+        .filter((id) => contractHash.has(id))
+        .map((id) => ({ id, hash: contractHash.get(id)! })),
+      (id) => outputHash.get(id),
+    );
+    // Keys that depend on something stale cannot be compared: their value is unknown.
+    const unknown = (key: string): boolean =>
+      (key.startsWith("after:") && staleUpstream.includes(key.slice(6))) ||
+      staleContracts.includes(key);
+    const keys = new Set([...Object.keys(recorded.inputHashes), ...Object.keys(current)]);
+    for (const key of [...keys].sort()) {
+      if (unknown(key) || recorded.inputHashes[key] === current[key]) continue;
+      reasons.push(describeChange(key, key in recorded.inputHashes, key in current));
+    }
+    if (!isOutputFresh(manifest, nodeId, root)) {
+      reasons.push("generated files were edited or deleted since the last run");
+    }
+
+    if (reasons.length === 0) {
+      nodeEntries[nodeId] = { status: "fresh", reasons: [] };
+      outputHash.set(nodeId, recorded.outputHash);
+    } else {
+      nodeEntries[nodeId] = { status: "stale", reasons };
+    }
+  }
+
+  return { nodes: nodeEntries, contracts: contractEntries };
+}
+
+function describeChange(key: string, was: boolean, now: boolean): string {
+  if (key === "chain") return "goal, context or layer changed";
+  if (key === "model") return "model changed";
+  if (key.startsWith("include:")) return `${key.slice(8)} changed`;
+  if (key.startsWith("after:")) {
+    const id = key.slice(6);
+    if (!now) return `no longer runs after \`${id}\``;
+    if (!was) return `now runs after \`${id}\``;
+    return `upstream \`${id}\` produced different output`;
+  }
+  if (!now) return `no longer party to \`${key}\``;
+  if (!was) return `now party to \`${key}\``;
+  return `contract \`${key}\` was settled differently`;
 }

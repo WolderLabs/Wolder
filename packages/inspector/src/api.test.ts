@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { rmSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { handlers } from "./api.js";
 import type { Store } from "./api.js";
 import { recordedProject } from "./fixture.js";
@@ -8,11 +9,12 @@ import type { RunEvent } from "@wolder/core";
 let root: string;
 let store: Store;
 let programFile: string;
+let replan: (goalA?: string) => void;
 let runId: string;
 let events: RunEvent[];
 
 beforeEach(async () => {
-  ({ root, store, programFile } = await recordedProject());
+  ({ root, store, programFile, replan } = await recordedProject());
   const runs = await handlers.runs(store);
   runId = runs[0]!.id;
   events = (await handlers.run(store, { id: runId })).events;
@@ -74,9 +76,27 @@ describe("the read API", () => {
     expect(diff).toEqual({ added: ["b/three.ts", "b/two.ts"], removed: [], changed: [] });
   });
 
-  it("reports freshness from the manifest", async () => {
-    const result = await handlers.graph({ ...store, program: store.program });
-    expect(result.ok).toBe(true);
+  it("reports freshness and reasons from the plan", async () => {
+    const fresh = await handlers.graph(store);
+    expect(fresh.ok).toBe(true);
+    expect(fresh.freshness).toEqual({ "a/**": "fresh", "b/**": "fresh" });
+    expect(fresh.reasons["a/**"]).toEqual([]);
+
+    // An edited upstream goal: the node is stale for its own reason, the downstream
+    // one only because of it. The old manifest-only approximation called b fresh.
+    replan("first, but different");
+    const stale = await handlers.graph(store);
+    expect(stale.freshness).toEqual({ "a/**": "stale", "b/**": "stale" });
+    expect(stale.reasons["a/**"]!.join()).toMatch(/goal/);
+    expect(stale.reasons["b/**"]).toEqual(["upstream `a/**` is stale"]);
+
+    // A hand edit of upstream output is found too.
+    replan();
+    writeFileSync(resolve(root, "a/one.ts"), "export const one = 'edited';");
+    replan();
+    const drift = await handlers.graph(store);
+    expect(drift.freshness["b/**"]).toBe("stale");
+    expect(drift.reasons["a/**"]!.join()).toMatch(/edited or deleted/);
   });
 });
 

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { NodeInfo, RunEvent, SerializedNode } from "./types";
 import { useInspectorContext } from "./useInspector";
+import { FreshnessNote } from "./FreshnessNote";
 
 function Block({ title, children, open }: { title: string; children: ReactNode; open?: boolean }) {
   return (
@@ -134,6 +135,7 @@ export function NodeDetail() {
         <button onClick={() => select(null)} aria-label="Close">x</button>
       </div>
       <div className="drawer-body">
+        <FreshnessNote id={id} status={graph?.ok ? graph.freshness[id] : undefined} />
         {spec && (
           <>
             <Block title="Goal" open>
