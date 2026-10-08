@@ -82,6 +82,8 @@ function formatEvent(event: AgentEvent): string {
       );
     case "note":
       return log.dim(event.text);
+    case "turn":
+      return "";
   }
 }
 

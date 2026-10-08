@@ -1,6 +1,7 @@
-import { existsSync, readdirSync, rmdirSync, unlinkSync } from "node:fs";
+import { existsSync, readdirSync, rmSync, rmdirSync, unlinkSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { hashFiles, readManifest } from "./manifest.js";
+import { RECORD_DIR } from "./record.js";
 
 export interface NodeStatus {
   nodeId: string;
@@ -67,6 +68,13 @@ export function clean(root: string): string[] {
       deleted.push(file);
       removeEmptyParents(dirname(abs), resolve(root));
     }
+  }
+
+  // The run record is derived history and safe to delete.
+  const record = resolve(root, RECORD_DIR);
+  if (existsSync(record)) {
+    rmSync(record, { recursive: true, force: true });
+    deleted.push(`${RECORD_DIR}/`);
   }
 
   return deleted;

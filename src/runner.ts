@@ -203,6 +203,8 @@ export function createSdkRunner(): AgentRunner {
       for await (const message of session) {
         // Generation is slow enough that silence reads as a hang. Everything below
         // exists so it does not.
+        const turn = turnEvent(message);
+        if (turn) emit(turn);
         if (message.type === "assistant") {
           for (const event of describeAssistantTurn(message.message)) emit(event);
           continue;
@@ -231,6 +233,26 @@ export function createSdkRunner(): AgentRunner {
       return { files: guard.written(), text };
     },
   };
+}
+
+/**
+ * The raw conversation turn for an SDK message, or null if it is not one.
+ *
+ * Shapes pinned against @anthropic-ai/claude-agent-sdk 0.2.79 (sdk.d.ts):
+ * `SDKAssistantMessage` is `{ type: 'assistant', message: BetaMessage }` and
+ * `SDKUserMessage` is `{ type: 'user', message: MessageParam }`. Tool results
+ * arrive as user messages holding `tool_result` content blocks. The first user
+ * message (our own prompt) is not echoed in the stream, so every user message
+ * seen here is a tool result.
+ */
+export function turnEvent(message: { type: string; message?: unknown }): AgentEvent | null {
+  if (message.type === "assistant") {
+    return { kind: "turn", role: "assistant", message: message.message };
+  }
+  if (message.type === "user") {
+    return { kind: "turn", role: "tool", message: message.message };
+  }
+  return null;
 }
 
 /** Turn one assistant turn into the events worth showing: what it said, what it used. */

@@ -29,6 +29,7 @@ import {
   writeManifest,
 } from "./manifest.js";
 import { createConsoleReporter } from "./reporter.js";
+import { composeReporters, createRecorder } from "./record.js";
 
 export interface RunInputs {
   readonly root: string;
@@ -49,11 +50,30 @@ export async function runProgram(
   inputs: RunInputs,
   options: RunOptions = {},
 ): Promise<RunResult> {
-  const started = Date.now();
-  const reporter = options.reporter ?? createConsoleReporter();
-  const { root, config, registry, services } = inputs;
+  const { root, config } = inputs;
+  const base = options.reporter ?? createConsoleReporter();
+  const reporter =
+    options.record === false
+      ? base
+      : composeReporters(base, createRecorder(root, { keepRuns: config.keepRuns }));
 
   reporter.phase("Checking the graph");
+  try {
+    return await executeProgram(inputs, options, reporter);
+  } catch (err) {
+    reporter.failed?.(err instanceof Error ? err : new Error(String(err)));
+    throw err;
+  }
+}
+
+async function executeProgram(
+  inputs: RunInputs,
+  options: RunOptions,
+  reporter: Reporter,
+): Promise<RunResult> {
+  const started = Date.now();
+  const { root, config, registry, services } = inputs;
+
   const graph = assembleGraph(registry);
   reporter.note(
     `${graph.nodes.length} agent(s), ${countEdges(graph)} edge(s) — boundaries and ` +
@@ -264,6 +284,7 @@ async function settleOne(
     }),
   };
 
+  reporter.contractSettled?.(contract, outcome.transcript);
   return { contract, inputHash, fresh: true };
 }
 
@@ -365,6 +386,7 @@ async function executeNode(
 
   let prompt = basePrompt;
   for (let attempt = 1; ; attempt++) {
+    reporter.nodePrompt?.(node.id, { system: systemPrompt, user: prompt, attempt });
     const result = await services.runner.run({
       nodeId: node.id,
       root,
@@ -378,8 +400,19 @@ async function executeNode(
     });
     for (const file of result.files) written.add(file);
 
-    const failure = runGates(gates, root, [...written], node.regions);
-    if (!failure) break;
+    const results = runGates(gates, root, [...written], node.regions);
+    results.forEach((r) =>
+      reporter.gate?.(node.id, {
+        name: r.gate.name,
+        command: r.gate.command,
+        pass: r.pass,
+        output: r.output,
+        attempt,
+      }),
+    );
+    const failed = results.find((r) => !r.pass);
+    if (!failed) break;
+    const failure = failed;
 
     if (attempt >= config.maxRetries) {
       throw new GateError(node.id, failure.gate.name, failure.output, attempt);

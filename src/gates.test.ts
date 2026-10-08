@@ -62,16 +62,18 @@ describe("runGate", () => {
 });
 
 describe("runGates", () => {
-  it("returns null when every gate passes", () => {
-    expect(runGates([ok, ok], root, [], [])).toBeNull();
+  it("returns a passing result for every gate", () => {
+    const results = runGates([ok, ok], root, [], []);
+    expect(results.map((r) => r.pass)).toEqual([true, true]);
   });
 
-  it("returns the first failure and stops there", () => {
-    const failure = runGates([ok, fails, { ...fails, name: "second" }], root, [], []);
-    expect(failure?.gate.name).toBe("fails");
+  it("returns every result, including gates after a failure", () => {
+    const results = runGates([ok, fails, { ...fails, name: "second" }], root, [], []);
+    expect(results.map((r) => r.gate.name)).toEqual([ok.name, "fails", "second"]);
+    expect(results.find((r) => !r.pass)?.gate.name).toBe("fails");
   });
 
-  it("passes trivially when there are no gates", () => {
-    expect(runGates([], root, [], [])).toBeNull();
+  it("returns nothing when there are no gates", () => {
+    expect(runGates([], root, [], [])).toEqual([]);
   });
 });

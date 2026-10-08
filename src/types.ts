@@ -16,6 +16,8 @@ export interface WolderConfig {
   negotiationRounds?: number;
   /** Maximum agent turns per generation run. */
   maxTurns?: number;
+  /** How many run records to keep under `.wolder/runs`. Default 20. */
+  keepRuns?: number;
 }
 
 export interface WolderOptions {
@@ -163,6 +165,8 @@ export interface RunOptions {
   reporter?: Reporter;
   /** Ignore the manifest and regenerate every node. */
   force?: boolean;
+  /** Write a run record under `.wolder/`. Default true. */
+  record?: boolean;
 }
 
 export interface RunResult {
@@ -269,6 +273,11 @@ export interface Negotiator {
 
 /* ----------------------------------------------------------- agent runner */
 
+/** A raw conversation turn, kept in full for inspection. The console ignores it. */
+export type AgentTurn =
+  | { readonly kind: "turn"; readonly role: "assistant"; readonly message: unknown }
+  | { readonly kind: "turn"; readonly role: "tool"; readonly message: unknown };
+
 /**
  * Something an agent did, surfaced while it is still working.
  *
@@ -277,6 +286,7 @@ export interface Negotiator {
  * would otherwise look like one.
  */
 export type AgentEvent =
+  | AgentTurn
   | { readonly kind: "text"; readonly text: string }
   | { readonly kind: "tool"; readonly name: string; readonly detail?: string }
   | {
@@ -320,6 +330,15 @@ export interface AgentRunner {
 
 /* -------------------------------------------------------------- reporting */
 
+/** The outcome of one gate run over an agent's region. */
+export interface GateReport {
+  readonly name: string;
+  readonly command: string;
+  readonly pass: boolean;
+  readonly output: string;
+  readonly attempt: number;
+}
+
 export interface Reporter {
   phase(name: string): void;
   nodeStart(id: string, detail?: string): void;
@@ -330,4 +349,10 @@ export interface Reporter {
   note(message: string): void;
   warn(message: string): void;
   summary(result: RunResult): void;
+  /** The prompt an agent is about to receive. Optional so fakes keep compiling. */
+  nodePrompt?(id: string, prompt: { system: string; user: string; attempt: number }): void;
+  gate?(id: string, report: GateReport): void;
+  failed?(error: Error): void;
+  /** A contract negotiated this run, with the full exchange that produced it. */
+  contractSettled?(contract: Contract, transcript: readonly NegotiationTurn[]): void;
 }

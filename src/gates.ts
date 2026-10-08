@@ -33,17 +33,14 @@ export function runGate(
   }
 }
 
+/** Runs every gate, in order, and returns every result. The caller finds the first failure. */
 export function runGates(
   gates: readonly Gate[],
   root: string,
   files: readonly string[],
   regions: readonly string[],
-): GateResult | null {
-  for (const gate of gates) {
-    const result = runGate(gate, root, files, regions);
-    if (!result.pass) return result;
-  }
-  return null;
+): GateResult[] {
+  return gates.map((gate) => runGate(gate, root, files, regions));
 }
 
 function quote(value: string): string {

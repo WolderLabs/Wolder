@@ -11,6 +11,7 @@ export const DEFAULTS: Required<WolderConfig> = {
   manifestPath: DEFAULT_MANIFEST_PATH,
   negotiationRounds: 3,
   maxTurns: 40,
+  keepRuns: 20,
 };
 
 export function defineConfig(config: WolderConfig): WolderConfig {
@@ -39,5 +40,6 @@ export function mergeConfig(
     manifestPath: pick("manifestPath"),
     negotiationRounds: pick("negotiationRounds"),
     maxTurns: pick("maxTurns"),
+    keepRuns: pick("keepRuns"),
   };
 }

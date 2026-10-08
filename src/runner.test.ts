@@ -6,6 +6,7 @@ import {
   WRITE_TOOLS,
   createPermissionGuard,
   describeAssistantTurn,
+  turnEvent,
   toRootRelative,
   toolOptions,
 } from "./runner.js";
@@ -275,5 +276,28 @@ describe("translating an assistant turn into progress events", () => {
     expect(describeAssistantTurn({ content: [{ type: "tool_use", name: "TodoWrite" }] })).toEqual([
       { kind: "tool", name: "TodoWrite", detail: undefined },
     ]);
+  });
+});
+
+describe("turnEvent", () => {
+  it("passes assistant messages through whole", () => {
+    const message = { content: [{ type: "text", text: "line one\nline two" }] };
+    expect(turnEvent({ type: "assistant", message })).toEqual({
+      kind: "turn",
+      role: "assistant",
+      message,
+    });
+    // The summarised feed is unchanged by the raw turn.
+    expect(describeAssistantTurn(message)).toEqual([{ kind: "text", text: "line one" }]);
+  });
+
+  it("treats user messages as tool results", () => {
+    const message = { content: [{ type: "tool_result", tool_use_id: "x", content: "ok" }] };
+    expect(turnEvent({ type: "user", message })).toEqual({ kind: "turn", role: "tool", message });
+  });
+
+  it("ignores everything else", () => {
+    expect(turnEvent({ type: "result" })).toBeNull();
+    expect(turnEvent({ type: "system" })).toBeNull();
   });
 });
