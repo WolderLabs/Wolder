@@ -4,6 +4,7 @@ import type {
   Artifact,
   ProvidesState,
   Agent,
+  AgentTransform,
 } from "./types.js";
 import type { AgentSpec, Registry } from "./program.js";
 import { appendUnique, dedent } from "./util.js";
@@ -82,6 +83,11 @@ export class AgentImpl<TProvides extends ProvidesState = AgentDoesNotProvideAnyt
 
   provides(label: string): Agent<AgentProvides> {
     return this.next<AgentProvides>({ provides: label }, "provides", [label]);
+  }
+
+  /** Not recorded in the chain: the function calls builder methods that record themselves. */
+  apply<TOut extends ProvidesState = TProvides>(fn: AgentTransform<TProvides, TOut>): Agent<TOut> {
+    return fn(this);
   }
 
   get artifact(): Artifact {

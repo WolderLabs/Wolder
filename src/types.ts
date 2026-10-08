@@ -67,6 +67,11 @@ export interface Layer {
 
 export type LayerTransform = (layer: Layer) => Layer;
 
+export type AgentTransform<
+  TIn extends ProvidesState = ProvidesState,
+  TOut extends ProvidesState = TIn,
+> = (agent: Agent<TIn>) => Agent<TOut>;
+
 export interface GateOptions {
   /** Shown in progress output and in feedback to the agent. Defaults to the command. */
   name?: string;
@@ -131,6 +136,8 @@ export interface Agent<TProvides extends ProvidesState = AgentDoesNotProvideAnyt
   asks(target: Agent<AgentProvides>, ask: string): Agent<TProvides>;
   /** Label what this agent holds up for others. Required before anything can `.asks()` it. */
   provides(label: string): Agent<AgentProvides>;
+  /** Apply an agent->agent function. Sugar for `fn(agent)` that keeps a chain reading left-to-right. */
+  apply<TOut extends ProvidesState = TProvides>(fn: AgentTransform<TProvides, TOut>): Agent<TOut>;
 
   /** The result of this node's run. Throws if read before `w.run()` resolves. */
   readonly artifact: Artifact;

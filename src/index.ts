@@ -48,6 +48,7 @@ export type {
   Layer,
   LayerState,
   LayerTransform,
+  AgentTransform,
   NegotiationOutcome,
   NegotiationParty,
   NegotiationRequest,

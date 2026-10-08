@@ -101,6 +101,13 @@ imply an order, so `target` may be declared later in the program.
 Labels what this agent holds up for others, and makes it a valid `.asks()` target.
 Labels need not be unique — edges are drawn against the handle, not resolved by name.
 
+### `.apply(fn): Agent`
+
+Applies an `(Agent) => Agent`. Exactly `fn(agent)`, but it keeps a chain reading
+left-to-right. The result type follows the function: a transform that calls `.provides()`
+yields `Agent<AgentProvides>`. `apply` itself is not part of the agent's cache key; the
+builder calls inside `fn` are.
+
 ### `.artifact: Artifact`
 
 The result of this node's run. Throws with an explanation if read before `run()`.

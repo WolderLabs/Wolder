@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, expectTypeOf } from "vitest";
 import { LayerImpl } from "./layer.js";
 import { Registry } from "./program.js";
 import { AgentImpl } from "./agent.js";
-import type { Agent } from "./types.js";
+import type { Agent, AgentProvides } from "./types.js";
+import { assembleGraph } from "./graph.js";
 
 function setup() {
   const registry = new Registry();
@@ -130,5 +131,62 @@ describe("reading .artifact", () => {
     });
     registry.markBuilt();
     expect(agent.artifact.files).toEqual(["README.md"]);
+  });
+});
+
+describe("Agent.apply", () => {
+  const withContext = (a: Agent<any>) => a.context("x");
+
+  it("returns exactly what the transform returned", () => {
+    const { layer } = setup();
+    const base = layer.agent().owns("a.ts");
+    let produced: Agent<any> | undefined;
+    const result = base.apply((a) => (produced = a.context("x")));
+    expect(result).toBe(produced);
+    expect(specOf(result).contexts).toEqual(["x"]);
+  });
+
+  it("leaves the receiver unchanged", () => {
+    const { layer } = setup();
+    const base = layer.agent().owns("a.ts");
+    base.apply(withContext);
+    expect(specOf(base).contexts).toEqual([]);
+  });
+
+  it("changes the type when the transform calls .provides()", () => {
+    const { layer } = setup();
+    const withProvides = (a: Agent) => a.provides("x");
+    expectTypeOf(layer.agent().apply(withProvides)).toEqualTypeOf<Agent<AgentProvides>>();
+  });
+
+  it("keeps AgentDoesNotProvideAnything otherwise", () => {
+    const { layer } = setup();
+    const other = layer.agent().owns("b.ts").goal("b").provides("B");
+    const result = layer.agent().apply((a) => a.context("x"));
+    // @ts-expect-error - the result does not provide anything, so it cannot .asks()
+    result.asks(result, "y");
+    void other;
+  });
+
+  it("keeps contexts from two applied transforms in order", () => {
+    const { registry, layer } = setup();
+    layer
+      .agent()
+      .owns("a.ts")
+      .goal("g")
+      .apply((a) => a.context("one"))
+      .apply((a) => a.context("two"));
+    expect(assembleGraph(registry).nodes[0]!.contexts).toEqual(["one", "two"]);
+  });
+
+  it("does not record apply in the chain hash", () => {
+    const hash = (build: (l: Agent) => Agent<any>) => {
+      const { registry, layer } = setup();
+      build(layer.agent());
+      return assembleGraph(registry).nodes[0]!.chainHash;
+    };
+    expect(hash((a) => a.owns("a").goal("g").apply((x) => x.context("x")))).toBe(
+      hash((a) => a.owns("a").goal("g").context("x")),
+    );
   });
 });
