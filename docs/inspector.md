@@ -33,6 +33,9 @@ Each run is recorded with prompts, turns, gates and file snapshots. The time scr
 moves the graph and project panes back through those runs and through the steps within
 a run, so you can see what each agent saw and wrote.
 
+A failed run shows its full error in a banner under the top bar, including a
+`BoundaryRequestError` when an agent asked for a path outside its regions.
+
 ## Chat
 
 The chat agent edits the program. It is fenced the same way generation agents are: its

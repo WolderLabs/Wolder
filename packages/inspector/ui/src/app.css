@@ -149,3 +149,5 @@ td, th { border-bottom: 1px solid var(--border); padding: 3px 6px; text-align: l
 .freshness-note.fresh { border-color: var(--fresh-b); background: var(--fresh); }
 .freshness-note.stale { border-color: var(--stale-b); background: var(--stale); }
 .freshness-note ul { margin: 4px 0 0; padding-left: 18px; }
+
+.banner pre { margin: 4px 0 0; white-space: pre-wrap; font: inherit; }

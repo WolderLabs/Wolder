@@ -21,7 +21,13 @@ export { DSL_REFERENCE } from "./skill.js";
 export { serializeGraph } from "./serialize.js";
 export { createConsoleReporter, createSilentReporter } from "./reporter.js";
 export { hashLayer, layerContext } from "./layer.js";
-export { GraphError, RegionViolationError, NegotiationError, GateError } from "./errors.js";
+export {
+  GraphError,
+  RegionViolationError,
+  NegotiationError,
+  GateError,
+  BoundaryRequestError,
+} from "./errors.js";
 export {
   readManifest,
   writeManifest,
@@ -69,6 +75,8 @@ export type {
   LayerState,
   LayerTransform,
   AgentTransform,
+  BoundaryOwner,
+  BoundaryRequest,
   NegotiationOutcome,
   NegotiationParty,
   NegotiationRequest,

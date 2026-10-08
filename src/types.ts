@@ -347,6 +347,11 @@ export interface AgentRunRequest {
   /** Normalized globs. The runner must refuse every write outside these. */
   readonly regions: readonly string[];
   readonly maxTurns: number;
+  /**
+   * Every other agent in the graph, so the runner can answer `who_owns`. Optional:
+   * a runner that does not mount the boundary tools can ignore it.
+   */
+  readonly owners?: readonly BoundaryOwner[];
   /** Called as the agent works. Nothing depends on it — it exists to break the silence. */
   readonly onEvent?: (event: AgentEvent) => void;
 }
@@ -355,6 +360,24 @@ export interface AgentRunResult {
   /** Root-relative paths the agent actually wrote. */
   readonly files: readonly string[];
   readonly text: string;
+  /**
+   * Set when the agent called `request_path`. The runner has stopped the session;
+   * the orchestrator fails the run with a `BoundaryRequestError`.
+   */
+  readonly boundaryRequest?: BoundaryRequest;
+}
+
+/** Another agent, as seen from the boundary: who it is, what it is for, what it owns. */
+export interface BoundaryOwner {
+  readonly id: string;
+  readonly goal: string;
+  readonly regions: readonly string[];
+}
+
+/** An agent's request to write a path outside its regions. Never granted. */
+export interface BoundaryRequest {
+  readonly path: string;
+  readonly reason: string;
 }
 
 export interface AgentRunner {

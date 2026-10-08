@@ -39,7 +39,20 @@ export function buildUserPrompt(inputs: PromptInputs): string {
 
   parts.push("## Your writable region", "");
   for (const region of node.regions) parts.push(`- ${region}`);
-  parts.push("", "Everything outside this is read-only.", "");
+  parts.push(
+    "",
+    "Everything outside this is read-only, and every other path belongs to another agent",
+    "or to nobody. You have two tools for the edge of your boundary:",
+    "",
+    "- `who_owns({ path })` — ask whether another agent owns a path. It names the owner, its",
+    "  goal and regions, and the dependency (`asks` or `after`) that would legitimately reach",
+    "  it. If the behaviour belongs to that agent, leave it to them and adapt within your",
+    "  own region.",
+    "- `request_path({ path, reason })` — a last resort when you truly cannot do your job",
+    "  without writing outside your region. It is never granted: it stops the whole run so",
+    "  the developer can fix the program. Prefer `who_owns` and adapting.",
+    "",
+  );
 
   const included = readFiles(node.layer.includedFiles, root);
   if (included.length > 0) {

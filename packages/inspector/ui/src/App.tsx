@@ -33,6 +33,7 @@ export function App() {
           {meta && <span className={`pill ${meta.status}`}>{meta.status}</span>}
         </header>
         {error && <div className="banner error">{error}</div>}
+        {meta?.status === "failed" && meta.error && (<div className="banner error"><div>This run failed.</div><pre>{meta.error}</pre></div>)}
         {graph && !graph.ok && "diagnostic" in graph && (
           <div className="banner error">
             <div>{graph.diagnostic.message}</div>

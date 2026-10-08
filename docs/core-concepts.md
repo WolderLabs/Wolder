@@ -166,6 +166,24 @@ Because the agent decides what to write, the output set is not known up front â€
 manifest records what was *actually* written so the next run can compute staleness. Reading
 `.artifact` before `run()` throws with an explanation rather than yielding `undefined`.
 
+## Asking about the boundary
+
+Every generation agent gets two in-process tools for the edge of its region:
+
+- `who_owns({ path })` says whether another agent owns a path, and if so its id, goal and
+  regions, and the edge that legitimately reaches it: `asks` for content or a contract,
+  `after` for ordering. It is read-only and never fails the run.
+- `request_path({ path, reason })` is a last resort for a path the agent believes it must
+  write outside its regions. It is never granted: a region has exactly one owner and
+  boundaries do not widen at runtime. The node and the run end with a
+  `BoundaryRequestError` that names the agent, the path and the stated reason, and
+  suggests `asks`/`after` on the owner (or moving the responsibility), or, if nobody owns
+  the path, adding it to `.owns(...)` or declaring a new agent. Either way it suggests
+  tightening the agent's `goal` if it misunderstood its boundary. The failure is recorded
+  as `run:failed` and shown in the inspector.
+
+The permission guard allows both tools by name; `allowedTools` stays empty.
+
 ## Gates
 
 v2 ships with no expectation API. Correctness comes from the agent verifying its own work

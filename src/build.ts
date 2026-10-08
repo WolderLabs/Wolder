@@ -7,6 +7,7 @@ import type {
   RunResult,
   Plan,
   PlanEntry,
+  BoundaryOwner,
   Contract,
   ContractFile,
   Reporter,
@@ -17,7 +18,8 @@ import type { Registry } from "./program.js";
 import { assembleGraph, type Graph } from "./graph.js";
 import { buildGateFeedback, buildSystemPrompt, buildUserPrompt } from "./prompt.js";
 import { runGates } from "./gates.js";
-import { RegionViolationError, GateError } from "./errors.js";
+import { RegionViolationError, GateError, BoundaryRequestError } from "./errors.js";
+import { findOwner } from "./boundary.js";
 import { regionsMatch } from "./region.js";
 import { hashJson, sha256 } from "./util.js";
 import {
@@ -97,6 +99,11 @@ async function executeProgram(
   const artifacts = new Map<string, Artifact>();
   const skipped: string[] = [];
   const running = new Map<string, Promise<Artifact>>();
+  const owners: BoundaryOwner[] = graph.nodes.map((n) => ({
+    id: n.id,
+    goal: n.goal,
+    regions: n.regions,
+  }));
 
   function run(id: string): Promise<Artifact> {
     const existing = running.get(id);
@@ -109,6 +116,7 @@ async function executeProgram(
       await Promise.all(node.after.map(run));
       const artifact = await executeNode(
         node,
+        owners.filter((o) => o.id !== node.id),
         inputs,
         manifest,
         contractsByNode.get(node.id) ?? [],
@@ -362,6 +370,7 @@ function partyContext(node: AgentNode): string {
 
 async function executeNode(
   node: AgentNode,
+  otherOwners: readonly BoundaryOwner[],
   inputs: RunInputs,
   manifest: ReturnType<typeof readManifest>,
   contracts: readonly Contract[],
@@ -418,8 +427,21 @@ async function executeNode(
       prompt,
       regions: node.regions,
       maxTurns: config.maxTurns,
+      owners: otherOwners,
       onEvent: (event) => reporter.nodeEvent(node.id, event),
     });
+    // A request for a path outside the agent's regions is never granted. It ends the
+    // node and the run, like a gate that will not pass — before anything is recorded.
+    if (result.boundaryRequest) {
+      const { path, reason } = result.boundaryRequest;
+      throw new BoundaryRequestError(
+        node.id,
+        path,
+        reason,
+        node.regions,
+        findOwner(otherOwners, path),
+      );
+    }
     for (const file of result.files) written.add(file);
 
     const results = runGates(gates, root, [...written], node.regions);

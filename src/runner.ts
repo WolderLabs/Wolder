@@ -5,7 +5,10 @@ import type {
   AgentRunRequest,
   AgentRunResult,
 } from "./types.js";
-import { regionsMatch, toPosix } from "./region.js";
+import { regionsMatch, toPosix, toRootRelative } from "./region.js";
+import { BOUNDARY_SERVER, BOUNDARY_TOOL_NAMES, createBoundaryTools } from "./boundary.js";
+
+export { toRootRelative };
 
 /** Everything that writes. Each of these goes through the region check. */
 export const WRITE_TOOLS = ["Write", "Edit", "MultiEdit", "NotebookEdit"] as const;
@@ -22,6 +25,7 @@ export const AGENT_TOOLS = [...READ_TOOLS, ...WRITE_TOOLS];
 
 const WRITE_TOOL_SET = new Set<string>(WRITE_TOOLS);
 const READ_TOOL_SET = new Set<string>(READ_TOOLS);
+const BOUNDARY_TOOL_SET = new Set<string>(BOUNDARY_TOOL_NAMES);
 
 /** The input fields of each tool that name a filesystem location. */
 const PATH_FIELDS = ["file_path", "notebook_path", "path"] as const;
@@ -117,6 +121,10 @@ export function createPermissionGuard(request: Pick<AgentRunRequest, "root" | "r
     const allow = { behavior: "allow" as const, updatedInput: input };
 
     if (READ_TOOL_SET.has(toolName)) return decideRead(toolName, input, allow);
+    // `who_owns` and `request_path` write nothing: the first only answers, the second
+    // ends the run. They are allowed here, by name, rather than through `allowedTools`
+    // — which would bypass this guard for them and, by example, for everything else.
+    if (BOUNDARY_TOOL_SET.has(toolName)) return allow;
     if (!WRITE_TOOL_SET.has(toolName)) return allow;
 
     const target = input["file_path"] ?? input["notebook_path"] ?? input["path"];
@@ -139,8 +147,11 @@ export function createPermissionGuard(request: Pick<AgentRunRequest, "root" | "r
         behavior: "deny",
         message:
           `"${path}" is outside your writable region (${request.regions.join(", ")}). ` +
-          `Another agent owns it. Work with what you were given as context instead — ` +
-          `do not try another path to reach it.`,
+          `Another agent owns it, or nobody does. Call who_owns with this path to see which, ` +
+          `and work with what you were given as context instead. If you truly cannot do ` +
+          `your job without writing it, call request_path with a reason — that ends the ` +
+          `run for the developer to fix the program; it is never granted. Do not try ` +
+          `another path to reach it.`,
       };
     }
 
@@ -160,13 +171,6 @@ function isRootItself(target: string, root: string): boolean {
   return resolve(abs) === resolve(root);
 }
 
-export function toRootRelative(target: string, root: string): string | null {
-  const abs = isAbsolute(target) ? target : resolve(root, target);
-  const rel = toPosix(relative(resolve(root), abs));
-  if (rel === "" || rel.startsWith("../")) return null;
-  return rel;
-}
-
 /** The real runner: a Claude Agent SDK session fenced to the node's region. */
 export function createSdkRunner(): AgentRunner {
   return {
@@ -175,6 +179,41 @@ export function createSdkRunner(): AgentRunner {
       const guard = createPermissionGuard(request);
       const emit = (event: AgentEvent) => request.onEvent?.(event);
 
+      const boundary = createBoundaryTools(request);
+      const { createSdkMcpServer, tool } = await import("@anthropic-ai/claude-agent-sdk");
+      const { z } = await import("zod");
+      const reply = (text: string) => ({ content: [{ type: "text" as const, text }] });
+      const server = createSdkMcpServer({
+        name: BOUNDARY_SERVER,
+        tools: [
+          tool(
+            "who_owns",
+            "Ask whether another agent owns a path outside your writable region. Returns the " +
+              "owning agent, its goal and regions, and which edge (asks or after) expresses a " +
+              "dependency on it. Read-only; never fails the run.",
+            { path: z.string().describe("A path relative to the project root.") },
+            async (args) => reply(boundary.whoOwns(args.path)),
+          ),
+          tool(
+            "request_path",
+            "Last resort: you cannot do your job without writing a path outside your regions. " +
+              "This is NEVER granted. It stops this run so the developer can fix the program. " +
+              "Try who_owns first and adapt within your own region if you can.",
+            {
+              path: z.string().describe("The path you need to write."),
+              reason: z.string().describe("Why you need it, and why your own regions cannot do."),
+            },
+            async (args) => {
+              const text = boundary.requestPath(args.path, args.reason);
+              // Stop the session once this reply is out. The failure itself is raised
+              // by the orchestrator when we return — not from inside this callback.
+              setTimeout(() => void session.interrupt().catch(() => {}), 0);
+              return reply(text);
+            },
+          ),
+        ],
+      });
+
       const session = query({
         prompt: request.prompt,
         options: {
@@ -182,6 +221,7 @@ export function createSdkRunner(): AgentRunner {
           model: request.model,
           systemPrompt: request.systemPrompt,
           ...toolOptions(),
+          mcpServers: { [BOUNDARY_SERVER]: server },
           maxTurns: request.maxTurns,
           permissionMode: "default",
           canUseTool: async (toolName, input) => {
@@ -200,37 +240,46 @@ export function createSdkRunner(): AgentRunner {
       });
 
       let text = "";
-      for await (const message of session) {
-        // Generation is slow enough that silence reads as a hang. Everything below
-        // exists so it does not.
-        const turn = turnEvent(message);
-        if (turn) emit(turn);
-        if (message.type === "assistant") {
-          for (const event of describeAssistantTurn(message.message)) emit(event);
-          continue;
+      try {
+        for await (const message of session) {
+          if (boundary.requested()) break;
+          // Generation is slow enough that silence reads as a hang. Everything below
+          // exists so it does not.
+          const turn = turnEvent(message);
+          if (turn) emit(turn);
+          if (message.type === "assistant") {
+            for (const event of describeAssistantTurn(message.message)) emit(event);
+            continue;
+          }
+          if (message.type === "system" && message.subtype === "api_retry") {
+            emit({
+              kind: "retry",
+              attempt: message.attempt,
+              maxAttempts: message.max_retries,
+              delayMs: message.retry_delay_ms,
+              reason: message.error,
+            });
+            continue;
+          }
+          if (message.type !== "result") continue;
+          if (message.subtype === "success") {
+            text = message.result;
+          } else if (boundary.requested()) {
+            break;
+          } else {
+            throw new Error(
+              `${request.nodeId}: the agent stopped without finishing (${message.subtype})` +
+                (message.errors?.length ? `: ${message.errors.join("; ")}` : ""),
+            );
+          }
         }
-        if (message.type === "system" && message.subtype === "api_retry") {
-          emit({
-            kind: "retry",
-            attempt: message.attempt,
-            maxAttempts: message.max_retries,
-            delayMs: message.retry_delay_ms,
-            reason: message.error,
-          });
-          continue;
-        }
-        if (message.type !== "result") continue;
-        if (message.subtype === "success") {
-          text = message.result;
-        } else {
-          throw new Error(
-            `${request.nodeId}: the agent stopped without finishing (${message.subtype})` +
-              (message.errors?.length ? `: ${message.errors.join("; ")}` : ""),
-          );
-        }
+      } catch (err) {
+        // Interrupting the session to stop a boundary request can surface as an error;
+        // that is the expected way out, not a failure of its own.
+        if (!boundary.requested()) throw err;
       }
 
-      return { files: guard.written(), text };
+      return { files: guard.written(), text, boundaryRequest: boundary.requested() };
     },
   };
 }
