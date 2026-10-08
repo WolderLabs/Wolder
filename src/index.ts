@@ -40,6 +40,7 @@ export type { Graph } from "./graph.js";
 export type { AgentSpec, ChainEntry } from "./program.js";
 export type { GateResult } from "./gates.js";
 export type { SerializedGraph, SerializedNode, GraphDiagnostic } from "./serialize.js";
+export { safeDirName } from "./record.js";
 export type { RunEvent, RunMeta } from "./record.js";
 export type { Manifest, ManifestNode, ManifestContract } from "./manifest.js";
 export type {

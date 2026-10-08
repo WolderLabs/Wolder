@@ -6,3 +6,6 @@ packages/*/dist/
 samples/*/src/services/
 samples/*/src/controllers/
 samples/*/wolder.manifest.json
+
+packages/inspector/ui/dist/
+.wolder/

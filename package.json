@@ -13,9 +13,10 @@
   ],
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.check.json",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.check.json && npm --prefix packages/inspector/ui run typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
+    "inspector:ui": "npm --prefix packages/inspector/ui run build",
     "sample:todo": "tsx --env-file=samples/todo-service/.env samples/todo-service/wolder.program.ts",
     "sample:counter": "tsx --env-file=samples/counting-react-agent-based/.env samples/counting-react-agent-based/wolder.program.ts",
     "sample:recipes": "tsx --env-file=samples/recipes/.env samples/recipes/wolder.program.ts",

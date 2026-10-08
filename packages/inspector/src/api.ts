@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { RECORD_DIR, isFresh, isOutputFresh, readManifest } from "@wolder/core";
+import { RECORD_DIR, isFresh, isOutputFresh, readManifest, safeDirName } from "@wolder/core";
 import type { GateReport, NegotiationTurn, RunEvent, RunMeta } from "@wolder/core";
 import { findProgramFiles, loadProgram, tsxCommand } from "./program.js";
 import type { ProgramResult } from "./program.js";
@@ -13,7 +13,6 @@ import {
   readPrompts,
   runDirOf,
   runsOf,
-  safeDirName,
   treeAt,
 } from "./record.js";
 

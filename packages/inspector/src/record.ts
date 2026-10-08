@@ -1,12 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import { RECORD_DIR, listRuns, readEvents } from "@wolder/core";
+import { RECORD_DIR, listRuns, readEvents, safeDirName } from "@wolder/core";
 import type { RunEvent, RunMeta } from "@wolder/core";
-
-/** Mirrors the recorder's `safeDirName`, which core does not export. */
-export function safeDirName(id: string): string {
-  return id.replace(/[^A-Za-z0-9._+-]/g, "_");
-}
 
 export function runDirOf(root: string, runId: string): string {
   if (!/^[A-Za-z0-9._-]+$/.test(runId) || runId.includes("..")) {
