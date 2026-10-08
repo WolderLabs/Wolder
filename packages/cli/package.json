@@ -5,5 +5,8 @@
   "type": "module",
   "bin": {
     "wolder": "bin/wolder.js"
+  },
+  "dependencies": {
+    "@wolder/inspector": "*"
   }
 }

@@ -4,6 +4,7 @@
 wolder init [--local]      Set up a new wolder project in the current directory
 wolder agent               Install the /wolder Claude Code skill into .claude/commands/
 wolder run [program]       Execute a generation program (default: wolder.program.ts)
+wolder inspect [program]   Open the inspector (graph, project, run history, chat)
 wolder check               Compare generated files against the manifest
 wolder clean               Remove all generated files
 wolder help                Show help
@@ -55,6 +56,25 @@ Compares the files on disk against what the manifest recorded, without running a
 
 Exits non-zero if anything is drifted or missing — useful in CI to catch edits that the
 next `wolder run` would silently overwrite.
+
+## `wolder inspect [program]`
+
+Starts the inspector for a program (default `wolder.program.ts`) and opens it in the
+browser. See [inspector.md](inspector.md).
+
+```bash
+npx wolder inspect
+npx wolder inspect samples/todo-service/wolder.program.ts --port 4748 --no-open
+claude mcp add wolder -- npx wolder inspect --mcp
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `--port <n>` | HTTP port (default 4747) |
+| `--mcp` | Serve the inspection API over MCP on stdio only: no HTTP, no browser, nothing else on stdout |
+| `--no-open` | Do not open a browser |
+
+The chat model is `model` from `wolder.config.ts`, or `inspectorModel` if set.
 
 ## `wolder clean`
 

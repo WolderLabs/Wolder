@@ -20,6 +20,8 @@ export interface WolderConfig {
   maxTurns?: number;
   /** How many run records to keep under `.wolder/runs`. Default 20. */
   keepRuns?: number;
+  /** Model for the inspector's chat agent. Empty or unset means `model`. */
+  inspectorModel?: string;
 }
 
 export interface WolderOptions {

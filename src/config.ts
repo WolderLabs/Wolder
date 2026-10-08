@@ -12,6 +12,7 @@ export const DEFAULTS: Required<WolderConfig> = {
   negotiationRounds: 3,
   maxTurns: 40,
   keepRuns: 20,
+  inspectorModel: "",
 };
 
 export function defineConfig(config: WolderConfig): WolderConfig {
@@ -41,5 +42,6 @@ export function mergeConfig(
     negotiationRounds: pick("negotiationRounds"),
     maxTurns: pick("maxTurns"),
     keepRuns: pick("keepRuns"),
+    inspectorModel: pick("inspectorModel"),
   };
 }

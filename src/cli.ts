@@ -7,6 +7,7 @@ import { check, clean } from "./commands.js"
 import { readManifest } from "./manifest.js"
 import { runSkill } from "./skill.js"
 import { runInit } from "./init.js"
+import { inspect, parseInspectArgs } from "./inspect.js"
 import * as log from "./log.js"
 
 const DEFAULT_PROGRAM = "wolder.program.ts"
@@ -28,6 +29,10 @@ async function main() {
       runSkill()
       break
 
+
+    case "inspect":
+      await inspect(parseInspectArgs(args.slice(1)))
+      break
 
     case "check":
       runCheck()
@@ -62,6 +67,8 @@ ${log.bold("Usage:")}
   wolder init [--local]       Set up a new wolder project in the current directory
   wolder agent               Install the /wolder Claude Code skill into .claude/commands/
   wolder run [program]        Execute a generation program (default: ${DEFAULT_PROGRAM})
+  wolder inspect [program]    Open the inspector: graph, project, run history, chat
+                              [--port <n>] [--mcp] [--no-open]
   wolder check               Compare generated files against manifest
   wolder clean               Remove all generated files
   wolder help                Show this help
