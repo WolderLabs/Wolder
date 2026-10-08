@@ -1,5 +1,5 @@
-import { diffLines } from "diff";
 import { useMemo } from "react";
+import { diffRows } from "./highlight";
 import type { FileInfo, SnapshotInfo } from "./types";
 import { useInspectorContext } from "./useInspector";
 
@@ -23,21 +23,19 @@ export function FileView({ path }: { path: string }) {
 
   const text = current.data && "content" in current.data ? current.data.content : null;
   const prevText = previous.data && "content" in previous.data ? previous.data.content : "";
-  const pieces = useMemo(
-    () => (text === null ? [] : diffLines(prevText, text)),
-    [text, prevText],
-  );
+  const rows = useMemo(() => (text === null ? [] : diffRows(prevText, text, path)), [text, prevText, path]);
 
-  const identical = text !== null && pieces.every((p) => !p.added && !p.removed);
+  const identical = text !== null && rows.every((r) => r.kind === "same");
   const waiting = snap.loading || current.loading || (prevSeq !== null && (prevSnap.loading || previous.loading));
 
   return (
     <div className="fileview">
-      <div className="fileview-head">
-        <span className="mono">{path}</span>
-        <span className="muted"> at {at === "now" ? "now" : `event ${atSeq}`}</span>
-        <button onClick={() => setOpenFile(null)} aria-label="Close file">x</button>
+      <div className="pane-head">
+        <span className="mono ellipsis" title={path}>{path}</span>
+        <span className="muted nowrap">at {at === "now" ? "now" : `event ${atSeq}`}</span>
+        <button className="icon-btn" onClick={() => setOpenFile(null)} aria-label="Close file" title="Close file">✕</button>
       </div>
+      <div className="fileview-body">
       {current.error && <div className="banner error">{current.error}</div>}
       {snap.data && !inNow && <div className="muted pad">Not in the project at this point.</div>}
       {current.data && "skipped" in current.data && (
@@ -45,20 +43,22 @@ export function FileView({ path }: { path: string }) {
       )}
       {waiting && <div className="muted pad">loading...</div>}
       {text !== null && (
-        <pre className="diff">
-          {identical && <div className="muted">unchanged since the previous snapshot</div>}
-          {pieces.map((piece, i) => {
-            const lines = piece.value.replace(/\n$/, "").split("\n");
-            const kind = piece.added ? "add" : piece.removed ? "del" : "same";
-            return lines.map((line, j) => (
-              <div key={`${i}-${j}`} className={`line ${kind}`}>
-                <span className="sign">{piece.added ? "+" : piece.removed ? "-" : " "}</span>
-                {line}
+        <>
+          {identical && <div className="muted diff-note">unchanged since the previous snapshot</div>}
+          <pre className="diff">
+            {rows.map((row, i) => (
+              <div key={i} className={`line ${row.kind}`}>
+                <span className="num">{row.line ?? ""}</span>
+                <span className="sign">{row.kind === "add" ? "+" : row.kind === "del" ? "-" : ""}</span>
+                <span className="src">
+                  {row.tokens.map((t, j) => (t.cls ? <span key={j} className={t.cls}>{t.text}</span> : t.text))}
+                </span>
               </div>
-            ));
-          })}
-        </pre>
+            ))}
+          </pre>
+        </>
       )}
+      </div>
     </div>
   );
 }

@@ -15,6 +15,15 @@ npx wolder inspect [program] [--port 4747] [--no-open]
   with the contents at the selected point in time.
 - **Editor**: the program source itself. Saves re-assemble the graph immediately.
 
+The **Program / Graph / Project** buttons in the top bar show and hide each pane. As many
+panes are shown as fit: three on a wide window, two below 1200px (showing a third replaces
+the one you used least recently) and one below 800px, where the buttons act as tabs. A
+hidden pane keeps its state, including unsaved edits and the chat.
+
+Selecting a node or contract opens its detail under the graph, and opening a file shows
+it under the project tree; drag the divider between them to resize. The chat collapses
+to its title bar. Pane sizes are remembered per browser.
+
 ## Freshness
 
 Node colour (fresh, stale, never run) and the reasons in the node and contract panels

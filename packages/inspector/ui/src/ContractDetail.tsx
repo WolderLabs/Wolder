@@ -10,13 +10,13 @@ export function ContractDetail() {
 
   const settled = info.data?.settled;
   return (
-    <aside className="drawer">
-      <div className="drawer-head">
+    <aside className="detail">
+      <div className="pane-head">
         <strong>Contract</strong>
-        <span className="muted mono"> {id}</span>
-        <button onClick={() => select(null)} aria-label="Close">x</button>
+        <span className="muted mono ellipsis">{id}</span>
+        <button className="icon-btn" onClick={() => select(null)} aria-label="Close" title="Close">✕</button>
       </div>
-      <div className="drawer-body">
+      <div className="detail-body">
         <FreshnessNote id={id} status={graph?.ok ? graph.contractFreshness[id] : undefined} />
         {!runId && <div className="muted">No recorded run, so no negotiation to show.</div>}
         {info.error && <div className="banner error">{info.error}</div>}

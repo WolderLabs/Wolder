@@ -14,7 +14,7 @@ interface ChatEvent {
 }
 
 /** Chat with the fenced agent. Streams NDJSON events as a one-line activity indicator. */
-export function ChatView({ onTurnEnd }: { onTurnEnd: () => void }) {
+export function ChatView({ open, onToggle, onTurnEnd }: { open: boolean; onToggle: () => void; onTurnEnd: () => void }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -74,6 +74,11 @@ export function ChatView({ onTurnEnd }: { onTurnEnd: () => void }) {
 
   return (
     <div className="chat-view">
+      <button className="pane-head chat-head" onClick={onToggle} aria-expanded={open}>
+        <span className="chevron">{open ? "▾" : "▸"}</span>
+        <strong>Chat</strong>
+        <span className="muted chat-hint">{busy ? activity || "thinking..." : "program agent"}</span>
+      </button>
       <div className="messages">
         {messages.length === 0 && (
           <div className="muted">Ask about the graph, or ask for a change to the program.</div>

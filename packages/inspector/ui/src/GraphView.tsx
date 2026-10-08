@@ -1,7 +1,8 @@
 import dagre from "@dagrejs/dagre";
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ContractDetail } from "./ContractDetail";
 import { NodeDetail } from "./NodeDetail";
+import { Split } from "./Split";
 import type { SerializedGraph } from "./types";
 import { useInspectorContext } from "./useInspector";
 
@@ -22,9 +23,9 @@ interface Edge {
   dashed: boolean;
 }
 
-function layout(graph: SerializedGraph): { nodes: Placed[]; contracts: Placed[]; edges: Edge[]; width: number; height: number } {
+function layout(graph: SerializedGraph, rankdir: "LR" | "TB"): { nodes: Placed[]; contracts: Placed[]; edges: Edge[]; width: number; height: number } {
   const g = new dagre.graphlib.Graph({ multigraph: true });
-  g.setGraph({ rankdir: "LR", nodesep: 28, ranksep: 70, marginx: 20, marginy: 20 });
+  g.setGraph({ rankdir, nodesep: 28, ranksep: rankdir === "LR" ? 70 : 48, marginx: 24, marginy: 24 });
   g.setDefaultEdgeLabel(() => ({}));
   const ids = new Set(graph.nodes.map((n) => n.id));
   for (const node of graph.nodes) g.setNode(node.id, { width: NODE_W, height: NODE_H });
@@ -67,12 +68,30 @@ function path(points: Array<{ x: number; y: number }>): string {
   return points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
 }
 
+/** Below this pane width the graph flows top to bottom, so it scrolls one way instead of two. */
+const VERTICAL_BELOW = 520;
+
+/** The width of the element the returned ref is attached to. */
+function useElementWidth(): [(el: HTMLElement | null) => void, number] {
+  const [width, setWidth] = useState(Infinity);
+  const observer = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((el: HTMLElement | null) => {
+    observer.current?.disconnect();
+    if (!el) return;
+    observer.current = new ResizeObserver(([entry]) => entry && setWidth(entry.contentRect.width));
+    observer.current.observe(el);
+  }, []);
+  return [ref, width];
+}
+
 export function GraphView() {
   const { graph, events, atSeq, at, selection, select } = useInspectorContext();
 
   // The graph to draw: the program's, or (when it did not assemble) the last run's.
   const drawn: SerializedGraph | null = graph?.ok && "graph" in graph ? graph.graph : null;
-  const laid = useMemo(() => (drawn ? layout(drawn) : null), [drawn]);
+  const [scrollRef, width] = useElementWidth();
+  const rankdir = width < VERTICAL_BELOW ? "TB" : "LR";
+  const laid = useMemo(() => (drawn ? layout(drawn, rankdir) : null), [drawn, rankdir]);
 
   // Per-node activity up to the scrubber position.
   const activity = useMemo(() => {
@@ -106,9 +125,9 @@ export function GraphView() {
 
   const placed = new Map([...laid.nodes, ...laid.contracts].map((p) => [p.id, p]));
 
-  return (
+  const canvas = (
     <div className="graph">
-      <div className="graph-scroll">
+      <div className="graph-scroll" ref={scrollRef}>
         <svg width={laid.width} height={laid.height} className="graph-svg">
           <defs>
             <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
@@ -165,12 +184,12 @@ export function GraphView() {
             );
           })}
         </svg>
-        <Legend />
       </div>
-      {selection?.kind === "node" && <NodeDetail />}
-      {selection?.kind === "contract" && <ContractDetail />}
+      <Legend />
     </div>
   );
+  const detail = selection?.kind === "node" ? <NodeDetail /> : selection?.kind === "contract" ? <ContractDetail /> : null;
+  return <Split id="graph" main={canvas} detail={detail} />;
 }
 
 function isDone(events: ReturnType<typeof useInspectorContext>["events"], node: string, atSeq: number, at: unknown): boolean {
@@ -184,8 +203,11 @@ function truncate(text: string, max: number): string {
 function Legend() {
   return (
     <div className="legend muted">
-      <span className="swatch fresh" /> fresh <span className="swatch stale" /> stale <span className="swatch never" /> never run
-      <span className="line-sample solid" /> after <span className="line-sample dashed" /> asks (◇ contract)
+      <span><span className="swatch fresh" /> fresh</span>
+      <span><span className="swatch stale" /> stale</span>
+      <span><span className="swatch never" /> never run</span>
+      <span><span className="line-sample solid" /> after</span>
+      <span><span className="line-sample dashed" /> asks (◇ contract)</span>
     </div>
   );
 }

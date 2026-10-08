@@ -3,11 +3,46 @@ import { EditorView, basicSetup } from "codemirror";
 import { EditorState } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { javascript } from "@codemirror/lang-javascript";
+import { syntaxHighlighting } from "@codemirror/language";
+import { highlighter } from "./highlight";
 import { call, useInspectorContext } from "./useInspector";
 
 type ProgramFile = { path: string; content: string };
 
 const base = (p: string) => p.split(/[\\/]/).pop() ?? p;
+
+// Colours come from app.css variables, so the editor follows the light and dark themes.
+const theme = EditorView.theme({
+  "&": { height: "100%", backgroundColor: "var(--code-bg)", color: "var(--code-text)", fontSize: "13px" },
+  "&.cm-focused": { outline: "none" },
+  ".cm-scroller": { overflow: "auto", fontFamily: "var(--mono)", lineHeight: "1.6" },
+  ".cm-content": { padding: "10px 0", caretColor: "var(--accent)" },
+  ".cm-line": { padding: "0 16px 0 8px" },
+  ".cm-gutters": { backgroundColor: "var(--code-bg)", color: "var(--code-gutter)", border: "none" },
+  ".cm-lineNumbers .cm-gutterElement": { padding: "0 8px 0 14px", minWidth: "40px" },
+  ".cm-foldGutter .cm-gutterElement": { padding: "0 4px" },
+  ".cm-activeLine": { backgroundColor: "var(--code-active)" },
+  ".cm-activeLineGutter": { backgroundColor: "var(--code-active)", color: "var(--code-text)" },
+  ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--accent)", borderLeftWidth: "2px" },
+  "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground": {
+    backgroundColor: "var(--code-selection)",
+  },
+  ".cm-selectionMatch": { backgroundColor: "var(--code-match)" },
+  "&.cm-focused .cm-matchingBracket": { backgroundColor: "var(--code-match)", outline: "1px solid var(--code-gutter)" },
+  ".cm-foldPlaceholder": { backgroundColor: "var(--chip)", border: "none", color: "var(--muted)", padding: "0 6px" },
+  ".cm-tooltip": { backgroundColor: "var(--panel)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: "6px" },
+  ".cm-tooltip-autocomplete ul li[aria-selected]": { backgroundColor: "var(--accent)", color: "var(--on-accent)" },
+  ".cm-panels": { backgroundColor: "var(--panel)", color: "var(--text)" },
+  ".cm-panels.cm-panels-bottom": { borderTop: "1px solid var(--border)" },
+  ".cm-searchMatch": { backgroundColor: "var(--code-match)", outline: "1px solid var(--stale-b)" },
+  ".cm-textfield, .cm-button": {
+    backgroundColor: "var(--bg)",
+    backgroundImage: "none",
+    color: "var(--text)",
+    border: "1px solid var(--border)",
+    borderRadius: "4px",
+  },
+});
 
 /**
  * File tabs plus a CodeMirror editor. Ctrl/Cmd+S saves through program.edit; the
@@ -65,6 +100,9 @@ export function ProgramView({ refreshKey }: { refreshKey: number }) {
         extensions: [
           basicSetup,
           javascript({ typescript: true }),
+          syntaxHighlighting(highlighter),
+          theme,
+          EditorView.lineWrapping,
           keymap.of([
             {
               key: "Mod-s",
@@ -78,7 +116,6 @@ export function ProgramView({ refreshKey }: { refreshKey: number }) {
           EditorView.updateListener.of((u) => {
             if (u.docChanged) setDirty(true);
           }),
-          EditorView.theme({ "&": { height: "100%" }, ".cm-scroller": { overflow: "auto" } }),
         ],
       }),
     });
@@ -108,24 +145,25 @@ export function ProgramView({ refreshKey }: { refreshKey: number }) {
 
   return (
     <div className="program-view">
-      <div className="tabs">
-        {files.map((f) => (
-          <button
-            key={f.path}
-            className={f.path === active ? "tab active" : "tab"}
-            title={f.path}
-            onClick={() => setActive(f.path)}
-          >
-            {base(f.path)}
-            {f.path === active && dirty ? " *" : ""}
-          </button>
-        ))}
-        <span className="spacer" />
-        <button className="tab" onClick={() => void save()} disabled={!dirty}>
+      <div className="pane-head tabs">
+        <div className="tab-list">
+          {files.map((f) => (
+            <button
+              key={f.path}
+              className={f.path === active ? "tab active" : "tab"}
+              title={f.path}
+              onClick={() => setActive(f.path)}
+            >
+              {base(f.path)}
+              {f.path === active && dirty ? " •" : ""}
+            </button>
+          ))}
+        </div>
+        {status && <span className="status muted">{status}</span>}
+        <button className="btn" onClick={() => void save()} disabled={!dirty} title="Save (Ctrl/Cmd+S)">
           Save
         </button>
       </div>
-      {status && <div className="status">{status}</div>}
       <div className="editor" ref={host} />
     </div>
   );

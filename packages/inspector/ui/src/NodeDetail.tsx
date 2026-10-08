@@ -128,13 +128,13 @@ export function NodeDetail() {
   const chainChanged = prevRun && thisHash && prevHash ? thisHash !== prevHash : null;
 
   return (
-    <aside className="drawer">
-      <div className="drawer-head">
-        <strong>{spec?.label ?? id}</strong>
-        <span className="muted mono"> {id}</span>
-        <button onClick={() => select(null)} aria-label="Close">x</button>
+    <aside className="detail">
+      <div className="pane-head">
+        <strong className="nowrap">{spec?.label ?? id}</strong>
+        <span className="muted mono ellipsis">{id}</span>
+        <button className="icon-btn" onClick={() => select(null)} aria-label="Close" title="Close">✕</button>
       </div>
-      <div className="drawer-body">
+      <div className="detail-body">
         <FreshnessNote id={id} status={graph?.ok ? graph.freshness[id] : undefined} />
         {spec && (
           <>

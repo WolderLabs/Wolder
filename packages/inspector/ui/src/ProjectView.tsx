@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { FileView } from "./FileView";
+import { Split } from "./Split";
 import type { NodeInfo, SnapshotInfo } from "./types";
 import { useInspectorContext } from "./useInspector";
 
@@ -43,11 +44,11 @@ export function ProjectView() {
   const root = useMemo(() => buildTree(paths), [paths]);
   const byNode = new Set(node.data?.files ?? []);
 
-  if (!hasRun) return <div className="project muted">No recorded run to show a project from.</div>;
+  if (!hasRun) return <div className="project muted pad">No recorded run to show a project from.</div>;
 
   const renderDir = (dir: TreeDir, name: string, depth: number): JSX.Element => (
     <details key={name + depth} open className="dir">
-      <summary style={{ paddingLeft: depth * 12 }}>{name}/</summary>
+      <summary style={{ paddingLeft: 12 + depth * 14 }}>{name}/</summary>
       {[...dir.dirs].map(([n, d]) => renderDir(d, n, depth + 1))}
       {dir.files.map((path) => renderFile(path, depth + 1))}
     </details>
@@ -60,7 +61,7 @@ export function ProjectView() {
       <div
         key={path}
         className={`file ${state} ${openFile === path ? "open" : ""} ${byNode.has(path) ? "by-node" : ""}`}
-        style={{ paddingLeft: depth * 12 }}
+        style={{ paddingLeft: 26 + depth * 14 }}
         onClick={() => setOpenFile(path)}
         title={byNode.has(path) ? `written by ${selection?.id}` : state || undefined}
       >
@@ -71,7 +72,7 @@ export function ProjectView() {
     );
   };
 
-  return (
+  const files = (
     <div className="project">
       <div className="tree">
         <div className="tree-head muted">
@@ -81,9 +82,9 @@ export function ProjectView() {
         {snap.error && <div className="banner error">{snap.error}</div>}
         {paths.length === 0 && !snap.loading && <div className="muted pad">No files yet.</div>}
         {[...root.dirs].map(([n, d]) => renderDir(d, n, 0))}
-        {root.files.map((p) => renderFile(p, 0))}
+        {root.files.map((p) => renderFile(p, -1))}
       </div>
-      {openFile && <FileView path={openFile} />}
     </div>
   );
+  return <Split id="project" main={files} detail={openFile ? <FileView path={openFile} /> : null} />;
 }
