@@ -5,6 +5,6 @@
     "declaration": false,
     "rootDir": "."
   },
-  "include": ["src", "packages/*/src", "samples/*/wolder.program.ts"],
+  "include": ["src", "packages/*/src", "samples/*/wolder.program.ts", "samples/recipes/recipes/*.ts"],
   "exclude": []
 }

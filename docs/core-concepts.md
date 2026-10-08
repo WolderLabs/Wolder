@@ -183,3 +183,7 @@ the agent because an agent with a shell could write anywhere — and the boundar
 
 `{files}` and `{regions}` in a gate command expand to the node's written files and its
 regions.
+
+## Recipes
+
+A reusable prompt is a function whose parameters are its arguments. See [Recipes](recipes.md).

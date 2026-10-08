@@ -106,7 +106,7 @@ Labels need not be unique — edges are drawn against the handle, not resolved b
 Applies an `(Agent) => Agent`. Exactly `fn(agent)`, but it keeps a chain reading
 left-to-right. The result type follows the function: a transform that calls `.provides()`
 yields `Agent<AgentProvides>`. `apply` itself is not part of the agent's cache key; the
-builder calls inside `fn` are.
+builder calls inside `fn` are. See [Recipes](recipes.md) for the pattern this enables.
 
 ### `.artifact: Artifact`
 

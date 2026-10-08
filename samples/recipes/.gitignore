@@ -1,0 +1,7 @@
+# Everything the agents generate lives in ./project; only the developer-owned models
+# are checked in. Each directory level has to be re-included explicitly.
+/project/*
+!/project/src/
+/project/src/*
+!/project/src/models/
+.env

@@ -152,6 +152,27 @@ console.log(service.artifact.files)
    in v2 — there is no expectation API.
 8. Import \`wolder\` from \`@wolder/core\`. Import shipped layers from \`@wolder/typescript\`.
 
+## Recipes
+
+When several agents differ only by entity, region or route, write a function instead of
+repeating them. A recipe is \`(params) => (layer) => Agent\`; the region is a parameter, so
+each instantiation owns its own:
+
+\`\`\`typescript
+const pages = ({ entity, region, api }: { entity: string; region: string; api: Agent<AgentProvides> }) =>
+  (layer: Layer) => layer.agent()
+    .owns(region)
+    .after(api)
+    .goal(\`Create list, detail and edit pages for \${entity}.\`)
+    .provides(\`\${entity} pages\`)
+
+const todoPages = pages({ entity: "Todo", region: "src/pages/todos/", api: todoApi })(project)
+const notePages = pages({ entity: "Note", region: "src/pages/notes/", api: noteApi })(project)
+\`\`\`
+
+Two instantiations with the same region are an overlap error. Use \`.apply(fn)\` on an agent
+for partial transforms that add context or an edge without owning a region.
+
 ## Generated TypeScript
 
 Generated files use ESM with \`.js\` extensions in relative imports

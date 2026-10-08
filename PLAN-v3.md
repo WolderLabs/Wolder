@@ -1,6 +1,6 @@
 # Wolder v3 — Vocabulary and reusable prompts
 
-Status: **proposal**. Implementation guide: `PLAN-v3-impl.md`. Nothing here is implemented. `PLAN.md` is the v2 record and
+Status: **implemented**. Implementation guide: `PLAN-v3-impl.md`. `PLAN.md` is the v2 record and
 still describes the code as it stands. This document covers two things that came
 out of using v2: the DSL terms do not quite say what they mean, and there is no
 pattern for a prompt that is written once and instantiated many times.

@@ -51,3 +51,36 @@ export function vitestConventions(layer: Layer): Layer {
     - A test that needs a real filesystem uses \`mkdtempSync\` and cleans up after itself.
   `);
 }
+
+export interface ModuleConventionsOptions {
+  /** How relative imports are written. `"js"` adds the extension; `"bare"` omits it. */
+  imports: "js" | "bare";
+}
+
+/**
+ * A parameterised convention: `(options) => (layer) => Layer`. The option picks
+ * the import style the generated code uses, so the prose matches the project's
+ * module resolution.
+ *
+ * ```ts
+ * const project = w.layer().apply(moduleConventions({ imports: "js" }))
+ * ```
+ */
+export const moduleConventions =
+  ({ imports }: ModuleConventionsOptions) =>
+  (layer: Layer): Layer =>
+    layer.context(
+      imports === "js"
+        ? `
+    ## Module conventions
+
+    Relative imports carry a \`.js\` extension, because the project uses Node16
+    module resolution: \`import { X } from "./x.js"\`.
+  `
+        : `
+    ## Module conventions
+
+    Relative imports are bare, with no file extension, because a bundler resolves
+    them: \`import { X } from "./x"\`.
+  `,
+    );

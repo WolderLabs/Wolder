@@ -1,6 +1,6 @@
 # Samples
 
-Three programs, in increasing order of how much of v2 they exercise.
+Four programs.
 
 `todo-service` keeps the generated project in a `project/` subdirectory, with the program,
 its config and the API key outside it. That separation is not incidental: the program has
@@ -20,6 +20,7 @@ Run them from the repository root:
 npm run sample:todo      # todo-service
 npm run sample:counter   # counting-react-agent-based
 npm run sample:chat      # chat-app-agent-based
+npm run sample:recipes   # recipes
 ```
 
 ## `todo-service`
@@ -54,3 +55,12 @@ across a server, a client, and the two files everybody needs a piece of.
 
 `npx wolder agent` installs the Claude Code skill that writes a program like this one from
 a requirements file.
+
+## `recipes`
+
+One definition, instantiated twice. `recipes/` holds a tier-1 fragment (`crudGoal`), a
+tier-2 convention (`pageConventions`), and tier-3 recipes (`pages`, `crudFeature`) — plain
+functions, no template language. `crudFeature` wires service, controller and pages for an
+entity; the program calls it for `Todo` and `Note`, giving six agents plus one `deps`
+agent that both controllers ask for an HTTP framework. Each instantiation gets its own
+regions, so the one-owner rule holds. See `docs/recipes.md`.
