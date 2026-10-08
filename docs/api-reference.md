@@ -230,6 +230,7 @@ const w = wolder({
   services: {
     runner: { async run(request) { /* … */ return { files: [], text: "" } } },
     negotiator: { async negotiate(request) { /* … */ } },
+    ownerConsultant: { async consult(request) { return "use findAll()" } }, // answers ask_owner
   },
 })
 ```

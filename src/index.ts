@@ -5,7 +5,7 @@ export { assembleGraph, topologicalOrder } from "./graph.js";
 export { Registry } from "./program.js";
 export { normalizeRegion, regionMatches, regionsMatch, regionsIntersect } from "./region.js";
 export { buildSystemPrompt, buildUserPrompt, buildGateFeedback } from "./prompt.js";
-export { createNegotiator, parseJson } from "./negotiate.js";
+export { createNegotiator, createOwnerConsultant, parseJson } from "./negotiate.js";
 export { createAnthropicChat } from "./chat.js";
 export { createSdkRunner, createPermissionGuard, toRootRelative } from "./runner.js";
 export { runGate, runGates } from "./gates.js";
@@ -21,7 +21,13 @@ export { DSL_REFERENCE } from "./skill.js";
 export { serializeGraph } from "./serialize.js";
 export { createConsoleReporter, createSilentReporter } from "./reporter.js";
 export { hashLayer, layerContext } from "./layer.js";
-export { GraphError, RegionViolationError, NegotiationError, GateError } from "./errors.js";
+export {
+  GraphError,
+  RegionViolationError,
+  NegotiationError,
+  GateError,
+  BoundaryRequestError,
+} from "./errors.js";
 export {
   readManifest,
   writeManifest,
@@ -69,6 +75,11 @@ export type {
   LayerState,
   LayerTransform,
   AgentTransform,
+  BoundaryOwner,
+  BoundaryRequest,
+  OwnerAdvice,
+  OwnerConsultant,
+  OwnerConsultRequest,
   NegotiationOutcome,
   NegotiationParty,
   NegotiationRequest,

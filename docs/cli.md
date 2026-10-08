@@ -57,6 +57,11 @@ Compares the files on disk against what the manifest recorded, without running a
 Exits non-zero if anything is drifted or missing — useful in CI to catch edits that the
 next `wolder run` would silently overwrite.
 
+`check` reads only the manifest; it never loads the program, so it cannot say which
+agents the next run would redo. That is the plan's job: call `w.plan()` (see the
+[API reference](api-reference.md)) or open `wolder inspect`, which shows each agent
+as fresh or stale with the reason.
+
 ## `wolder inspect [program]`
 
 Starts the inspector for a program (default `wolder.program.ts`) and opens it in the

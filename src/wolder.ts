@@ -17,18 +17,18 @@ import { GraphError } from "./errors.js";
 import { serializeGraph } from "./serialize.js";
 import { planGraph, runProgram } from "./build.js";
 import { createSdkRunner } from "./runner.js";
-import { createNegotiator } from "./negotiate.js";
+import { createNegotiator, createOwnerConsultant } from "./negotiate.js";
 import { createAnthropicChat } from "./chat.js";
 
 export function wolder(options: WolderOptions): WolderInstance {
   const config = mergeConfig(options.config, { model: options.model });
   const registry = new Registry();
 
+  const chat = createAnthropicChat(config.model, config.apiKey);
   const services: WolderServices = {
     runner: options.services?.runner ?? createSdkRunner(),
-    negotiator:
-      options.services?.negotiator ??
-      createNegotiator(createAnthropicChat(config.model, config.apiKey)),
+    negotiator: options.services?.negotiator ?? createNegotiator(chat),
+    ownerConsultant: options.services?.ownerConsultant ?? createOwnerConsultant(chat),
   };
 
   function assemble(): AssembleOutcome {

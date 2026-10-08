@@ -28,11 +28,19 @@ export function createStore(programPath: string): Store {
   return { programPath: resolve(programPath), program: null, root: null };
 }
 
+/**
+ * The generated project root as an absolute path. A program may give a relative
+ * root; it runs with its own directory as cwd, so that is what it is relative to.
+ */
+export function projectRoot(programPath: string, graphRoot: string): string {
+  return resolve(dirname(programPath), graphRoot);
+}
+
 /** Re-assemble the program and refresh the store. */
 export async function reloadProgram(store: Store): Promise<ProgramResult> {
   const result = await loadProgram(store.programPath);
   store.program = result;
-  if (result.ok) store.root = result.graph.root;
+  if (result.ok) store.root = projectRoot(store.programPath, result.graph.root);
   return result;
 }
 

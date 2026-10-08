@@ -1,3 +1,5 @@
+import { isAbsolute, relative, resolve } from "node:path";
+
 /**
  * Writable regions.
  *
@@ -32,6 +34,13 @@ export function normalizeRegion(region: string): string {
 
   const last = cleaned.split("/").pop()!;
   return last.includes(".") ? cleaned : `${cleaned}/**`;
+}
+
+export function toRootRelative(target: string, root: string): string | null {
+  const abs = isAbsolute(target) ? target : resolve(root, target);
+  const rel = toPosix(relative(resolve(root), abs));
+  if (rel === "" || rel.startsWith("../")) return null;
+  return rel;
 }
 
 export function toPosix(path: string): string {

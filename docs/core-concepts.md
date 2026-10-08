@@ -166,6 +166,40 @@ Because the agent decides what to write, the output set is not known up front â€
 manifest records what was *actually* written so the next run can compute staleness. Reading
 `.artifact` before `run()` throws with an explanation rather than yielding `undefined`.
 
+## Asking about the boundary
+
+Every generation agent gets three in-process tools for the edge of its region, meant to
+be used in this order: `who_owns`, then `ask_owner` if the path is owned, then adapt within
+its own boundary, and only if it truly cannot, `request_path`.
+
+- `who_owns({ path })` says whether another agent owns a path, and if so its id, goal and
+  regions, and the edge that legitimately reaches it: `asks` for content or a contract,
+  `after` for ordering. It is read-only and never fails the run.
+- `ask_owner({ path, question })` puts a question to the agent that owns the path. The
+  owner answers *as itself* (its goal, regions, context, and a read-only look at what
+  exists in its region) with a recommendation: "I already expose X, use it", "declare
+  `.asks(me, ...)`", or "that belongs in my goal". Nothing is written or granted. Each node
+  gets at most 3 consultations (`MAX_OWNER_CONSULTS`); the tool says so when they run out.
+  An unowned path gets an answer pointing at `request_path`. It never fails the run.
+- `request_path({ path, reason, recommendation })` is a last resort for a path the agent
+  believes it must write outside its regions. It is never granted: a region has exactly
+  one owner and boundaries do not widen at runtime. `recommendation` is required: the
+  agent's own advice on how the program or a goal should change (a call without one is
+  turned away at the tool and the run continues). The node and the run end with a
+  `BoundaryRequestError` that names the agent, the path and the stated reason, then
+  `<agent> recommends: ...` and, if `ask_owner` was used for that path,
+  `<owner> advised (asked: ...): ...`. It also suggests `asks`/`after` on the owner (or
+  moving the responsibility), or, if nobody owns the path, adding it to `.owns(...)` or
+  declaring a new agent. Either way it suggests tightening the agent's `goal` if it
+  misunderstood its boundary. The error exposes `recommendation` and `advice` as fields.
+  The failure is recorded as `run:failed` and shown in the inspector.
+
+`ask_owner` is answered by the `ownerConsultant` service, built on the same `ChatFn` as the
+negotiator; replace it through `wolder({ services })` to test without a model. Each exchange
+is recorded as a pair of notes on the node, so the inspector timeline shows it.
+
+The permission guard allows all three tools by name; `allowedTools` stays empty.
+
 ## Gates
 
 v2 ships with no expectation API. Correctness comes from the agent verifying its own work

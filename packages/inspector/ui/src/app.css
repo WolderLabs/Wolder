@@ -78,6 +78,7 @@ h4 { margin: var(--s4) 0 var(--s2); }
 .banner { padding: var(--s2) var(--s3); margin: var(--s2); border-radius: 6px; }
 .banner.error { background: var(--err-bg); color: var(--err); }
 .banner .hint { margin-top: var(--s1); color: var(--text); }
+.banner pre { margin: var(--s1) 0 0; padding: 0; border: 0; background: none; color: inherit; white-space: pre-wrap; font: inherit; max-height: 30vh; }
 
 /* Panels. A divider is a wide grab area drawn as a hairline. */
 .columns { flex: 1; min-height: 0; }

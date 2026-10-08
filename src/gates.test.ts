@@ -54,6 +54,18 @@ describe("runGate", () => {
     expect(runGate(gate, root, ["a file.ts"], []).output.trim()).toBe("1");
   });
 
+  it("runs the command with colour off, whatever the caller's environment says", () => {
+    const before = process.env.FORCE_COLOR;
+    process.env.FORCE_COLOR = "3";
+    try {
+      const gate = { command: `node -e "console.log(1, process.env.NO_COLOR, process.env.FORCE_COLOR)"`, name: "plain" };
+      expect(runGate(gate, root, [], []).output.trim()).toBe("1 1 undefined");
+    } finally {
+      if (before === undefined) delete process.env.FORCE_COLOR;
+      else process.env.FORCE_COLOR = before;
+    }
+  });
+
   it("reports a command that does not exist as a failure", () => {
     const result = runGate({ command: "definitely-not-a-command", name: "missing" }, root, [], []);
     expect(result.pass).toBe(false);
