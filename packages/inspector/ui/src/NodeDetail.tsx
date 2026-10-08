@@ -94,6 +94,9 @@ function Timeline({ events }: { events: RunEvent[] }) {
           const kind = (e.data as { kind?: string }).kind;
           // Turns carry the full conversation; text/tool lines would repeat them.
           if (hasTurns && (kind === "text" || kind === "tool")) return null;
+          if (kind === "note") {
+            return <div key={e.seq} className="event">{(e.data as { text?: string }).text}</div>;
+          }
           if (kind === "text" || kind === "tool") {
             const d = e.data as { text?: string; name?: string; detail?: string };
             return <div key={e.seq} className="event muted">{d.text ?? `${d.name} ${d.detail ?? ""}`}</div>;

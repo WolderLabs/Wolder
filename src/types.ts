@@ -39,6 +39,8 @@ export interface WolderOptions {
 export interface WolderServices {
   runner: AgentRunner;
   negotiator: Negotiator;
+  /** Answers `ask_owner`: speaks as the agent that owns a path. */
+  ownerConsultant: OwnerConsultant;
 }
 
 export interface WolderInstance {
@@ -352,6 +354,11 @@ export interface AgentRunRequest {
    * a runner that does not mount the boundary tools can ignore it.
    */
   readonly owners?: readonly BoundaryOwner[];
+  /**
+   * Puts a question to the agent that owns a path and returns its answer. Backs
+   * `ask_owner`. Optional: a runner that does not mount the boundary tools can ignore it.
+   */
+  readonly consultOwner?: (owner: BoundaryOwner, question: string) => Promise<string>;
   /** Called as the agent works. Nothing depends on it — it exists to break the silence. */
   readonly onEvent?: (event: AgentEvent) => void;
 }
@@ -372,12 +379,39 @@ export interface BoundaryOwner {
   readonly id: string;
   readonly goal: string;
   readonly regions: readonly string[];
+  /** The owner's layer and agent context, for answering as it. */
+  readonly context?: string;
 }
 
 /** An agent's request to write a path outside its regions. Never granted. */
 export interface BoundaryRequest {
   readonly path: string;
   readonly reason: string;
+  /** The requesting agent's own advice on how the program (or its goal) should change. */
+  readonly recommendation: string;
+  /** What the owning agent said when consulted about this path, in order. */
+  readonly advice?: readonly OwnerAdvice[];
+}
+
+/** One `ask_owner` exchange. */
+export interface OwnerAdvice {
+  readonly owner: string;
+  readonly question: string;
+  readonly answer: string;
+}
+
+/** A question put to the agent that owns a path, with what that agent needs to answer as itself. */
+export interface OwnerConsultRequest {
+  readonly owner: BoundaryOwner;
+  /** The agent asking. */
+  readonly asker: { readonly id: string; readonly goal: string; readonly regions: readonly string[] };
+  readonly question: string;
+  /** Read-only snapshot of what currently exists in the owner's region. */
+  readonly existing: ReadonlyArray<{ readonly path: string; readonly content: string }>;
+}
+
+export interface OwnerConsultant {
+  consult(request: OwnerConsultRequest): Promise<string>;
 }
 
 export interface AgentRunner {

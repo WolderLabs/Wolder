@@ -121,8 +121,8 @@ export function createPermissionGuard(request: Pick<AgentRunRequest, "root" | "r
     const allow = { behavior: "allow" as const, updatedInput: input };
 
     if (READ_TOOL_SET.has(toolName)) return decideRead(toolName, input, allow);
-    // `who_owns` and `request_path` write nothing: the first only answers, the second
-    // ends the run. They are allowed here, by name, rather than through `allowedTools`
+    // `who_owns`, `ask_owner` and `request_path` write nothing: the first two only answer,
+    // the last ends the run. They are allowed here, by name, rather than through `allowedTools`
     // — which would bypass this guard for them and, by example, for everything else.
     if (BOUNDARY_TOOL_SET.has(toolName)) return allow;
     if (!WRITE_TOOL_SET.has(toolName)) return allow;
@@ -149,8 +149,8 @@ export function createPermissionGuard(request: Pick<AgentRunRequest, "root" | "r
           `"${path}" is outside your writable region (${request.regions.join(", ")}). ` +
           `Another agent owns it, or nobody does. Call who_owns with this path to see which, ` +
           `and work with what you were given as context instead. If you truly cannot do ` +
-          `your job without writing it, call request_path with a reason — that ends the ` +
-          `run for the developer to fix the program; it is never granted. Do not try ` +
+          `your job without writing it, consult its owner with ask_owner, or call request_path ` +
+          `with a reason and a recommendation — that ends the run for the developer to fix the program; it is never granted. Do not try ` +
           `another path to reach it.`,
       };
     }
@@ -195,19 +195,42 @@ export function createSdkRunner(): AgentRunner {
             async (args) => reply(boundary.whoOwns(args.path)),
           ),
           tool(
+            "ask_owner",
+            "Ask the agent that owns a path outside your region how you should get what you " +
+              "need from it. It answers as the owner, from its goal and what exists in its " +
+              "region, and recommends: use something it already exposes, declare an asks/after " +
+              "edge, or move the behaviour into its goal. Read-only; nothing is granted; " +
+              "limited number of calls; never fails the run.",
+            {
+              path: z.string().describe("A path relative to the project root."),
+              question: z.string().describe("What you need and why, specifically."),
+            },
+            async (args) => reply(await boundary.askOwner(args.path, args.question)),
+          ),
+          tool(
             "request_path",
             "Last resort: you cannot do your job without writing a path outside your regions. " +
               "This is NEVER granted. It stops this run so the developer can fix the program. " +
-              "Try who_owns first and adapt within your own region if you can.",
+              "Use who_owns, then ask_owner if the path is owned, and adapt within your own " +
+              "region if you can. Otherwise state your reason and your recommendation.",
             {
               path: z.string().describe("The path you need to write."),
               reason: z.string().describe("Why you need it, and why your own regions cannot do."),
+              recommendation: z
+                .string()
+                .describe(
+                  "Your recommendation for how the generation program or an agent's goal should " +
+                    "change (e.g. add .asks(owner, ...), widen an agent's .owns, move a " +
+                    "responsibility), informed by who_owns and ask_owner.",
+                ),
             },
             async (args) => {
-              const text = boundary.requestPath(args.path, args.reason);
+              const text = boundary.requestPath(args.path, args.reason, args.recommendation);
               // Stop the session once this reply is out. The failure itself is raised
               // by the orchestrator when we return — not from inside this callback.
-              setTimeout(() => void session.interrupt().catch(() => {}), 0);
+              if (boundary.requested()) {
+                setTimeout(() => void session.interrupt().catch(() => {}), 0);
+              }
               return reply(text);
             },
           ),

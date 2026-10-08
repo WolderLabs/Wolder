@@ -1,5 +1,5 @@
 import type { GraphDiagnostic } from "./serialize.js";
-import type { BoundaryOwner } from "./types.js";
+import type { BoundaryOwner, OwnerAdvice } from "./types.js";
 
 /** A problem found before any generation token is spent. */
 export class GraphError extends Error {
@@ -85,14 +85,24 @@ export class BoundaryRequestError extends Error {
     readonly reason: string,
     readonly regions: readonly string[],
     readonly owner?: BoundaryOwner,
+    readonly recommendation: string = "",
+    readonly advice: readonly OwnerAdvice[] = [],
   ) {
     const own = regions.join(", ");
     const lines: string[] = [];
+    const both: string[] = [];
+    if (recommendation.trim() !== "") {
+      both.push(`  ${nodeId} recommends: ${recommendation.trim()}`);
+    }
+    for (const a of advice) {
+      both.push(`  ${a.owner} advised (asked: ${a.question.trim()}): ${a.answer.trim()}`);
+    }
     if (owner) {
       lines.push(
         `${nodeId} asked to write "${path}", which is outside its writable region (${own}) ` +
           `and owned by ${owner.id}.`,
         `  Reason given: ${reason}`,
+        ...both,
         `  ${owner.id} (owns ${owner.regions.join(", ")}) is responsible for: ${summarise(owner.goal)}`,
         `Boundaries do not widen at runtime — a region has exactly one owner — so the request ` +
           `was not granted and the run was stopped. To fix the program:`,
@@ -107,6 +117,7 @@ export class BoundaryRequestError extends Error {
         `${nodeId} asked to write "${path}", which is outside its writable region (${own}) ` +
           `and no agent owns it.`,
         `  Reason given: ${reason}`,
+        ...both,
         `Boundaries do not widen at runtime, so the request was not granted and the run was ` +
           `stopped. To fix the program:`,
         `  - If ${nodeId} should own it, add it to the agent: .owns("${path}").`,

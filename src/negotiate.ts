@@ -7,6 +7,7 @@ import type {
   NegotiationRequester,
   NegotiationTurn,
   Negotiator,
+  OwnerConsultant,
 } from "./types.js";
 import { NegotiationError } from "./errors.js";
 
@@ -239,3 +240,54 @@ export function parseJson<T>(text: string): T | null {
 }
 
 export type { NegotiationParty, NegotiationRequester };
+
+const OWNER_SYSTEM = `You are an agent that owns part of a codebase, and only you may write inside your region. Another agent has hit the edge of its own boundary and is asking you, as the owner, how it should get what it needs.
+
+Answer as yourself, using your goal, your context and the files that currently exist in your region. You cannot change anything now and nothing is being granted. Recommend one of: "I already expose X, use it" (name the file and symbol), "declare .asks(<you>, \"what it needs\") in the program so we settle a contract", ".after(<you>) if it only needs my finished files", or "that belongs in my goal, so the program should add it to mine". If the asker should simply adapt inside its own region, say so.
+
+Reply with prose only. Be brief and specific.`;
+
+/** Speaks for the owning agent when another agent asks it for a recommendation. */
+export function createOwnerConsultant(chat: ChatFn): OwnerConsultant {
+  return {
+    async consult({ owner, asker, question, existing }) {
+      const files = existing.length
+        ? existing.map((f) => fileBlock(f)).join("\n\n")
+        : "(nothing has been generated in your region yet)";
+      const prompt = [
+        `# You: ${owner.id}`,
+        "",
+        `Writable region: ${owner.regions.join(", ")}`,
+        "",
+        "Your context:",
+        owner.context || "(none)",
+        "",
+        "What you were told to do:",
+        owner.goal,
+        "",
+        "What currently exists in your region:",
+        files,
+        "",
+        `# Asking: ${asker.id}`,
+        "",
+        `Writable region: ${asker.regions.join(", ")}`,
+        "",
+        "What it was told to do:",
+        asker.goal,
+        "",
+        "Its question:",
+        question,
+      ].join("\n");
+      const answer = await chat({
+        system: OWNER_SYSTEM,
+        messages: [{ role: "user", content: prompt }],
+        maxTokens: 1024,
+      });
+      return answer.trim();
+    },
+  };
+}
+
+function fileBlock(file: { path: string; content: string }): string {
+  return `=== FILE: ${file.path} ===\n${file.content}\n=== END FILE ===`;
+}

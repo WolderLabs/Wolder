@@ -34,7 +34,9 @@ moves the graph and project panes back through those runs and through the steps 
 a run, so you can see what each agent saw and wrote.
 
 A failed run shows its full error in a banner under the top bar, including a
-`BoundaryRequestError` when an agent asked for a path outside its regions.
+`BoundaryRequestError` when an agent asked for a path outside its regions (with the
+agent's recommendation and any advice the owner gave). An `ask_owner` exchange appears in
+the node's timeline as a pair of notes.
 
 ## Chat
 

@@ -5,7 +5,7 @@ export { assembleGraph, topologicalOrder } from "./graph.js";
 export { Registry } from "./program.js";
 export { normalizeRegion, regionMatches, regionsMatch, regionsIntersect } from "./region.js";
 export { buildSystemPrompt, buildUserPrompt, buildGateFeedback } from "./prompt.js";
-export { createNegotiator, parseJson } from "./negotiate.js";
+export { createNegotiator, createOwnerConsultant, parseJson } from "./negotiate.js";
 export { createAnthropicChat } from "./chat.js";
 export { createSdkRunner, createPermissionGuard, toRootRelative } from "./runner.js";
 export { runGate, runGates } from "./gates.js";
@@ -77,6 +77,9 @@ export type {
   AgentTransform,
   BoundaryOwner,
   BoundaryRequest,
+  OwnerAdvice,
+  OwnerConsultant,
+  OwnerConsultRequest,
   NegotiationOutcome,
   NegotiationParty,
   NegotiationRequest,

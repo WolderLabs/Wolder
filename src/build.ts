@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
 import type {
   AgentNode,
   Artifact,
@@ -103,6 +103,7 @@ async function executeProgram(
     id: n.id,
     goal: n.goal,
     regions: n.regions,
+    context: partyContext(n),
   }));
 
   function run(id: string): Promise<Artifact> {
@@ -362,6 +363,41 @@ function indexContracts(contracts: readonly Contract[]): Map<string, Contract[]>
   return index;
 }
 
+/** A bounded, read-only snapshot of the files currently inside some regions. */
+function readRegionFiles(
+  root: string,
+  regions: readonly string[],
+): Array<{ path: string; content: string }> {
+  const found: Array<{ path: string; content: string }> = [];
+  const skip = new Set(["node_modules", ".git", ".wolder"]);
+  const walk = (dir: string): void => {
+    if (found.length >= 20) return;
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      if (found.length >= 20) return;
+      const abs = resolve(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!skip.has(entry.name)) walk(abs);
+      } else if (entry.isFile()) {
+        const rel = relative(root, abs).split("\\").join("/");
+        if (!regionsMatch(regions, rel)) continue;
+        try {
+          found.push({ path: rel, content: readFileSync(abs, "utf-8").slice(0, 6000) });
+        } catch {
+          // unreadable: skip
+        }
+      }
+    }
+  };
+  walk(root);
+  return found;
+}
+
 function partyContext(node: AgentNode): string {
   return [...node.layer.contexts, ...node.contexts].join("\n\n");
 }
@@ -428,18 +464,34 @@ async function executeNode(
       regions: node.regions,
       maxTurns: config.maxTurns,
       owners: otherOwners,
+      consultOwner: async (owner, question) => {
+        reporter.nodeEvent(node.id, {
+          kind: "note",
+          text: `asked ${owner.id}: ${question.trim()}`,
+        });
+        const answer = await services.ownerConsultant.consult({
+          owner,
+          asker: { id: node.id, goal: node.goal, regions: node.regions },
+          question,
+          existing: readRegionFiles(root, owner.regions),
+        });
+        reporter.nodeEvent(node.id, { kind: "note", text: `${owner.id} advised: ${answer.trim()}` });
+        return answer;
+      },
       onEvent: (event) => reporter.nodeEvent(node.id, event),
     });
     // A request for a path outside the agent's regions is never granted. It ends the
     // node and the run, like a gate that will not pass — before anything is recorded.
     if (result.boundaryRequest) {
-      const { path, reason } = result.boundaryRequest;
+      const { path, reason, recommendation, advice } = result.boundaryRequest;
       throw new BoundaryRequestError(
         node.id,
         path,
         reason,
         node.regions,
         findOwner(otherOwners, path),
+        recommendation,
+        advice ?? [],
       );
     }
     for (const file of result.files) written.add(file);
