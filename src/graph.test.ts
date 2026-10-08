@@ -73,6 +73,14 @@ describe("boundary pre-flight", () => {
     expect(() => assembleGraph(registry)).toThrow(/overlap/);
   });
 
+  it("explains overlap in recipe terms when one recipe is instantiated twice", () => {
+    const { registry, layer } = setup();
+    const recipe = (region: string) => (l: Layer) => l.agent().owns(region).goal("x");
+    recipe("src/pages/")(layer);
+    recipe("src/pages/")(layer);
+    expect(() => assembleGraph(registry)).toThrow(/recipe/);
+  });
+
   it("allows disjoint regions", () => {
     const { registry, layer } = setup();
     layer.agent().owns("src/services/").goal("services");

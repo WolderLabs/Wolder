@@ -120,7 +120,10 @@ function checkRegionOverlap(
               `them to own that ground and the other to ask for what it needs:\n` +
               `  .asks(owner, "what you need from it")  — negotiates a contract first\n` +
               `  .after(owner)                          — runs after it and takes the owner's files as context\n` +
-              `A broad region like owns("src/") is usually the culprit; narrow it.`,
+              `A broad region like owns("src/") is usually the culprit; narrow it.
+` +
+              `If both agents come from the same recipe — a function that returns an agent — ` +
+              `give each call its own region. A recipe's region is a parameter, not a constant.`,
           );
         }
       }
