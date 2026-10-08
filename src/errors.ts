@@ -17,7 +17,7 @@ export class RegionViolationError extends Error {
       `${nodeId} tried to write "${path}", which is outside its writable region ` +
         `(${regions.join(", ")}).\n` +
         `If it needs something from another agent's region, express that with ` +
-        `.uses() or .requests() instead of widening .canWrite().`,
+        `.after() or .asks() instead of widening .owns().`,
     );
     this.name = "RegionViolationError";
   }

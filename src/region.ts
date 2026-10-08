@@ -1,7 +1,7 @@
 /**
  * Writable regions.
  *
- * `.canWrite(region)` claims a region. Inside it is that agent's to own; outside
+ * `.owns(region)` claims a region. Inside it is that agent's to own; outside
  * is off-limits. Two agents may not claim regions that intersect — checked before
  * the first agent starts, which deferred execution is what makes possible.
  */
@@ -17,15 +17,15 @@
 export function normalizeRegion(region: string): string {
   const cleaned = region.trim().replace(/\\/g, "/").replace(/^\.\//, "");
   if (cleaned === "") {
-    throw new Error("canWrite() needs a path — it was given an empty string");
+    throw new Error("owns() needs a path — it was given an empty string");
   }
   if (cleaned.startsWith("/") || /^[A-Za-z]:/.test(cleaned)) {
     throw new Error(
-      `canWrite("${region}") must be relative to the project root, not an absolute path`,
+      `owns("${region}") must be relative to the project root, not an absolute path`,
     );
   }
   if (cleaned.split("/").includes("..")) {
-    throw new Error(`canWrite("${region}") must not escape the project root with ".."`);
+    throw new Error(`owns("${region}") must not escape the project root with ".."`);
   }
   if (/[*?]/.test(cleaned)) return cleaned;
   if (cleaned.endsWith("/")) return `${cleaned}**`;

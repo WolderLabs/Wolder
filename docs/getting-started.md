@@ -33,29 +33,29 @@ const project = w
     This project is a simple Todo service implemented in TypeScript.
     It includes models, services, and controllers for managing Todo items.
   `)
-  .includeFile("src/models/TodoItem.ts")
+  .include("src/models/TodoItem.ts")
   .gate("npx tsc --noEmit", { name: "typecheck" })
 
 const readme = project
-  .scopedAgent()
-  .canWrite("README.md")
-  .act(`Generate a README.md file for the project.`)
+  .agent()
+  .owns("README.md")
+  .goal(`Generate a README.md file for the project.`)
   .provides("Documentation")
 
 const dependencies = project
-  .scopedAgent()
-  .canWrite("package.json")
-  .act(`
+  .agent()
+  .owns("package.json")
+  .goal(`
     Initialize an NPM project with the necessary dependencies,
     make assumptions about library selection as needed.
   `)
   .provides("NPM dependencies")
 
 const todoService = project
-  .scopedAgent()
-  .canWrite("src/services/")
-  .requests(readme, "Document Todo Service usage")
-  .act(`
+  .agent()
+  .owns("src/services/")
+  .asks(readme, "Document Todo Service usage")
+  .goal(`
     Create a TodoService class that provides CRUD operations for TodoItem objects.
     Use an in-memory Map<string, TodoItem> for storage.
     Generate UUIDs randomly.
@@ -63,15 +63,15 @@ const todoService = project
   .provides("Todo Service")
 
 project
-  .scopedAgent()
-  .canWrite("src/controllers/")
-  .requests(dependencies, "A framework like Express.js for handling HTTP requests")
-  .uses(todoService)
-  .act(`Create a TodoController class that wraps TodoService and provides a simple API.`)
+  .agent()
+  .owns("src/controllers/")
+  .asks(dependencies, "A framework like Express.js for handling HTTP requests")
+  .after(todoService)
+  .goal(`Create a TodoController class that wraps TodoService and provides a simple API.`)
   .provides("Todo API")
 
 // Nothing above has run. The graph is assembled, checked, then executed here.
-await w.build()
+await w.run()
 ```
 
 Write the developer-owned model it references:
@@ -110,7 +110,7 @@ You will see four phases:
 [wolder] 4 generated  ·  0 cached  ·  2 contract(s)  ·  38.2s
 ```
 
-Run it again and nothing happens — every node is cached. Change one `.act()` and only that
+Run it again and nothing happens — every node is cached. Change one `.goal()` and only that
 node and its dependents re-run.
 
 ## What to reach for
@@ -118,10 +118,10 @@ node and its dependents re-run.
 | You want to… | Use |
 |---|---|
 | Say something true of the whole project | `.context()` on a root layer |
-| Give agents a file you maintain yourself | `.includeFile()` |
+| Give agents a file you maintain yourself | `.include()` |
 | Check the generated code compiles | `.gate("npx tsc --noEmit")` |
-| Make one agent read another's output | `.uses(other)` |
-| Make two agents agree on a shape | `.requests(other, ask)` + `.provides()` |
+| Make one agent read another's output | `.after(other)` |
+| Make two agents agree on a shape | `.asks(other, ask)` + `.provides()` |
 | Reuse a half-built agent | Assign it to a variable and derive from it |
 
 ## Next

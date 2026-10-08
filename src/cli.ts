@@ -5,7 +5,7 @@ import { existsSync } from "node:fs"
 import { execSync } from "node:child_process"
 import { check, clean } from "./commands.js"
 import { readManifest } from "./manifest.js"
-import { runAgent } from "./agent.js"
+import { runSkill } from "./skill.js"
 import { runInit } from "./init.js"
 import * as log from "./log.js"
 
@@ -25,7 +25,7 @@ async function main() {
       break
 
     case "agent":
-      runAgent()
+      runSkill()
       break
 
 

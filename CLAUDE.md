@@ -1,6 +1,6 @@
 ## Project overview
 
-Wolder is a code-first agentic software generation framework for TypeScript. Developers write generation programs that declare **agents with boundaries**: a fluent DSL (`layer`, `scopedAgent`, `canWrite`, `act`, `uses`, `requests`, `provides`, `build`) names a writable region an agent owns, says what to generate, and declares how the agents relate. The framework checks the whole graph before spending a token, settles contracts between agents that need to agree on something, runs them in dependency order with independent nodes in parallel, enforces write boundaries at the agent's tool layer, and caches results in a manifest so only stale nodes re-run.
+Wolder is a code-first agentic software generation framework for TypeScript. Developers write generation programs that declare **agents with boundaries**: a fluent DSL (`layer`, `agent`, `owns`, `goal`, `after`, `asks`, `provides`, `run`) names a writable region an agent owns, says what to generate, and declares how the agents relate. The framework checks the whole graph before spending a token, settles contracts between agents that need to agree on something, runs them in dependency order with independent nodes in parallel, enforces write boundaries at the agent's tool layer, and caches results in a manifest so only stale nodes re-run.
 
 This is **v2**. The v1 DSL (`scope`/`act`/`expect*`/`build` per file, AST expectations, typed artifact members, the ts-plugin) was removed wholesale, not deprecated alongside. There is one DSL. `PLAN.md` records the design and the reasoning; `samples/todo-service/wolder.program.ts` is the reference program.
 
@@ -35,9 +35,9 @@ This is **v2**. The v1 DSL (`scope`/`act`/`expect*`/`build` per file, AST expect
 These are load-bearing. Changing one changes the framework.
 
 - **Layers and agents are immutable values.** Every builder method returns a new value; the receiver never changes. Derivation is monotonic — context accumulates and nothing can remove it.
-- **Declaring is synchronous.** There is no `await` on a `scopedAgent`, and no `.build()` on a node. An awaited declaration could only resolve to a placeholder.
-- **A region has exactly one owner.** Overlap is a pre-flight error. Cross-region needs are edges (`uses`, `requests`), never a wider `canWrite`.
-- **`requests` is a content edge, not an ordering one.** Only `uses` orders execution.
+- **Declaring is synchronous.** There is no `await` on an `agent`, and no `.run()` on a node. An awaited declaration could only resolve to a placeholder.
+- **A region has exactly one owner.** Overlap is a pre-flight error. Cross-region needs are edges (`after`, `asks`), never a wider `owns`.
+- **`asks` is a content edge, not an ordering one.** Only `after` orders execution.
 - **No expectation API.** Correctness comes from the agent's own loop plus layer gates. Do not reintroduce expectations to make gates configurable.
 - **Boundaries are enforced at the tool layer**, not requested in the prompt. Writes are fenced to the agent's regions, reads to the project root. Agents get no shell and no network — gates are run by wolder. `allowedTools` must stay empty: anything listed there is auto-approved and never reaches `canUseTool`, which silently removes the fence.
 
@@ -72,7 +72,7 @@ There is no build step during development — everything runs via `tsx`. `npm ru
 - Generic type parameters use descriptive names: `TProvides`, not `T`
 - Keep files focused — one primary export per module
 - No unnecessary abstractions or premature generalization
-- `any` is acceptable in generic constraint positions (e.g. `ScopedAgent<any>`) but avoid elsewhere
+- `any` is acceptable in generic constraint positions (e.g. `Agent<any>`) but avoid elsewhere
 - **Error messages teach.** A pre-flight error names the agents involved and points at the DSL feature that expresses what the developer meant. Match that standard.
 
 ## Testing instructions

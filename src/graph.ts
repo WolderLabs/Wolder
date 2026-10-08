@@ -11,7 +11,7 @@ export interface Graph {
   readonly byId: ReadonlyMap<string, AgentNode>;
   /** Spec id → node id, for reading artifacts back off handles. */
   readonly specToNode: ReadonlyMap<string, string>;
-  /** Node ids in dependency order on `uses` edges alone. */
+  /** Node ids in dependency order on `after` edges alone. */
   readonly order: readonly string[];
 }
 
@@ -27,7 +27,7 @@ export function assembleGraph(registry: Registry): Graph {
   if (specs.length === 0) {
     throw new GraphError(
       "This program declares no agents to run.\n" +
-        "An agent becomes a node once it has an .act() instruction and nothing is derived from it.",
+        "An agent becomes a node once it has a .goal() and nothing is derived from it.",
     );
   }
 
@@ -35,7 +35,7 @@ export function assembleGraph(registry: Registry): Graph {
   for (const spec of specs) {
     if (spec.regions.length === 0) {
       throw new GraphError(
-        `${describe(spec)} has an .act() but no .canWrite() region, so there is nowhere for it ` +
+        `${describe(spec)} has a .goal() but owns no region, so there is nowhere for it ` +
           `to put its output. Give it a region it owns exclusively.`,
       );
     }
@@ -49,11 +49,11 @@ export function assembleGraph(registry: Registry): Graph {
   const nodes: AgentNode[] = [];
   for (const spec of specs) {
     const id = specToNode.get(spec.id)!;
-    const uses = spec.uses.map((targetSpecId) =>
-      resolveEdge(registry, specToNode, targetSpecId, spec, "uses"),
+    const after = spec.after.map((targetSpecId) =>
+      resolveEdge(registry, specToNode, targetSpecId, spec, "after"),
     );
-    const requests = spec.requests.map((edge) => ({
-      targetId: resolveEdge(registry, specToNode, edge.targetId, spec, "requests"),
+    const asks = spec.asks.map((edge) => ({
+      targetId: resolveEdge(registry, specToNode, edge.targetId, spec, "asks"),
       ask: edge.ask,
     }));
 
@@ -62,10 +62,10 @@ export function assembleGraph(registry: Registry): Graph {
       label: spec.provides ?? id,
       layer: spec.layer,
       regions: spec.regions,
-      instruction: spec.instruction!,
+      goal: spec.goal!,
       contexts: spec.contexts,
-      uses,
-      requests,
+      after,
+      asks,
       provides: spec.provides,
       chainHash: chainHash(spec, specToNode),
     };
@@ -73,14 +73,14 @@ export function assembleGraph(registry: Registry): Graph {
     nodes.push(node);
   }
 
-  // `.requests()` is compile-time constrained to providers, but a JS program can
+  // `.asks()` is compile-time constrained to providers, but a JS program can
   // still get here, and the check is cheap.
   for (const node of nodes) {
-    for (const edge of node.requests) {
+    for (const edge of node.asks) {
       const target = byId.get(edge.targetId)!;
       if (target.provides === undefined) {
         throw new GraphError(
-          `${node.id} .requests() ${target.id}, which does not provide anything.\n` +
+          `${node.id} .asks() ${target.id}, which does not provide anything.\n` +
             `Add .provides("<label>") to it — you cannot ask an agent for a contract it ` +
             `never offered to hold up.`,
         );
@@ -118,9 +118,9 @@ function checkRegionOverlap(
               `which overlap.\n` +
               `Each agent owns its region outright. What you probably want is for one of ` +
               `them to own that ground and the other to ask for what it needs:\n` +
-              `  .requests(owner, "what you need from it")  — negotiates a contract first\n` +
-              `  .uses(owner)                                — takes the owner's files as context\n` +
-              `A broad region like canWrite("src/") is usually the culprit; narrow it.`,
+              `  .asks(owner, "what you need from it")  — negotiates a contract first\n` +
+              `  .after(owner)                          — runs after it and takes the owner's files as context\n` +
+              `A broad region like owns("src/") is usually the culprit; narrow it.`,
           );
         }
       }
@@ -142,14 +142,14 @@ function resolveEdge(
   const name = target ? describe(target) : `agent ${targetSpecId}`;
   if (target && registry.wasDerivedFrom(target.id)) {
     throw new GraphError(
-      `${describe(from)} .${method}() an agent that was extended afterwards, so the value it ` +
+      `${describe(from)} uses .${method}() on an agent that was extended afterwards, so the value it ` +
         `points at is a template rather than a node.\n` +
         `Agents are immutable: every builder call returns a new value. Pass the value at the ` +
         `end of ${name}'s chain — the one you assigned to a variable — not an intermediate one.`,
     );
   }
   throw new GraphError(
-    `${describe(from)} .${method}() ${name}, which never runs because it has no .act() instruction.`,
+    `${describe(from)} uses .${method}() on ${name}, which never runs because it has no .goal().`,
   );
 }
 
@@ -173,11 +173,11 @@ function chainHash(spec: AgentSpec, specToNode: ReadonlyMap<string, string>): st
 }
 
 /**
- * Order on `uses` edges only. Immutability means an edge can only point at a value
+ * Order on `after` edges only. Immutability means an edge can only point at a value
  * that already existed, so a cycle is very hard to express — but the check is cheap
  * and a self-reference or a hand-built graph would otherwise hang.
  *
- * A `requests` edge carries content, not sequence —
+ * An `asks` edge carries content, not sequence —
  * the contract phase is what removes the need to order it, and the content flows
  * both ways, so neither endpoint has to run first.
  */
@@ -193,15 +193,15 @@ export function topologicalOrder(nodes: readonly AgentNode[]): string[] {
     if (visiting.has(id)) {
       const cycle = [...onStack.slice(onStack.indexOf(id)), id];
       throw new GraphError(
-        `Dependency cycle in .uses(): ${cycle.join(" -> ")}\n` +
-          `A .uses() edge means "run that first, then give me its files". If these agents ` +
-          `instead need to agree on something, use .requests() — a content edge that does ` +
+        `Dependency cycle among .after() edges: ${cycle.join(" -> ")}\n` +
+          `A .after() edge means "run that first, then give me its files". If these agents ` +
+          `instead need to agree on something, use .asks() — a content edge that does ` +
           `not imply an order.`,
       );
     }
     visiting.add(id);
     onStack.push(id);
-    for (const dep of byId.get(id)!.uses) visit(dep);
+    for (const dep of byId.get(id)!.after) visit(dep);
     onStack.pop();
     visiting.delete(id);
     done.add(id);

@@ -17,7 +17,7 @@ const project = w
     else in the room. Presence, message history and credentials all survive a
     server restart.
   `)
-  .includeFile("chat-app-requirements.md")
+  .include("chat-app-requirements.md")
   .gate("npx tsc --noEmit", { name: "typecheck" })
 
 const backend = project.context(`
@@ -34,9 +34,9 @@ const frontend = project.context(`
 // The one agent allowed to touch package.json. Everyone who needs a library
 // negotiates with it rather than reaching into the file.
 const dependencies = project
-  .scopedAgent()
-  .canWrite("package.json")
-  .act(`
+  .agent()
+  .owns("package.json")
+  .goal(`
     Initialise an NPM project for this app. Make reasonable library choices for an
     HTTP server, WebSockets, SQLite access, password hashing, React, and vitest.
     Pin real, current versions.
@@ -44,19 +44,19 @@ const dependencies = project
   .provides("NPM dependencies")
 
 const readme = project
-  .scopedAgent()
-  .canWrite("README.md")
-  .act(`
+  .agent()
+  .owns("README.md")
+  .goal(`
     Write the README: what the app is, how to install and run it, and how the
     pieces fit together.
   `)
   .provides("Documentation")
 
 const auth = backend
-  .scopedAgent()
-  .canWrite("src/server/auth/")
-  .requests(dependencies, "An HTTP framework, a session mechanism, and a password hashing library")
-  .act(`
+  .agent()
+  .owns("src/server/auth/")
+  .asks(dependencies, "An HTTP framework, a session mechanism, and a password hashing library")
+  .goal(`
     Sign-up, log-in, log-out and session verification. Reject duplicate emails and
     bad credentials with clear messages. Logging out invalidates the session
     immediately and it can never be reused. Export middleware that protects a route.
@@ -65,10 +65,10 @@ const auth = backend
   .provides("Auth")
 
 const rooms = backend
-  .scopedAgent()
-  .canWrite("src/server/rooms/")
-  .uses(auth)
-  .act(`
+  .agent()
+  .owns("src/server/rooms/")
+  .after(auth)
+  .goal(`
     Named room creation, browsing, joining and leaving, plus presence. Broadcast
     join and leave events to that room only. Keep an accurate active-user list
     across many joins and leaves. Handle a duplicate room name gracefully.
@@ -76,12 +76,12 @@ const rooms = backend
   .provides("Rooms and presence")
 
 const messages = backend
-  .scopedAgent()
-  .canWrite("src/server/messages/")
-  .uses(auth)
-  .uses(rooms)
-  .requests(readme, "Document how messages are persisted and replayed to a joining user")
-  .act(`
+  .agent()
+  .owns("src/server/messages/")
+  .after(auth)
+  .after(rooms)
+  .asks(readme, "Document how messages are persisted and replayed to a joining user")
+  .goal(`
     Sending, persisting and replaying messages. A message reaches every other user
     in the same room and nobody outside it. Blank messages are rejected. A user
     joining mid-conversation gets recent history in order. Nothing is lost on a
@@ -90,25 +90,25 @@ const messages = backend
   .provides("Messaging")
 
 backend
-  .scopedAgent()
-  .canWrite("src/server/index.ts")
-  .uses(auth)
-  .uses(rooms)
-  .uses(messages)
-  .act(`
+  .agent()
+  .owns("src/server/index.ts")
+  .after(auth)
+  .after(rooms)
+  .after(messages)
+  .goal(`
     The server entry point: wire auth, rooms and messaging together behind one
     HTTP and WebSocket server, and start it.
   `)
   .provides("Server")
 
 frontend
-  .scopedAgent()
-  .canWrite("src/client/")
-  .uses(auth)
-  .uses(rooms)
-  .uses(messages)
-  .requests(dependencies, "React and a build tool that can serve the client")
-  .act(`
+  .agent()
+  .owns("src/client/")
+  .after(auth)
+  .after(rooms)
+  .after(messages)
+  .asks(dependencies, "React and a build tool that can serve the client")
+  .goal(`
     The browser app: sign-up and log-in screens, a room browser, and a room view
     with the message list, the active-user list and a composer. Sessions survive a
     page refresh. A brief disconnection reconnects automatically and rejoins the
@@ -116,4 +116,4 @@ frontend
   `)
   .provides("Web client")
 
-await w.build()
+await w.run()

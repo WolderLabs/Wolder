@@ -6,7 +6,7 @@ Three programs, in increasing order of how much of v2 they exercise.
 its config and the API key outside it. That separation is not incidental: the program has
 an agent that owns `package.json`, so if the program's own root were the generated root,
 that agent would overwrite the manifest used to run the sample. Any program with a
-`canWrite("package.json")` wants this layout.
+`owns("package.json")` wants this layout.
 
 Each sample needs an API key:
 
@@ -25,13 +25,13 @@ npm run sample:chat      # chat-app-agent-based
 ## `todo-service`
 
 The reference program, and the one v2 was designed against. Four agents on disjoint
-regions, two `requests` edges and one `uses` edge:
+regions, two `asks` edges and one `after` edge:
 
 - `README.md` provides Documentation
 - `package.json` + `tsconfig.json` provide the project setup — one agent, because the two
   files have to agree about the module system and the target
-- `src/services/` provides the Todo Service, and **requests** README coverage
-- `src/controllers/` provides the Todo API, **uses** the service, and **requests** a
+- `src/services/` provides the Todo Service, and **asks** README coverage
+- `src/controllers/` provides the Todo API, **after** the service, and **asks** a
   framework from the package agent
 
 Everything above is relative to `project/`. `project/src/models/TodoItem.ts` is the only

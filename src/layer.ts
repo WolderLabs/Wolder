@@ -3,12 +3,12 @@ import type {
   Layer,
   LayerState,
   LayerTransform,
-  ScopedAgent,
+  Agent,
 } from "./types.js";
 import { appendUnique, dedent } from "./util.js";
 import { hashJson } from "./util.js";
 import type { Registry } from "./program.js";
-import { ScopedAgentImpl } from "./scoped-agent.js";
+import { AgentImpl } from "./agent.js";
 
 export const EMPTY_LAYER_STATE: LayerState = {
   contexts: [],
@@ -34,7 +34,7 @@ export class LayerImpl implements Layer {
     });
   }
 
-  includeFile(path: string): Layer {
+  include(path: string): Layer {
     return new LayerImpl(this.registry, {
       ...this.state,
       includedFiles: appendUnique(this.state.includedFiles, path),
@@ -56,8 +56,8 @@ export class LayerImpl implements Layer {
     return fn(this);
   }
 
-  scopedAgent(): ScopedAgent {
-    return new ScopedAgentImpl(this.registry, this.registry.create(this.state));
+  agent(): Agent {
+    return new AgentImpl(this.registry, this.registry.create(this.state));
   }
 }
 

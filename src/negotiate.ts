@@ -20,7 +20,7 @@ export type ChatFn = (params: {
 }) => Promise<string>;
 
 /**
- * `.requests()` does not staple a sentence onto the target's prompt. The two
+ * `.asks()` does not staple a sentence onto the target's prompt. The two
  * sides talk — the requesters state what they need, the provider states what it
  * can offer — until they settle on a contract, which is then injected into
  * everyone's instructions so all of them generate against the same agreed shape.
@@ -75,7 +75,7 @@ export function createNegotiator(chat: ChatFn): Negotiator {
           participants,
           transcript,
           `no agreement after ${request.maxRounds} round(s). Generating against a ` +
-            `non-agreement is worse than stopping, so the build stops here. Loosen the ` +
+            `non-agreement is worse than stopping, so the run stops here. Loosen the ` +
             `ask, or raise negotiationRounds in wolder.config.ts.`,
         );
       }

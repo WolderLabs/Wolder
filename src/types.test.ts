@@ -4,7 +4,7 @@ import type {
   AgentProvides,
   Artifact,
   Layer,
-  ScopedAgent,
+  Agent,
 } from "./types.js";
 import { LayerImpl } from "./layer.js";
 import { Registry } from "./program.js";
@@ -16,7 +16,7 @@ const layer: Layer = new LayerImpl(new Registry());
 describe("Layer types", () => {
   it("returns a Layer from every method, so composition never narrows", () => {
     expectTypeOf(layer.context("x")).toEqualTypeOf<Layer>();
-    expectTypeOf(layer.includeFile("x.ts")).toEqualTypeOf<Layer>();
+    expectTypeOf(layer.include("x.ts")).toEqualTypeOf<Layer>();
     expectTypeOf(layer.gate("npx tsc --noEmit")).toEqualTypeOf<Layer>();
     expectTypeOf(layer.apply((l) => l.context("x"))).toEqualTypeOf<Layer>();
   });
@@ -27,58 +27,58 @@ describe("Layer types", () => {
   });
 });
 
-describe("ScopedAgent types", () => {
+describe("Agent types", () => {
   it("starts out providing nothing", () => {
-    expectTypeOf(layer.scopedAgent()).toEqualTypeOf<
-      ScopedAgent<AgentDoesNotProvideAnything>
+    expectTypeOf(layer.agent()).toEqualTypeOf<
+      Agent<AgentDoesNotProvideAnything>
     >();
   });
 
   it("is synchronous — a declaration is not a promise", () => {
-    expectTypeOf(layer.scopedAgent().canWrite("a.ts").act("go")).not.toMatchTypeOf<
+    expectTypeOf(layer.agent().owns("a.ts").goal("go")).not.toMatchTypeOf<
       Promise<unknown>
     >();
   });
 
   it("carries the provides state forward through later builder calls", () => {
-    const provider = layer.scopedAgent().act("go").provides("Docs");
-    expectTypeOf(provider).toEqualTypeOf<ScopedAgent<AgentProvides>>();
-    expectTypeOf(provider.canWrite("README.md")).toEqualTypeOf<ScopedAgent<AgentProvides>>();
-    expectTypeOf(provider.context("more")).toEqualTypeOf<ScopedAgent<AgentProvides>>();
+    const provider = layer.agent().goal("go").provides("Docs");
+    expectTypeOf(provider).toEqualTypeOf<Agent<AgentProvides>>();
+    expectTypeOf(provider.owns("README.md")).toEqualTypeOf<Agent<AgentProvides>>();
+    expectTypeOf(provider.context("more")).toEqualTypeOf<Agent<AgentProvides>>();
   });
 
   it("gives back a plain runtime Artifact — v2 has no typed members", () => {
-    expectTypeOf<ScopedAgent["artifact"]>().toEqualTypeOf<Artifact>();
+    expectTypeOf<Agent["artifact"]>().toEqualTypeOf<Artifact>();
     expectTypeOf<Artifact>().toHaveProperty("files");
     expectTypeOf<Artifact>().not.toHaveProperty("members");
   });
 });
 
-describe(".requests() requires .provides()", () => {
+describe(".asks() requires .provides()", () => {
   it("accepts a provider", () => {
-    const provider = layer.scopedAgent().canWrite("README.md").act("readme").provides("Docs");
-    expectTypeOf(layer.scopedAgent().requests(provider, "cover me")).toEqualTypeOf<
-      ScopedAgent<AgentDoesNotProvideAnything>
+    const provider = layer.agent().owns("README.md").goal("readme").provides("Docs");
+    expectTypeOf(layer.agent().asks(provider, "cover me")).toEqualTypeOf<
+      Agent<AgentDoesNotProvideAnything>
     >();
   });
 
   it("is a compile error against an agent that provides nothing", () => {
-    const notAProvider = layer.scopedAgent().canWrite("README.md").act("readme");
+    const notAProvider = layer.agent().owns("README.md").goal("readme");
     // @ts-expect-error — "agent does not provide anything — call .provides(label) on it first"
-    layer.scopedAgent().requests(notAProvider, "cover me");
+    layer.agent().asks(notAProvider, "cover me");
   });
 
   it("is a compile error against a value taken before .provides()", () => {
-    const beforeProvides = layer.scopedAgent().canWrite("README.md").act("readme");
+    const beforeProvides = layer.agent().owns("README.md").goal("readme");
     beforeProvides.provides("Docs");
     // @ts-expect-error — immutability means the earlier value still provides nothing
-    layer.scopedAgent().requests(beforeProvides, "cover me");
+    layer.agent().asks(beforeProvides, "cover me");
   });
 
-  it("accepts any agent in .uses(), provider or not", () => {
-    const plain = layer.scopedAgent().canWrite("a.ts").act("a");
-    expectTypeOf(layer.scopedAgent().uses(plain)).toEqualTypeOf<
-      ScopedAgent<AgentDoesNotProvideAnything>
+  it("accepts any agent in .after(), provider or not", () => {
+    const plain = layer.agent().owns("a.ts").goal("a");
+    expectTypeOf(layer.agent().after(plain)).toEqualTypeOf<
+      Agent<AgentDoesNotProvideAnything>
     >();
   });
 });

@@ -19,9 +19,9 @@ const project = w
 // The counter owns src/ outright, and asks the test agent to cover it. The two
 // settle what the public surface is before either writes a line.
 const counter = project
-  .scopedAgent()
-  .canWrite("src/Counter.ts")
-  .act(`
+  .agent()
+  .owns("src/Counter.ts")
+  .goal(`
     Create a Counter class that manages an integer counter value, starting at 0.
     Provide increment(), decrement() and getCount(): number.
     Export it as a named export. No external dependencies.
@@ -29,12 +29,12 @@ const counter = project
   .provides("Counter")
 
 project
-  .scopedAgent()
-  .canWrite("src/Counter.test.ts")
-  .requests(counter, "The exact public surface of Counter, so the tests compile against it")
-  .act(`
+  .agent()
+  .owns("src/Counter.test.ts")
+  .asks(counter, "The exact public surface of Counter, so the tests compile against it")
+  .goal(`
     Write a vitest suite covering the counter's behaviour: its initial value,
     incrementing, decrementing, and the two composed.
   `)
 
-await w.build()
+await w.run()

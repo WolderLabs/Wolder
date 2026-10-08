@@ -19,20 +19,20 @@ npx wolder run
 npx wolder run programs/backend.ts
 ```
 
-Output follows the build's phases — graph checks, contract settlement, generation — and
+Output follows the run's phases — graph checks, contract settlement, generation — and
 ends with a summary:
 
 ```
 [wolder] 3 generated  ·  1 cached  ·  2 contract(s)  ·  41.7s
 ```
 
-The process exits non-zero if the build throws. A `GraphError` means the program is wrong
+The process exits non-zero if the run throws. A `GraphError` means the program is wrong
 and nothing ran; a `GateError` or `NegotiationError` means work was attempted.
 
 To regenerate everything, pass `force` in the program:
 
 ```typescript
-await w.build({ force: true })
+await w.run({ force: true })
 ```
 
 ## `wolder check`

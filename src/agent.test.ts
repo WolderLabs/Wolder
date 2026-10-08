@@ -1,23 +1,23 @@
 import { describe, it, expect } from "vitest";
 import { LayerImpl } from "./layer.js";
 import { Registry } from "./program.js";
-import { ScopedAgentImpl } from "./scoped-agent.js";
-import type { ScopedAgent } from "./types.js";
+import { AgentImpl } from "./agent.js";
+import type { Agent } from "./types.js";
 
 function setup() {
   const registry = new Registry();
   return { registry, layer: new LayerImpl(registry) };
 }
 
-function specOf(agent: ScopedAgent<any>) {
-  return (agent as ScopedAgentImpl<any>).spec;
+function specOf(agent: Agent<any>) {
+  return (agent as AgentImpl<any>).spec;
 }
 
-describe("ScopedAgent immutability", () => {
+describe("Agent immutability", () => {
   it("returns a new value from every builder call", () => {
     const { layer } = setup();
-    const base = layer.scopedAgent();
-    const scoped = base.canWrite("src/services/");
+    const base = layer.agent();
+    const scoped = base.owns("src/services/");
 
     expect(scoped).not.toBe(base);
     expect(specOf(base).regions).toEqual([]);
@@ -26,13 +26,13 @@ describe("ScopedAgent immutability", () => {
 
   it("makes a partially-applied agent a reusable template", () => {
     const { registry, layer } = setup();
-    const inServices = layer.scopedAgent().canWrite("src/services/a.ts");
+    const inServices = layer.agent().owns("src/services/a.ts");
 
-    const one = inServices.act("one");
-    const two = inServices.canWrite("src/services/b.ts").act("two");
+    const one = inServices.goal("one");
+    const two = inServices.owns("src/services/b.ts").goal("two");
 
-    expect(specOf(one).instruction).toBe("one");
-    expect(specOf(two).instruction).toBe("two");
+    expect(specOf(one).goal).toBe("one");
+    expect(specOf(two).goal).toBe("two");
     // The template was derived from twice, so it is not a node — both leaves are.
     expect(registry.wasDerivedFrom(specOf(inServices).id)).toBe(true);
     expect(registry.nodes().map((s) => s.id).sort()).toEqual(
@@ -42,57 +42,57 @@ describe("ScopedAgent immutability", () => {
 
   it("inherits the whole accumulated layer state", () => {
     const { layer } = setup();
-    const agent = layer.context("shared").includeFile("x.ts").scopedAgent().act("go");
+    const agent = layer.context("shared").include("x.ts").agent().goal("go");
     expect(specOf(agent).layer.contexts).toEqual(["shared"]);
     expect(specOf(agent).layer.includedFiles).toEqual(["x.ts"]);
   });
 });
 
-describe("ScopedAgent declarations", () => {
+describe("Agent declarations", () => {
   it("normalises regions and keeps them a set", () => {
     const { layer } = setup();
     const agent = layer
-      .scopedAgent()
-      .canWrite("src/services/")
-      .canWrite("src/services")
-      .canWrite("README.md");
+      .agent()
+      .owns("src/services/")
+      .owns("src/services")
+      .owns("README.md");
     expect(specOf(agent).regions).toEqual(["src/services/**", "README.md"]);
   });
 
-  it("dedents act and context prose", () => {
+  it("dedents goal and context prose", () => {
     const { layer } = setup();
-    const agent = layer.scopedAgent().act(`
+    const agent = layer.agent().goal(`
       Do the thing.
         Carefully.
     `);
-    expect(specOf(agent).instruction).toBe("Do the thing.\n  Carefully.");
+    expect(specOf(agent).goal).toBe("Do the thing.\n  Carefully.");
   });
 
-  it("records uses and requests against the value it was handed", () => {
+  it("records after and asks against the value it was handed", () => {
     const { layer } = setup();
-    const readme = layer.scopedAgent().canWrite("README.md").act("readme").provides("Docs");
+    const readme = layer.agent().owns("README.md").goal("readme").provides("Docs");
     const service = layer
-      .scopedAgent()
-      .canWrite("src/services/")
-      .uses(readme)
-      .requests(readme, "Document usage")
-      .act("service");
+      .agent()
+      .owns("src/services/")
+      .after(readme)
+      .asks(readme, "Document usage")
+      .goal("service");
 
-    expect(specOf(service).uses).toEqual([specOf(readme).id]);
-    expect(specOf(service).requests).toEqual([
+    expect(specOf(service).after).toEqual([specOf(readme).id]);
+    expect(specOf(service).asks).toEqual([
       { targetId: specOf(readme).id, ask: "Document usage" },
     ]);
   });
 
   it("rejects a non-agent passed to an edge", () => {
     const { layer } = setup();
-    const agent = layer.scopedAgent();
-    expect(() => agent.uses(null as never)).toThrow(/expects a scoped agent/);
+    const agent = layer.agent();
+    expect(() => agent.after(null as never)).toThrow(/expects an agent/);
   });
 
   it("is not thenable — declaring is synchronous", () => {
     const { layer } = setup();
-    const agent = layer.scopedAgent().canWrite("README.md").act("go");
+    const agent = layer.agent().owns("README.md").goal("go");
     expect((agent as unknown as { then?: unknown }).then).toBeUndefined();
   });
 });
@@ -100,28 +100,28 @@ describe("ScopedAgent declarations", () => {
 describe("reading .artifact", () => {
   it("throws with a real explanation before the build", () => {
     const { layer } = setup();
-    const agent = layer.scopedAgent().canWrite("README.md").act("go").provides("Docs");
-    expect(() => agent.artifact).toThrow(/nothing runs until "await w\.build\(\)"/);
+    const agent = layer.agent().owns("README.md").goal("go").provides("Docs");
+    expect(() => agent.artifact).toThrow(/nothing runs until "await w\.run\(\)"/);
   });
 
   it("explains that a template never ran", () => {
     const { registry, layer } = setup();
-    const template = layer.scopedAgent().canWrite("README.md").act("go");
+    const template = layer.agent().owns("README.md").goal("go");
     template.provides("Docs");
     registry.markBuilt();
     expect(() => template.artifact).toThrow(/is a template, not a node/);
   });
 
-  it("explains that an agent with no .act() never ran", () => {
+  it("explains that an agent with no .goal() never ran", () => {
     const { registry, layer } = setup();
-    const agent = layer.scopedAgent().canWrite("README.md");
+    const agent = layer.agent().owns("README.md");
     registry.markBuilt();
-    expect(() => agent.artifact).toThrow(/no \.act\(\) instruction/);
+    expect(() => agent.artifact).toThrow(/no \.goal\(\)/);
   });
 
   it("returns the artifact once the build has set it", () => {
     const { registry, layer } = setup();
-    const agent = layer.scopedAgent().canWrite("README.md").act("go");
+    const agent = layer.agent().owns("README.md").goal("go");
     registry.setArtifact(specOf(agent).id, {
       kind: "artifact",
       id: "README.md",

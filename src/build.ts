@@ -3,8 +3,8 @@ import { dirname, resolve } from "node:path";
 import type {
   AgentNode,
   Artifact,
-  BuildOptions,
-  BuildResult,
+  RunOptions,
+  RunResult,
   Contract,
   ContractFile,
   Reporter,
@@ -30,7 +30,7 @@ import {
 } from "./manifest.js";
 import { createConsoleReporter } from "./reporter.js";
 
-export interface BuildInputs {
+export interface RunInputs {
   readonly root: string;
   readonly model: string;
   readonly config: Required<WolderConfig>;
@@ -45,10 +45,10 @@ export interface BuildInputs {
  * is assembled and checked, contracts settle, then nodes run in dependency order
  * with independent ones in parallel.
  */
-export async function runBuild(
-  inputs: BuildInputs,
-  options: BuildOptions = {},
-): Promise<BuildResult> {
+export async function runProgram(
+  inputs: RunInputs,
+  options: RunOptions = {},
+): Promise<RunResult> {
   const started = Date.now();
   const reporter = options.reporter ?? createConsoleReporter();
   const { root, config, registry, services } = inputs;
@@ -76,9 +76,9 @@ export async function runBuild(
 
     const promise = (async () => {
       const node = graph.byId.get(id)!;
-      // Dependencies first. `requests` is a content edge and deliberately does not
+      // Dependencies first. `asks` is a content edge and deliberately does not
       // appear here — the contract phase already removed the need to order it.
-      await Promise.all(node.uses.map(run));
+      await Promise.all(node.after.map(run));
       const artifact = await executeNode(
         node,
         inputs,
@@ -117,7 +117,7 @@ export async function runBuild(
   }
   registry.markBuilt();
 
-  const result: BuildResult = {
+  const result: RunResult = {
     artifacts: graph.nodes.map((n) => artifacts.get(n.id)!),
     contracts,
     skipped,
@@ -139,14 +139,14 @@ export async function runBuild(
  */
 async function settleContracts(
   graph: Graph,
-  inputs: BuildInputs,
+  inputs: RunInputs,
   manifest: ReturnType<typeof readManifest>,
   reporter: Reporter,
-  options: BuildOptions,
+  options: RunOptions,
 ): Promise<Contract[]> {
   const grouped = new Map<string, Array<{ node: AgentNode; ask: string }>>();
   for (const node of graph.nodes) {
-    for (const edge of node.requests) {
+    for (const edge of node.asks) {
       const list = grouped.get(edge.targetId) ?? [];
       list.push({ node, ask: edge.ask });
       grouped.set(edge.targetId, list);
@@ -197,10 +197,10 @@ async function settleOne(
   providerId: string,
   requests: Array<{ node: AgentNode; ask: string }>,
   graph: Graph,
-  inputs: BuildInputs,
+  inputs: RunInputs,
   manifest: ReturnType<typeof readManifest>,
   reporter: Reporter,
-  options: BuildOptions,
+  options: RunOptions,
 ): Promise<SettledContract> {
   const provider = graph.byId.get(providerId)!;
   const id = `contract:${providerId}`;
@@ -231,14 +231,14 @@ async function settleOne(
       id: provider.id,
       label: provider.provides ?? provider.id,
       context: partyContext(provider),
-      instruction: provider.instruction,
+      instruction: provider.goal,
       regions: provider.regions,
     },
     requesters: requests.map((r) => ({
       id: r.node.id,
       label: r.node.provides ?? r.node.id,
       context: partyContext(r.node),
-      instruction: r.node.instruction,
+      instruction: r.node.goal,
       regions: r.node.regions,
       ask: r.ask,
     })),
@@ -320,16 +320,16 @@ function partyContext(node: AgentNode): string {
 
 async function executeNode(
   node: AgentNode,
-  inputs: BuildInputs,
+  inputs: RunInputs,
   manifest: ReturnType<typeof readManifest>,
   contracts: readonly Contract[],
   artifacts: ReadonlyMap<string, Artifact>,
   reporter: Reporter,
-  options: BuildOptions,
+  options: RunOptions,
   skipped: string[],
 ): Promise<Artifact> {
   const { root, config, model, services } = inputs;
-  const upstreamFiles = node.uses.flatMap((id) => artifacts.get(id)?.files ?? []);
+  const upstreamFiles = node.after.flatMap((id) => artifacts.get(id)?.files ?? []);
   const inputHashes = computeInputHashes(node, inputs, contracts, artifacts);
 
   if (
@@ -400,7 +400,7 @@ async function executeNode(
     inputHashes,
     outputHash,
     files,
-    dependsOn: [...node.uses],
+    dependsOn: [...node.after],
   });
 
   reporter.nodeDone(node.id, files);
@@ -410,11 +410,11 @@ async function executeNode(
 /**
  * A node is keyed on its entire builder chain and layer (both folded into
  * `chainHash`), the contents of the files that layer includes, the output of
- * everything it `uses`, and every contract it is party to.
+ * everything it runs `after`, and every contract it is party to.
  */
 function computeInputHashes(
   node: AgentNode,
-  inputs: BuildInputs,
+  inputs: RunInputs,
   contracts: readonly Contract[],
   artifacts: ReadonlyMap<string, Artifact>,
 ): Record<string, string> {
@@ -429,8 +429,8 @@ function computeInputHashes(
       ? sha256(readFileSync(abs, "utf-8"))
       : "<missing>";
   }
-  for (const id of node.uses) {
-    hashes[`uses:${id}`] = artifacts.get(id)?.outputHash ?? "<unbuilt>";
+  for (const id of node.after) {
+    hashes[`after:${id}`] = artifacts.get(id)?.outputHash ?? "<unbuilt>";
   }
   for (const contract of contracts) {
     hashes[contract.id] = contract.hash;
@@ -440,5 +440,5 @@ function computeInputHashes(
 }
 
 function countEdges(graph: Graph): number {
-  return graph.nodes.reduce((sum, n) => sum + n.uses.length + n.requests.length, 0);
+  return graph.nodes.reduce((sum, n) => sum + n.after.length + n.asks.length, 0);
 }

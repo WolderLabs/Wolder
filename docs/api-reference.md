@@ -19,7 +19,7 @@ const w = wolder({
 | `config` | `WolderConfig` | See [Configuration](./configuration.md). |
 | `services` | `Partial<WolderServices>` | Replaces the machinery that talks to models. For tests. |
 
-Returns a `WolderInstance` with `.layer()` and `.build()`.
+Returns a `WolderInstance` with `.layer()` and `.run()`.
 
 ## `Layer`
 
@@ -30,7 +30,7 @@ A persistent value. Every method returns a **new** layer.
 Appends prose. Accumulates in declaration order; a derived layer carries the parent's
 context plus its own. Template-literal indentation is stripped.
 
-### `.includeFile(path): Layer`
+### `.include(path): Layer`
 
 Declares a developer-owned file. Agents receive its contents as read-only context and can
 never write it. Accumulates as a set. Its contents are part of every descendant agent's
@@ -54,16 +54,16 @@ sends the output back to the agent, up to `maxRetries`.
 Applies a `(Layer) => Layer`. Exactly `fn(layer)`, but it keeps a long composition reading
 left-to-right and makes shipped layers look like part of the chain.
 
-### `.scopedAgent(): ScopedAgent`
+### `.agent(): Agent`
 
 Spawns an agent inheriting the layer's whole accumulated state.
 
-## `ScopedAgent`
+## `Agent`
 
 Immutable. Every method returns a new value; a value that is derived from becomes a
 template rather than a node. Declaring is synchronous — there is no `await`.
 
-### `.canWrite(region): ScopedAgent`
+### `.owns(region): Agent`
 
 Claims a writable region. A file (`README.md`), a directory (`src/services/`, trailing
 slash optional when the last segment has no extension), or a glob (`src/**/*.test.ts`).
@@ -74,21 +74,21 @@ it. Agents are given no shell and no network access.
 Regions must be relative to the root and may not contain `..`. Two agents claiming
 overlapping regions is a pre-flight error.
 
-### `.context(text): ScopedAgent`
+### `.context(text): Agent`
 
 Extra prose for this agent only, on top of its layer's context.
 
-### `.act(instruction): ScopedAgent`
+### `.goal(text): Agent`
 
-The generation instruction. An agent without one is treated as an unused template rather
+What the agent is to generate. An agent without one is treated as an unused template rather
 than a node.
 
-### `.uses(target): ScopedAgent`
+### `.after(target): Agent`
 
 A hard dependency. `target` runs first and its files become this agent's read-only context.
 Its output hash is part of this node's cache key.
 
-### `.requests(target, ask): ScopedAgent`
+### `.asks(target, ask): Agent`
 
 Asks a provider for something it owns. The two negotiate a contract before either
 generates, and the settled contract is injected into both. A content edge — it does not
@@ -96,22 +96,22 @@ imply an order, so `target` may be declared later in the program.
 
 `target` must have declared `.provides()`; otherwise it is a compile error.
 
-### `.provides(label): ScopedAgent<AgentProvides>`
+### `.provides(label): Agent<AgentProvides>`
 
-Labels what this agent holds up for others, and makes it a valid `.requests()` target.
+Labels what this agent holds up for others, and makes it a valid `.asks()` target.
 Labels need not be unique — edges are drawn against the handle, not resolved by name.
 
 ### `.artifact: Artifact`
 
-The result of this node's run. Throws with an explanation if read before `build()`.
+The result of this node's run. Throws with an explanation if read before `run()`.
 
-## `w.build(options?): Promise<BuildResult>`
+## `w.run(options?): Promise<RunResult>`
 
 Assembles the graph, checks it, settles contracts, and executes. The one await in a
 program.
 
 ```typescript
-const result = await w.build({ force: true })
+const result = await w.run({ force: true })
 ```
 
 | Option | Type | Description |
@@ -121,7 +121,7 @@ const result = await w.build({ force: true })
 
 ### Progress
 
-Generation takes minutes, so a build narrates itself. The default console reporter
+Generation takes minutes, so a run narrates itself. The default console reporter
 prints every tool an agent reaches for, stamped with how long that node has been
 running, plus each negotiation round and any API retry:
 
@@ -147,12 +147,12 @@ type AgentEvent =
   | { kind: "note"; text: string }
 ```
 
-Events are advisory — nothing in a build depends on them being consumed. Contract
+Events are advisory — nothing in a run depends on them being consumed. Contract
 events arrive under the contract's id (`contract:package.json`), node events under
 the node's.
 
 ```typescript
-interface BuildResult {
+interface RunResult {
   artifacts: readonly Artifact[]
   contracts: readonly Contract[]
   skipped: readonly string[]   // node ids served from cache
@@ -198,7 +198,7 @@ Identity, typed. See [Configuration](./configuration.md).
 
 | Error | Raised when |
 |---|---|
-| `GraphError` | A pre-flight problem: overlapping regions, a `uses` cycle, an edge pointing at a template, a `requests` against a non-provider, an agent with no region. |
+| `GraphError` | A pre-flight problem: overlapping regions, a `after` cycle, an edge pointing at a template, an `asks` against a non-provider, an agent with no region. |
 | `RegionViolationError` | An agent — or a contract — tried to write outside its region. |
 | `NegotiationError` | Two agents could not settle within `negotiationRounds`. Names the participants and quotes the last exchange. |
 | `GateError` | A gate kept failing after `maxRetries`. |

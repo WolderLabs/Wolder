@@ -13,7 +13,7 @@ describe("Layer immutability", () => {
     const base = emptyLayer();
     const derived = base
       .context("child prose")
-      .includeFile("src/models/TodoItem.ts")
+      .include("src/models/TodoItem.ts")
       .gate("npx tsc --noEmit");
 
     expect(derived).not.toBe(base);
@@ -49,9 +49,9 @@ describe("Layer accumulation", () => {
 
   it("accumulates included files as a set, first-seen order", () => {
     const layer = emptyLayer()
-      .includeFile("a.ts")
-      .includeFile("b.ts")
-      .includeFile("a.ts") as LayerImpl;
+      .include("a.ts")
+      .include("b.ts")
+      .include("a.ts") as LayerImpl;
     expect(layer.state.includedFiles).toEqual(["a.ts", "b.ts"]);
   });
 
@@ -88,8 +88,8 @@ describe("Layer.apply", () => {
 
 describe("hashLayer", () => {
   it("is structural — same content, same hash", () => {
-    const a = emptyLayer().context("one").includeFile("x.ts");
-    const b = emptyLayer().context("one").includeFile("x.ts");
+    const a = emptyLayer().context("one").include("x.ts");
+    const b = emptyLayer().context("one").include("x.ts");
     expect(hashLayer((a as LayerImpl).state)).toBe(hashLayer((b as LayerImpl).state));
   });
 

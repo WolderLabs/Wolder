@@ -13,7 +13,7 @@ run of an unchanged program does no work.
         "chain": "9f2c…",
         "model": "claude-sonnet-4-6",
         "include:src/models/TodoItem.ts": "4a1b…",
-        "uses:package.json": "77de…",
+        "after:package.json": "77de…",
         "contract:README.md": "0c31…"
       },
       "outputHash": "c4e8…",
@@ -52,15 +52,15 @@ reorder the program.
 | `chain` | The **entire builder chain** plus the layer it spawned from |
 | `model` | The model id |
 | `include:<path>` | The contents of each file the layer includes |
-| `uses:<id>` | The output hash of each agent this one uses |
+| `after:<id>` | The output hash of each agent this one runs after |
 | `contract:<id>` | The settled content of each contract it is party to |
 
-`chain` covers every builder call in order — `canWrite`, `context`, `act`, `provides`, and
+`chain` covers every builder call in order — `owns`, `context`, `act`, `provides`, and
 the edges, with edge targets written as node ids so reordering the program does not
 invalidate them.
 
-Change one `.act()` and that node is stale. Its output hash then changes, which makes
-everything that `.uses()` it stale, and nothing else.
+Change one `.goal()` and that node is stale. Its output hash then changes, which makes
+everything that `.after()` it stale, and nothing else.
 
 ## Discovered outputs
 

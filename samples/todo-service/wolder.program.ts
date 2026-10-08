@@ -19,12 +19,12 @@ const project = w
     It includes models, services, and controllers for managing Todo items.
   `)
   // Developer-owned input file — never touched by the generator
-  .includeFile("src/models/TodoItem.ts")
+  .include("src/models/TodoItem.ts")
 
 const readme = project
-  .scopedAgent()
-  .canWrite("README.md")
-  .act(`
+  .agent()
+  .owns("README.md")
+  .goal(`
     Generate a README.md file for the project.
   `)
   .provides("Documentation")
@@ -33,10 +33,10 @@ const readme = project
 // two, because package.json and tsconfig.json have to agree with each other — the
 // module system, the target, and the type packages are one decision, not two.
 const dependencies = project
-  .scopedAgent()
-  .canWrite("package.json")
-  .canWrite("tsconfig.json")
-  .act(`
+  .agent()
+  .owns("package.json")
+  .owns("tsconfig.json")
+  .goal(`
     Initialize an NPM project with the necessary dependencies,
     make assumptions about library selection as needed.
 
@@ -51,10 +51,10 @@ const dependencies = project
 // The two settle a contract before either generates, so the README is written
 // knowing what it has to document — and the service knowing what it promised.
 const todoService = project
-  .scopedAgent()
-  .canWrite("src/services/")
-  .requests(readme, "Document Todo Service usage")
-  .act(`
+  .agent()
+  .owns("src/services/")
+  .asks(readme, "Document Todo Service usage")
+  .goal(`
     Create a TodoService class that provides CRUD operations for TodoItem objects.
     Use an in-memory Map<string, TodoItem> for storage.
     Generate UUIDs randomly.
@@ -66,14 +66,14 @@ const todoService = project
 // where "a framework like Express.js" becomes one specific dependency that one
 // agent installs and the other imports. Two agents, one contract, no shared region.
 const todoController = project
-  .scopedAgent()
-  .canWrite("src/controllers/")
-  .requests(dependencies, "A framework like Express.js for handling HTTP requests")
-  .uses(todoService)
-  .act(`
+  .agent()
+  .owns("src/controllers/")
+  .asks(dependencies, "A framework like Express.js for handling HTTP requests")
+  .after(todoService)
+  .goal(`
     Create a TodoController class that wraps TodoService and provides a simple API.
   `)
   .provides("Todo API")
 
 // Nothing above has run. The graph is assembled, checked, then executed here.
-await w.build()
+await w.run()

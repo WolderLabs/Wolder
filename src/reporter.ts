@@ -1,9 +1,9 @@
-import type { AgentEvent, BuildResult, Reporter } from "./types.js";
+import type { AgentEvent, RunResult, Reporter } from "./types.js";
 import * as log from "./log.js";
 
 /**
  * Nothing streams while a program body runs — declarations are synchronous and do
- * no work. Progress belongs to `build()`, which is exactly why `build()` is
+ * no work. Progress belongs to `run()`, which is exactly why `run()` is
  * explicit rather than an exit hook.
  *
  * Generation takes minutes, so the console reporter narrates it: every tool an
@@ -50,7 +50,7 @@ export function createConsoleReporter(options: { verbose?: boolean } = {}): Repo
     warn(message) {
       log.warn(message);
     },
-    summary(result: BuildResult) {
+    summary(result: RunResult) {
       console.log("");
       const ran = result.artifacts.length - result.skipped.length;
       log.success(

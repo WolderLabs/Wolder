@@ -95,7 +95,7 @@ function instance(services: Partial<WolderServices>): WolderInstance {
 
 const silent = { reporter: createSilentReporter() };
 
-describe("a uses-only program, end to end", () => {
+describe("an after-only program, end to end", () => {
   it("runs every node and records what each wrote", async () => {
     const runner = fakeRunner({
       "src/services/**": { "src/services/todo.ts": "export class TodoService {}" },
@@ -104,10 +104,10 @@ describe("a uses-only program, end to end", () => {
     const w = instance({ runner });
 
     const project = w.layer().context("A todo service.");
-    const service = project.scopedAgent().canWrite("src/services/").act("service");
-    project.scopedAgent().canWrite("src/controllers/").uses(service).act("controller");
+    const service = project.agent().owns("src/services/").goal("service");
+    project.agent().owns("src/controllers/").after(service).goal("controller");
 
-    const result = await w.build(silent);
+    const result = await w.run(silent);
 
     expect(result.artifacts.map((a) => a.id).sort()).toEqual([
       "src/controllers/**",
@@ -125,10 +125,10 @@ describe("a uses-only program, end to end", () => {
     const runner = fakeRunner({ "a.ts": { "a.ts": "a" }, "b.ts": { "b.ts": "b" } });
     const w = instance({ runner });
 
-    const a = w.layer().scopedAgent().canWrite("a.ts").act("a");
-    w.layer().scopedAgent().canWrite("b.ts").uses(a).act("b");
+    const a = w.layer().agent().owns("a.ts").goal("a");
+    w.layer().agent().owns("b.ts").after(a).goal("b");
 
-    await w.build(silent);
+    await w.run(silent);
     expect(runner.calls.map((c) => c.nodeId)).toEqual(["a.ts", "b.ts"]);
   });
 
@@ -139,10 +139,10 @@ describe("a uses-only program, end to end", () => {
     });
     const w = instance({ runner });
 
-    const a = w.layer().scopedAgent().canWrite("a.ts").act("a");
-    w.layer().scopedAgent().canWrite("b.ts").uses(a).act("b");
+    const a = w.layer().agent().owns("a.ts").goal("a");
+    w.layer().agent().owns("b.ts").after(a).goal("b");
 
-    await w.build(silent);
+    await w.run(silent);
     const dependent = runner.calls.find((c) => c.nodeId === "b.ts")!;
     expect(dependent.prompt).toContain("Files from agents you depend on");
     expect(dependent.prompt).toContain("upstreamMarker");
@@ -162,10 +162,10 @@ describe("a uses-only program, end to end", () => {
     const w = instance({ runner });
     const layer = w.layer();
     for (const name of ["a", "b", "c"]) {
-      layer.scopedAgent().canWrite(`${name}.ts`).act(name);
+      layer.agent().owns(`${name}.ts`).goal(name);
     }
 
-    await w.build(silent);
+    await w.run(silent);
     expect(live.peak).toBe(3);
   });
 
@@ -177,12 +177,12 @@ describe("a uses-only program, end to end", () => {
     w.layer()
       .context("shared prose")
       .context("narrower prose")
-      .includeFile("model.ts")
-      .scopedAgent()
-      .canWrite("a.ts")
-      .act("do the thing");
+      .include("model.ts")
+      .agent()
+      .owns("a.ts")
+      .goal("do the thing");
 
-    await w.build(silent);
+    await w.run(silent);
     const prompt = runner.calls[0]!.prompt;
     expect(prompt.indexOf("shared prose")).toBeLessThan(prompt.indexOf("narrower prose"));
     expect(prompt).toContain("export interface TodoItem {}");
@@ -198,10 +198,10 @@ describe("a uses-only program, end to end", () => {
     };
     const w = instance({ runner });
     const layer = w.layer();
-    layer.scopedAgent().canWrite("a.ts").act("a");
-    layer.scopedAgent().canWrite("b.ts").act("b");
+    layer.agent().owns("a.ts").goal("a");
+    layer.agent().owns("b.ts").goal("b");
 
-    await expect(w.build(silent)).rejects.toThrow("agent exploded");
+    await expect(w.run(silent)).rejects.toThrow("agent exploded");
   });
 });
 
@@ -209,9 +209,9 @@ describe("boundaries", () => {
   it("refuses a write outside the agent's region", async () => {
     const runner = fakeRunner({ "src/services/**": { "src/controllers/todo.ts": "nope" } });
     const w = instance({ runner });
-    w.layer().scopedAgent().canWrite("src/services/").act("service");
+    w.layer().agent().owns("src/services/").goal("service");
 
-    await expect(w.build(silent)).rejects.toThrow(RegionViolationError);
+    await expect(w.run(silent)).rejects.toThrow(RegionViolationError);
   });
 });
 
@@ -220,17 +220,17 @@ describe("caching", () => {
     const plan: Plan = { "a.ts": { "a.ts": "a" }, "b.ts": { "b.ts": "b" } };
     const program = (runner: AgentRunner) => {
       const w = instance({ runner });
-      const a = w.layer().context("shared").scopedAgent().canWrite("a.ts").act("a");
-      w.layer().context("shared").scopedAgent().canWrite("b.ts").uses(a).act("b");
+      const a = w.layer().context("shared").agent().owns("a.ts").goal("a");
+      w.layer().context("shared").agent().owns("b.ts").after(a).goal("b");
       return w;
     };
 
     const first = fakeRunner(plan);
-    await program(first).build(silent);
+    await program(first).run(silent);
     expect(first.calls).toHaveLength(2);
 
     const second = fakeRunner(plan);
-    const result = await program(second).build(silent);
+    const result = await program(second).run(silent);
     expect(second.calls).toHaveLength(0);
     expect([...result.skipped].sort()).toEqual(["a.ts", "b.ts"]);
   });
@@ -244,17 +244,17 @@ describe("caching", () => {
     const program = (runner: AgentRunner, aInstruction: string) => {
       const w = instance({ runner });
       const layer = w.layer();
-      const a = layer.scopedAgent().canWrite("a.ts").act(aInstruction);
-      layer.scopedAgent().canWrite("b.ts").uses(a).act("b");
-      layer.scopedAgent().canWrite("c.ts").act("c");
+      const a = layer.agent().owns("a.ts").goal(aInstruction);
+      layer.agent().owns("b.ts").after(a).goal("b");
+      layer.agent().owns("c.ts").goal("c");
       return w;
     };
 
-    await program(fakeRunner(plan), "write a").build(silent);
+    await program(fakeRunner(plan), "write a").run(silent);
 
     // `a` now writes something different, so `b` must see the new output.
     const second = fakeRunner({ ...plan, "a.ts": { "a.ts": "a changed" } });
-    const result = await program(second, "write a differently").build(silent);
+    const result = await program(second, "write a differently").run(silent);
 
     expect(second.calls.map((c) => c.nodeId).sort()).toEqual(["a.ts", "b.ts"]);
     expect(result.skipped).toEqual(["c.ts"]);
@@ -264,13 +264,13 @@ describe("caching", () => {
     const plan: Plan = { "a.ts": { "a.ts": "a" } };
     const program = (runner: AgentRunner, context: string) => {
       const w = instance({ runner });
-      w.layer().context(context).scopedAgent().canWrite("a.ts").act("a");
+      w.layer().context(context).agent().owns("a.ts").goal("a");
       return w;
     };
 
-    await program(fakeRunner(plan), "one").build(silent);
+    await program(fakeRunner(plan), "one").run(silent);
     const second = fakeRunner(plan);
-    await program(second, "two").build(silent);
+    await program(second, "two").run(silent);
     expect(second.calls).toHaveLength(1);
   });
 
@@ -279,14 +279,14 @@ describe("caching", () => {
     const plan: Plan = { "a.ts": { "a.ts": "a" } };
     const program = (runner: AgentRunner) => {
       const w = instance({ runner });
-      w.layer().includeFile("model.ts").scopedAgent().canWrite("a.ts").act("a");
+      w.layer().include("model.ts").agent().owns("a.ts").goal("a");
       return w;
     };
 
-    await program(fakeRunner(plan)).build(silent);
+    await program(fakeRunner(plan)).run(silent);
     writeFileSync(resolve(root, "model.ts"), "v2", "utf-8");
     const second = fakeRunner(plan);
-    await program(second).build(silent);
+    await program(second).run(silent);
     expect(second.calls).toHaveLength(1);
   });
 
@@ -294,14 +294,14 @@ describe("caching", () => {
     const plan: Plan = { "a.ts": { "a.ts": "a" } };
     const program = (runner: AgentRunner) => {
       const w = instance({ runner });
-      w.layer().scopedAgent().canWrite("a.ts").act("a");
+      w.layer().agent().owns("a.ts").goal("a");
       return w;
     };
 
-    await program(fakeRunner(plan)).build(silent);
+    await program(fakeRunner(plan)).run(silent);
     writeFileSync(resolve(root, "a.ts"), "edited by hand", "utf-8");
     const second = fakeRunner(plan);
-    await program(second).build(silent);
+    await program(second).run(silent);
     expect(second.calls).toHaveLength(1);
   });
 
@@ -309,28 +309,28 @@ describe("caching", () => {
     const plan: Plan = { "a.ts": { "a.ts": "a" } };
     const program = (runner: AgentRunner) => {
       const w = instance({ runner });
-      w.layer().scopedAgent().canWrite("a.ts").act("a");
+      w.layer().agent().owns("a.ts").goal("a");
       return w;
     };
 
-    await program(fakeRunner(plan)).build(silent);
+    await program(fakeRunner(plan)).run(silent);
     const second = fakeRunner(plan);
-    await program(second).build({ ...silent, force: true });
+    await program(second).run({ ...silent, force: true });
     expect(second.calls).toHaveLength(1);
   });
 
   it("forgets nodes the program no longer declares", async () => {
     await (() => {
       const w = instance({ runner: fakeRunner({ "a.ts": { "a.ts": "a" } }) });
-      w.layer().scopedAgent().canWrite("a.ts").act("a");
-      return w.build(silent);
+      w.layer().agent().owns("a.ts").goal("a");
+      return w.run(silent);
     })();
     expect(Object.keys(readManifest(root).nodes)).toEqual(["a.ts"]);
 
     await (() => {
       const w = instance({ runner: fakeRunner({ "b.ts": { "b.ts": "b" } }) });
-      w.layer().scopedAgent().canWrite("b.ts").act("b");
-      return w.build(silent);
+      w.layer().agent().owns("b.ts").goal("b");
+      return w.run(silent);
     })();
     expect(Object.keys(readManifest(root).nodes)).toEqual(["b.ts"]);
   });
@@ -341,15 +341,15 @@ describe("contracts", () => {
     const w = instance(services);
     const project = w.layer();
     const dependencies = project
-      .scopedAgent()
-      .canWrite("package.json")
-      .act("initialise the package")
+      .agent()
+      .owns("package.json")
+      .goal("initialise the package")
       .provides("NPM dependencies");
     project
-      .scopedAgent()
-      .canWrite("src/controllers/")
-      .requests(dependencies, "A framework like Express.js")
-      .act("write a controller")
+      .agent()
+      .owns("src/controllers/")
+      .asks(dependencies, "A framework like Express.js")
+      .goal("write a controller")
       .provides("Todo API");
     return w;
   }
@@ -364,7 +364,7 @@ describe("contracts", () => {
       terms: [{ name: "express", detail: "express@5.0.0 as a dependency" }],
     }));
 
-    const result = await contractProgram({ runner, negotiator }).build(silent);
+    const result = await contractProgram({ runner, negotiator }).run(silent);
 
     expect(negotiator.rounds).toEqual(["package.json"]);
     expect(result.contracts).toHaveLength(1);
@@ -384,10 +384,10 @@ describe("contracts", () => {
       files: [{ path: "package.json", content: '{"dependencies":{"express":"^5.0.0"}}' }],
     }));
 
-    const result = await contractProgram({ runner, negotiator }).build(silent);
+    const result = await contractProgram({ runner, negotiator }).run(silent);
 
     expect(readFileSync(resolve(root, "package.json"), "utf-8")).toContain("express");
-    // The requester sees them as decisions already made, like a `uses` edge.
+    // The requester sees them as decisions already made, like an `after` edge.
     const requester = runner.calls.find((c) => c.nodeId === "src/controllers/**")!;
     expect(requester.prompt).toContain('"express":"^5.0.0"');
     // And they count as the provider's output, so they do not read as drift later.
@@ -402,7 +402,7 @@ describe("contracts", () => {
       files: [{ path: "src/controllers/injected.ts", content: "nope" }],
     }));
 
-    await expect(contractProgram({ runner, negotiator }).build(silent)).rejects.toThrow(
+    await expect(contractProgram({ runner, negotiator }).run(silent)).rejects.toThrow(
       RegionViolationError,
     );
   });
@@ -417,13 +417,13 @@ describe("contracts", () => {
       files: [{ path: "package.json", content: '{"name":"x"}' }],
     });
 
-    await contractProgram({ runner: fakeRunner(plan), negotiator: fakeNegotiator(settle) }).build(
+    await contractProgram({ runner: fakeRunner(plan), negotiator: fakeNegotiator(settle) }).run(
       silent,
     );
 
     const second = fakeNegotiator(settle);
     const runner = fakeRunner(plan);
-    const result = await contractProgram({ runner, negotiator: second }).build(silent);
+    const result = await contractProgram({ runner, negotiator: second }).run(silent);
 
     expect(second.rounds).toEqual([]);
     expect(runner.calls).toHaveLength(0);
@@ -438,7 +438,7 @@ describe("contracts", () => {
     await contractProgram({
       runner: fakeRunner(plan),
       negotiator: fakeNegotiator(() => ({ summary: "express@5" })),
-    }).build(silent);
+    }).run(silent);
 
     const runner = fakeRunner(plan);
     await contractProgram({
@@ -450,7 +450,7 @@ describe("contracts", () => {
           return { summary: "fastify@5", terms: [], files: [], transcript: [] };
         },
       },
-    }).build({ ...silent, force: false });
+    }).run({ ...silent, force: false });
 
     // The contract's negotiation inputs are unchanged, so it is reused from the
     // manifest and nothing re-runs — a settled contract must not churn.
@@ -468,22 +468,22 @@ describe("contracts", () => {
 
     const project = w.layer();
     const readme = project
-      .scopedAgent()
-      .canWrite("README.md")
-      .act("write the readme")
+      .agent()
+      .owns("README.md")
+      .goal("write the readme")
       .provides("Documentation");
     project
-      .scopedAgent()
-      .canWrite("src/services/")
-      .requests(readme, "Document service usage")
-      .act("service");
+      .agent()
+      .owns("src/services/")
+      .asks(readme, "Document service usage")
+      .goal("service");
     project
-      .scopedAgent()
-      .canWrite("src/controllers/")
-      .requests(readme, "Document the API")
-      .act("controller");
+      .agent()
+      .owns("src/controllers/")
+      .asks(readme, "Document the API")
+      .goal("controller");
 
-    const result = await w.build(silent);
+    const result = await w.run(silent);
 
     expect(negotiator.rounds).toEqual(["README.md"]);
     expect(result.contracts).toHaveLength(1);
@@ -498,11 +498,11 @@ describe("ambient gates", () => {
   it("passes a node whose gate succeeds", async () => {
     const runner = fakeRunner({ "a.ts": { "a.ts": "a" } });
     const w = instance({ runner });
-    w.layer().gate("node -e \"process.exit(0)\"", { name: "ok" }).scopedAgent()
-      .canWrite("a.ts")
-      .act("a");
+    w.layer().gate("node -e \"process.exit(0)\"", { name: "ok" }).agent()
+      .owns("a.ts")
+      .goal("a");
 
-    await expect(w.build(silent)).resolves.toBeDefined();
+    await expect(w.run(silent)).resolves.toBeDefined();
     expect(runner.calls).toHaveLength(1);
   });
 
@@ -529,11 +529,11 @@ describe("ambient gates", () => {
       .gate(`node -e "process.exit(require('fs').existsSync('gate-passes') ? 0 : 1)"`, {
         name: "marker",
       })
-      .scopedAgent()
-      .canWrite("a.ts")
-      .act("a");
+      .agent()
+      .owns("a.ts")
+      .goal("a");
 
-    await w.build(silent);
+    await w.run(silent);
     expect(runner.calls).toHaveLength(2);
     expect(runner.calls[1]!.prompt).toContain('The "marker" check failed');
   });
@@ -548,11 +548,11 @@ describe("ambient gates", () => {
     });
     w.layer()
       .gate('node -e "process.exit(1)"', { name: "always fails" })
-      .scopedAgent()
-      .canWrite("a.ts")
-      .act("a");
+      .agent()
+      .owns("a.ts")
+      .goal("a");
 
-    await expect(w.build(silent)).rejects.toThrow(GateError);
+    await expect(w.run(silent)).rejects.toThrow(GateError);
     expect(runner.calls).toHaveLength(2);
   });
 });
@@ -561,10 +561,10 @@ describe("reading results", () => {
   it("makes an artifact readable off the handle after the build", async () => {
     const runner = fakeRunner({ "a.ts": { "a.ts": "a" } });
     const w = instance({ runner });
-    const agent = w.layer().scopedAgent().canWrite("a.ts").act("a").provides("A");
+    const agent = w.layer().agent().owns("a.ts").goal("a").provides("A");
 
-    expect(() => agent.artifact).toThrow(/await w\.build\(\)/);
-    await w.build(silent);
+    expect(() => agent.artifact).toThrow(/await w\.run\(\)/);
+    await w.run(silent);
     expect(agent.artifact.files).toEqual(["a.ts"]);
     expect(agent.artifact.provides).toBe("A");
   });
@@ -599,9 +599,9 @@ describe("progress reporting", () => {
       },
     };
     const w = instance({ runner });
-    w.layer().scopedAgent().canWrite("a.ts").act("a");
+    w.layer().agent().owns("a.ts").goal("a");
 
-    await w.build({ reporter });
+    await w.run({ reporter });
 
     expect(reporter.events).toEqual([
       ["a.ts", { kind: "tool", name: "Write", detail: "a.ts" }],
@@ -620,13 +620,13 @@ describe("progress reporting", () => {
     const w = instance({ runner: fakeRunner({}), negotiator });
     const project = w.layer();
     const provider = project
-      .scopedAgent()
-      .canWrite("package.json")
-      .act("deps")
+      .agent()
+      .owns("package.json")
+      .goal("deps")
       .provides("NPM dependencies");
-    project.scopedAgent().canWrite("src/").requests(provider, "express").act("app");
+    project.agent().owns("src/").asks(provider, "express").goal("app");
 
-    await w.build({ reporter });
+    await w.run({ reporter });
 
     expect(reporter.events).toEqual([
       ["contract:package.json", { kind: "note", text: "round 1/3" }],
@@ -636,9 +636,9 @@ describe("progress reporting", () => {
   it("does not require a runner to emit anything", async () => {
     const reporter = recordingReporter();
     const w = instance({ runner: fakeRunner({ "a.ts": { "a.ts": "a" } }) });
-    w.layer().scopedAgent().canWrite("a.ts").act("a");
+    w.layer().agent().owns("a.ts").goal("a");
 
-    await expect(w.build({ reporter })).resolves.toBeDefined();
+    await expect(w.run({ reporter })).resolves.toBeDefined();
     expect(reporter.events).toEqual([]);
   });
 });
@@ -657,16 +657,16 @@ describe("contract settlement", () => {
     };
     const w = instance({ runner: fakeRunner({}), negotiator });
     const project = w.layer();
-    const readme = project.scopedAgent().canWrite("README.md").act("readme").provides("Docs");
-    const deps = project.scopedAgent().canWrite("package.json").act("deps").provides("Deps");
+    const readme = project.agent().owns("README.md").goal("readme").provides("Docs");
+    const deps = project.agent().owns("package.json").goal("deps").provides("Deps");
     project
-      .scopedAgent()
-      .canWrite("src/")
-      .requests(readme, "document me")
-      .requests(deps, "express")
-      .act("app");
+      .agent()
+      .owns("src/")
+      .asks(readme, "document me")
+      .asks(deps, "express")
+      .goal("app");
 
-    await w.build(silent);
+    await w.run(silent);
     expect(live.peak).toBe(2);
   });
 
@@ -681,16 +681,16 @@ describe("contract settlement", () => {
       };
       const w = instance({ runner: fakeRunner({}), negotiator });
       const project = w.layer();
-      const readme = project.scopedAgent().canWrite("README.md").act("readme").provides("Docs");
-      const deps = project.scopedAgent().canWrite("package.json").act("deps").provides("Deps");
+      const readme = project.agent().owns("README.md").goal("readme").provides("Docs");
+      const deps = project.agent().owns("package.json").goal("deps").provides("Deps");
       project
-        .scopedAgent()
-        .canWrite("src/")
-        .requests(readme, "document me")
-        .requests(deps, "express")
-        .act("app");
+        .agent()
+        .owns("src/")
+        .asks(readme, "document me")
+        .asks(deps, "express")
+        .goal("app");
 
-      const result = await w.build(silent);
+      const result = await w.run(silent);
       return result.contracts.map((c) => c.id);
     };
 

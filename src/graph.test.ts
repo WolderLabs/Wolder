@@ -11,10 +11,10 @@ function setup(): { registry: Registry; layer: Layer } {
 }
 
 describe("node discovery", () => {
-  it("makes every un-derived agent with an .act() a node", () => {
+  it("makes every un-derived agent with an .goal() a node", () => {
     const { registry, layer } = setup();
-    layer.scopedAgent().canWrite("README.md").act("readme");
-    layer.scopedAgent().canWrite("package.json").act("deps");
+    layer.agent().owns("README.md").goal("readme");
+    layer.agent().owns("package.json").goal("deps");
 
     const graph = assembleGraph(registry);
     expect(graph.nodes.map((n) => n.id).sort()).toEqual(["README.md", "package.json"]);
@@ -22,131 +22,131 @@ describe("node discovery", () => {
 
   it("ids a node by its region, so reordering a program does not rename it", () => {
     const first = setup();
-    first.layer.scopedAgent().canWrite("README.md").act("a");
-    first.layer.scopedAgent().canWrite("src/services/").act("b");
+    first.layer.agent().owns("README.md").goal("a");
+    first.layer.agent().owns("src/services/").goal("b");
 
     const second = setup();
-    second.layer.scopedAgent().canWrite("src/services/").act("b");
-    second.layer.scopedAgent().canWrite("README.md").act("a");
+    second.layer.agent().owns("src/services/").goal("b");
+    second.layer.agent().owns("README.md").goal("a");
 
     expect(assembleGraph(first.registry).nodes.map((n) => n.id).sort()).toEqual(
       assembleGraph(second.registry).nodes.map((n) => n.id).sort(),
     );
   });
 
-  it("treats an agent with no .act() as an unused template, not a node", () => {
+  it("treats an agent with no .goal() as an unused template, not a node", () => {
     const { registry, layer } = setup();
-    layer.scopedAgent().canWrite("src/services/");
-    layer.scopedAgent().canWrite("README.md").act("readme");
+    layer.agent().owns("src/services/");
+    layer.agent().owns("README.md").goal("readme");
 
     expect(assembleGraph(registry).nodes.map((n) => n.id)).toEqual(["README.md"]);
   });
 
   it("refuses a program with nothing to run", () => {
     const { registry, layer } = setup();
-    layer.scopedAgent().canWrite("README.md");
+    layer.agent().owns("README.md");
     expect(() => assembleGraph(registry)).toThrow(/declares no agents to run/);
   });
 
-  it("refuses an agent with an instruction but nowhere to write", () => {
+  it("refuses an agent with a goal but nowhere to write", () => {
     const { registry, layer } = setup();
-    layer.scopedAgent().act("do something");
-    expect(() => assembleGraph(registry)).toThrow(/no \.canWrite\(\) region/);
+    layer.agent().goal("do something");
+    expect(() => assembleGraph(registry)).toThrow(/owns no region/);
   });
 });
 
 describe("boundary pre-flight", () => {
   it("rejects overlapping regions and points at the edges instead", () => {
     const { registry, layer } = setup();
-    layer.scopedAgent().canWrite("src/").act("everything");
-    layer.scopedAgent().canWrite("src/services/").act("services");
+    layer.agent().owns("src/").goal("everything");
+    layer.agent().owns("src/services/").goal("services");
 
     expect(() => assembleGraph(registry)).toThrow(GraphError);
-    expect(() => assembleGraph(registry)).toThrow(/\.requests\(owner/);
-    expect(() => assembleGraph(registry)).toThrow(/canWrite\("src\/"\) is usually the culprit/);
+    expect(() => assembleGraph(registry)).toThrow(/\.asks\(owner/);
+    expect(() => assembleGraph(registry)).toThrow(/owns\("src\/"\) is usually the culprit/);
   });
 
   it("rejects two agents claiming the same file", () => {
     const { registry, layer } = setup();
-    layer.scopedAgent().canWrite("README.md").act("one");
-    layer.scopedAgent().canWrite("README.md").act("two");
+    layer.agent().owns("README.md").goal("one");
+    layer.agent().owns("README.md").goal("two");
     expect(() => assembleGraph(registry)).toThrow(/overlap/);
   });
 
   it("allows disjoint regions", () => {
     const { registry, layer } = setup();
-    layer.scopedAgent().canWrite("src/services/").act("services");
-    layer.scopedAgent().canWrite("src/controllers/").act("controllers");
+    layer.agent().owns("src/services/").goal("services");
+    layer.agent().owns("src/controllers/").goal("controllers");
     expect(assembleGraph(registry).nodes).toHaveLength(2);
   });
 });
 
 describe("edges", () => {
-  it("resolves uses and requests to node ids", () => {
+  it("resolves after and asks to node ids", () => {
     const { registry, layer } = setup();
-    const readme = layer.scopedAgent().canWrite("README.md").act("readme").provides("Docs");
+    const readme = layer.agent().owns("README.md").goal("readme").provides("Docs");
     layer
-      .scopedAgent()
-      .canWrite("src/services/")
-      .uses(readme)
-      .requests(readme, "Document usage")
-      .act("service");
+      .agent()
+      .owns("src/services/")
+      .after(readme)
+      .asks(readme, "Document usage")
+      .goal("service");
 
     const graph = assembleGraph(registry);
     const service = graph.byId.get("src/services/**")!;
-    expect(service.uses).toEqual(["README.md"]);
-    expect(service.requests).toEqual([{ targetId: "README.md", ask: "Document usage" }]);
+    expect(service.after).toEqual(["README.md"]);
+    expect(service.asks).toEqual([{ targetId: "README.md", ask: "Document usage" }]);
   });
 
-  it("orders on uses edges, dependencies first", () => {
+  it("orders on after edges, dependencies first", () => {
     const { registry, layer } = setup();
-    const a = layer.scopedAgent().canWrite("a.ts").act("a");
-    const b = layer.scopedAgent().canWrite("b.ts").uses(a).act("b");
-    layer.scopedAgent().canWrite("c.ts").uses(b).act("c");
+    const a = layer.agent().owns("a.ts").goal("a");
+    const b = layer.agent().owns("b.ts").after(a).goal("b");
+    layer.agent().owns("c.ts").after(b).goal("c");
 
     expect(assembleGraph(registry).order).toEqual(["a.ts", "b.ts", "c.ts"]);
   });
 
-  it("does not let a requests edge imply an order", () => {
+  it("does not let an asks edge imply an order", () => {
     const { registry, layer } = setup();
-    const readme = layer.scopedAgent().canWrite("README.md").act("readme").provides("Docs");
-    layer.scopedAgent().canWrite("src/services/").requests(readme, "document me").act("svc");
+    const readme = layer.agent().owns("README.md").goal("readme").provides("Docs");
+    layer.agent().owns("src/services/").asks(readme, "document me").goal("svc");
 
-    // Both nodes are independent under `uses`, so neither constrains the other.
+    // Both nodes are independent under `after`, so neither constrains the other.
     const graph = assembleGraph(registry);
-    expect(graph.byId.get("src/services/**")!.uses).toEqual([]);
-    expect(graph.byId.get("README.md")!.uses).toEqual([]);
+    expect(graph.byId.get("src/services/**")!.after).toEqual([]);
+    expect(graph.byId.get("README.md")!.after).toEqual([]);
   });
 
-  it("catches a cycle in uses", () => {
+  it("catches a cycle in after", () => {
     // Immutability makes a cycle very hard to express — every edge points at a
     // value that already existed — but the guard stays, so exercise it directly.
-    const node = (id: string, uses: string[]): AgentNode => ({
+    const node = (id: string, after: string[]): AgentNode => ({
       id,
       label: id,
       layer: { contexts: [], includedFiles: [], gates: [] },
       regions: [id],
-      instruction: id,
+      goal: id,
       contexts: [],
-      uses,
-      requests: [],
+      after,
+      asks: [],
       chainHash: id,
     });
 
     expect(() =>
       topologicalOrder([node("a.ts", ["b.ts"]), node("b.ts", ["a.ts"])]),
-    ).toThrow(/Dependency cycle in \.uses\(\)/);
+    ).toThrow(/Dependency cycle among \.after\(\) edges/);
     expect(() => topologicalOrder([node("a.ts", ["a.ts"])])).toThrow(
-      /Dependency cycle in \.uses\(\)/,
+      /Dependency cycle among \.after\(\) edges/,
     );
   });
 
   it("explains an edge that points at a value which was extended afterwards", () => {
     const { registry, layer } = setup();
-    const readme = layer.scopedAgent().canWrite("README.md").act("readme");
+    const readme = layer.agent().owns("README.md").goal("readme");
     const finished = readme.provides("Docs");
     // Deliberately point at the pre-.provides() value.
-    layer.scopedAgent().canWrite("src/services/").uses(readme).act("svc");
+    layer.agent().owns("src/services/").after(readme).goal("svc");
     expect(finished).toBeDefined();
 
     expect(() => assembleGraph(registry)).toThrow(/template rather than a node/);
@@ -154,10 +154,10 @@ describe("edges", () => {
 
   it("explains an edge to an agent that never runs", () => {
     const { registry, layer } = setup();
-    const unused = layer.scopedAgent().canWrite("docs/");
-    layer.scopedAgent().canWrite("src/services/").uses(unused).act("svc");
+    const unused = layer.agent().owns("docs/");
+    layer.agent().owns("src/services/").after(unused).goal("svc");
 
-    expect(() => assembleGraph(registry)).toThrow(/no \.act\(\) instruction/);
+    expect(() => assembleGraph(registry)).toThrow(/no \.goal\(\)/);
   });
 });
 
@@ -165,16 +165,16 @@ describe("chain hashing", () => {
   it("gives identical programs identical node hashes", () => {
     const build = () => {
       const { registry, layer } = setup();
-      layer.context("shared").scopedAgent().canWrite("README.md").act("readme");
+      layer.context("shared").agent().owns("README.md").goal("readme");
       return assembleGraph(registry).nodes[0]!.chainHash;
     };
     expect(build()).toBe(build());
   });
 
-  it("changes when the act instruction changes", () => {
+  it("changes when the goal changes", () => {
     const build = (instruction: string) => {
       const { registry, layer } = setup();
-      layer.scopedAgent().canWrite("README.md").act(instruction);
+      layer.agent().owns("README.md").goal(instruction);
       return assembleGraph(registry).nodes[0]!.chainHash;
     };
     expect(build("one")).not.toBe(build("two"));
@@ -183,7 +183,7 @@ describe("chain hashing", () => {
   it("changes when the layer beneath it changes", () => {
     const build = (context: string) => {
       const { registry, layer } = setup();
-      layer.context(context).scopedAgent().canWrite("README.md").act("readme");
+      layer.context(context).agent().owns("README.md").goal("readme");
       return assembleGraph(registry).nodes[0]!.chainHash;
     };
     expect(build("one")).not.toBe(build("two"));
@@ -192,13 +192,13 @@ describe("chain hashing", () => {
   it("is stable when an unrelated agent is declared before it", () => {
     const withoutOther = () => {
       const { registry, layer } = setup();
-      layer.scopedAgent().canWrite("README.md").act("readme");
+      layer.agent().owns("README.md").goal("readme");
       return assembleGraph(registry).byId.get("README.md")!.chainHash;
     };
     const withOther = () => {
       const { registry, layer } = setup();
-      layer.scopedAgent().canWrite("package.json").act("deps");
-      layer.scopedAgent().canWrite("README.md").act("readme");
+      layer.agent().owns("package.json").goal("deps");
+      layer.agent().owns("README.md").goal("readme");
       return assembleGraph(registry).byId.get("README.md")!.chainHash;
     };
     expect(withoutOther()).toBe(withOther());

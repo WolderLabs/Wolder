@@ -6,7 +6,7 @@ import { layerContext } from "./layer.js";
 export interface PromptInputs {
   readonly node: AgentNode;
   readonly root: string;
-  /** Files produced by the agents this node `.uses()`. */
+  /** Files produced by the agents this node `.after()`. */
   readonly upstreamFiles: readonly string[];
   /** Every contract this node is party to, as provider or requester. */
   readonly contracts: readonly Contract[];
@@ -76,7 +76,7 @@ export function buildUserPrompt(inputs: PromptInputs): string {
     for (const contract of contracts) parts.push(formatContract(contract, node.id), "");
   }
 
-  parts.push("## What to do", "", node.instruction.trim(), "");
+  parts.push("## What to do", "", node.goal.trim(), "");
 
   if (gates.length > 0) {
     parts.push(

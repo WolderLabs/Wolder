@@ -1,4 +1,4 @@
-import type { Artifact, LayerState, RequestEdge } from "./types.js";
+import type { Artifact, LayerState, AskEdge } from "./types.js";
 
 /** One link in a builder chain, kept verbatim so the whole chain can be hashed. */
 export interface ChainEntry {
@@ -7,7 +7,7 @@ export interface ChainEntry {
 }
 
 /**
- * The immutable specification behind one `ScopedAgent` value.
+ * The immutable specification behind one `Agent` value.
  *
  * Every builder method produces a new spec whose `parentId` is the value it was
  * derived from. That is what makes templates work: a spec that has been derived
@@ -18,17 +18,17 @@ export interface AgentSpec {
   readonly parentId?: string;
   readonly layer: LayerState;
   readonly regions: readonly string[];
-  readonly instruction?: string;
+  readonly goal?: string;
   readonly contexts: readonly string[];
-  readonly uses: readonly string[];
-  readonly requests: readonly RequestEdge[];
+  readonly after: readonly string[];
+  readonly asks: readonly AskEdge[];
   readonly provides?: string;
   readonly chain: readonly ChainEntry[];
 }
 
 /**
  * The declaration-time record of a program. Holds every spec ever created, which
- * of them were derived from, and — once `build()` has run — each node's artifact.
+ * of them were derived from, and — once `run()` has run — each node's artifact.
  */
 export class Registry {
   private readonly specs = new Map<string, AgentSpec>();
@@ -43,9 +43,9 @@ export class Registry {
       layer,
       regions: [],
       contexts: [],
-      uses: [],
-      requests: [],
-      chain: [{ method: "scopedAgent", args: [] }],
+      after: [],
+      asks: [],
+      chain: [{ method: "agent", args: [] }],
     };
     this.specs.set(spec.id, spec);
     return spec;
@@ -73,12 +73,12 @@ export class Registry {
   }
 
   /**
-   * The specs that are nodes: never derived from, and carrying an instruction.
-   * A leaf with no `.act()` is an unused template, not a node.
+   * The specs that are nodes: never derived from, and carrying a goal.
+   * A leaf with no `.goal()` is an unused template, not a node.
    */
   nodes(): AgentSpec[] {
     return [...this.specs.values()].filter(
-      (spec) => !this.derivedFrom.has(spec.id) && spec.instruction !== undefined,
+      (spec) => !this.derivedFrom.has(spec.id) && spec.goal !== undefined,
     );
   }
 
@@ -97,9 +97,9 @@ export class Registry {
     const label = describe(spec);
     if (!this.built) {
       throw new Error(
-        `${label} has no artifact yet — nothing runs until "await w.build()".\n` +
-          `Declaring an agent registers it; the files it writes only exist after the build.\n` +
-          `Move anything that reads .artifact to after the build.`,
+        `${label} has no artifact yet — nothing runs until "await w.run()".\n` +
+          `Declaring an agent registers it; the files it writes only exist after the run.\n` +
+          `Move anything that reads .artifact to after the run.`,
       );
     }
     if (this.derivedFrom.has(spec.id)) {
@@ -109,7 +109,7 @@ export class Registry {
       );
     }
     throw new Error(
-      `${label} never ran: it has no .act() instruction, so the build treated it as an unused template.`,
+      `${label} never ran: it has no .goal(), so the run treated it as an unused template.`,
     );
   }
 }

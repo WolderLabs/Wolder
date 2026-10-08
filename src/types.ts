@@ -3,8 +3,8 @@
  *
  * A program is a graph of *agents with boundaries*. A layer is an immutable value
  * carrying context and included files; agents spawn from a layer, own a writable
- * region, and relate to each other through `uses` and `requests` edges. Nothing
- * executes until `w.build()`.
+ * region, and relate to each other through `after` and `asks` edges. Nothing
+ * executes until `w.run()`.
  */
 
 export interface WolderConfig {
@@ -39,7 +39,7 @@ export interface WolderInstance {
   /** A fresh, empty layer. */
   layer(): Layer;
   /** Assemble the declared graph, check it, and execute it. The one await in a program. */
-  build(options?: BuildOptions): Promise<BuildResult>;
+  run(options?: RunOptions): Promise<RunResult>;
 }
 
 /* ------------------------------------------------------------------ layers */
@@ -53,7 +53,7 @@ export interface Layer {
   /** Append prose. Derived layers carry parent context plus their own, in order. */
   context(text: string): Layer;
   /** Include a developer-owned file as read-only context. Accumulates as a set. */
-  includeFile(path: string): Layer;
+  include(path: string): Layer;
   /**
    * A shell command run over an agent's writable region after it generates.
    * A non-zero exit sends the output back to the agent for another attempt.
@@ -62,7 +62,7 @@ export interface Layer {
   /** Apply a layer→layer function. Sugar for `fn(layer)` that keeps a chain reading left-to-right. */
   apply(fn: LayerTransform): Layer;
   /** Spawn an agent builder inheriting this layer's whole accumulated state. */
-  scopedAgent(): ScopedAgent;
+  agent(): Agent;
 }
 
 export type LayerTransform = (layer: Layer) => Layer;
@@ -100,39 +100,39 @@ export interface AgentDoesNotProvideAnything {
 
 export type ProvidesState = AgentProvides | AgentDoesNotProvideAnything;
 
-/* ------------------------------------------------------------ scoped agent */
+/* ------------------------------------------------------------agent */
 
 /**
  * An immutable agent specification. Declaring one does **not** run it, and
- * declaring is synchronous — there is no await on a `scopedAgent`.
+ * declaring is synchronous — there is no await on an `agent`.
  *
  * Every method returns a new value, so a partially-applied agent is a reusable
  * template: derive from it as many times as you like and each derivation becomes
- * its own node. A value that is never derived from and that has an `.act()` is
+ * its own node. A value that is never derived from and that has a `.goal()` is
  * the node; a value that is derived from is a template, not a node.
  */
-export interface ScopedAgent<TProvides extends ProvidesState = AgentDoesNotProvideAnything> {
+export interface Agent<TProvides extends ProvidesState = AgentDoesNotProvideAnything> {
   /** Phantom. Never read at runtime. */
   readonly _provides: TProvides;
 
   /** Claim a writable region — a file, a directory, or a glob. Nothing outside it is writable. */
-  canWrite(region: string): ScopedAgent<TProvides>;
+  owns(region: string): Agent<TProvides>;
   /** Extra prose for this agent only, on top of its layer's context. */
-  context(text: string): ScopedAgent<TProvides>;
-  /** The generation instruction. */
-  act(instruction: string): ScopedAgent<TProvides>;
+  context(text: string): Agent<TProvides>;
+  /** What this agent is to generate. */
+  goal(instruction: string): Agent<TProvides>;
   /** A hard dependency: the target runs first and its files become this agent's context. */
-  uses(target: ScopedAgent<any>): ScopedAgent<TProvides>;
+  after(target: Agent<any>): Agent<TProvides>;
   /**
    * Ask a provider for something it owns. The two agents negotiate a contract
    * before either generates, and the settled contract is injected into both.
    * A content edge, not an ordering one — the target may be declared later.
    */
-  requests(target: ScopedAgent<AgentProvides>, ask: string): ScopedAgent<TProvides>;
-  /** Label what this agent holds up for others. Required before anything can `.requests()` it. */
-  provides(label: string): ScopedAgent<AgentProvides>;
+  asks(target: Agent<AgentProvides>, ask: string): Agent<TProvides>;
+  /** Label what this agent holds up for others. Required before anything can `.asks()` it. */
+  provides(label: string): Agent<AgentProvides>;
 
-  /** The result of this node's run. Throws if read before `w.build()` resolves. */
+  /** The result of this node's run. Throws if read before `w.run()` resolves. */
   readonly artifact: Artifact;
 }
 
@@ -151,14 +151,14 @@ export interface Artifact {
   readonly provides?: string;
 }
 
-export interface BuildOptions {
+export interface RunOptions {
   /** Report progress. Defaults to console output. */
   reporter?: Reporter;
   /** Ignore the manifest and regenerate every node. */
   force?: boolean;
 }
 
-export interface BuildResult {
+export interface RunResult {
   readonly artifacts: readonly Artifact[];
   readonly contracts: readonly Contract[];
   /** Node ids served from cache. */
@@ -174,16 +174,16 @@ export interface AgentNode {
   readonly label: string;
   readonly layer: LayerState;
   readonly regions: readonly string[];
-  readonly instruction: string;
+  readonly goal: string;
   readonly contexts: readonly string[];
-  readonly uses: readonly string[];
-  readonly requests: readonly RequestEdge[];
+  readonly after: readonly string[];
+  readonly asks: readonly AskEdge[];
   readonly provides?: string;
   /** Hash of the entire builder chain that produced this node. */
   readonly chainHash: string;
 }
 
-export interface RequestEdge {
+export interface AskEdge {
   readonly targetId: string;
   readonly ask: string;
 }
@@ -322,5 +322,5 @@ export interface Reporter {
   nodeDone(id: string, files: readonly string[]): void;
   note(message: string): void;
   warn(message: string): void;
-  summary(result: BuildResult): void;
+  summary(result: RunResult): void;
 }

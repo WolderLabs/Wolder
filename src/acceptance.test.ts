@@ -11,8 +11,8 @@ import type { AgentRunner, Negotiator } from "./types.js";
 /**
  * The north-star program from `samples/todo-service/wolder.program.ts`, run against
  * scripted agents. It is the acceptance criterion for v2: layers composing a shipped
- * layer, four agents on disjoint regions, two backward `requests` edges settling
- * contracts that both sides see, a `uses` edge ordering two of them, and one await.
+ * layer, four agents on disjoint regions, two backward `asks` edges settling
+ * contracts that both sides see, an `after` edge ordering two of them, and one await.
  */
 
 const WRITES: Record<string, Record<string, string>> = {
@@ -91,19 +91,19 @@ function program() {
       This project is a simple Todo service implemented in TypeScript.
       It includes models, services, and controllers for managing Todo items.
     `)
-    .includeFile("src/models/TodoItem.ts");
+    .include("src/models/TodoItem.ts");
 
   const readme = project
-    .scopedAgent()
-    .canWrite("README.md")
-    .act(`Generate a README.md file for the project.`)
+    .agent()
+    .owns("README.md")
+    .goal(`Generate a README.md file for the project.`)
     .provides("Documentation");
 
   const dependencies = project
-    .scopedAgent()
-    .canWrite("package.json")
-    .canWrite("tsconfig.json")
-    .act(`
+    .agent()
+    .owns("package.json")
+    .owns("tsconfig.json")
+    .goal(`
       Initialize an NPM project with the necessary dependencies,
       make assumptions about library selection as needed.
 
@@ -113,10 +113,10 @@ function program() {
     .provides("NPM dependencies and TypeScript config");
 
   const todoService = project
-    .scopedAgent()
-    .canWrite("src/services/")
-    .requests(readme, "Document Todo Service usage")
-    .act(`
+    .agent()
+    .owns("src/services/")
+    .asks(readme, "Document Todo Service usage")
+    .goal(`
       Create a TodoService class that provides CRUD operations for TodoItem objects.
       Use an in-memory Map<string, TodoItem> for storage.
       Generate UUIDs randomly.
@@ -124,11 +124,11 @@ function program() {
     .provides("Todo Service");
 
   const todoController = project
-    .scopedAgent()
-    .canWrite("src/controllers/")
-    .requests(dependencies, "A framework like Express.js for handling HTTP requests")
-    .uses(todoService)
-    .act(`Create a TodoController class that wraps TodoService and provides a simple API.`)
+    .agent()
+    .owns("src/controllers/")
+    .asks(dependencies, "A framework like Express.js for handling HTTP requests")
+    .after(todoService)
+    .goal(`Create a TodoController class that wraps TodoService and provides a simple API.`)
     .provides("Todo API");
 
   return { w, readme, dependencies, todoService, todoController };
@@ -152,7 +152,7 @@ afterEach(() => {
 describe("the todo-service program", () => {
   it("runs as written", async () => {
     const { w, todoService, todoController } = program();
-    const result = await w.build({ reporter: createSilentReporter() });
+    const result = await w.run({ reporter: createSilentReporter() });
 
     expect([...result.artifacts].map((a) => a.id).sort()).toEqual([
       "README.md",
@@ -169,7 +169,7 @@ describe("the todo-service program", () => {
 
   it("gives every agent the shipped layer and the developer-owned model", async () => {
     const { w } = program();
-    await w.build({ reporter: createSilentReporter() });
+    await w.run({ reporter: createSilentReporter() });
 
     for (const prompt of Object.values(prompts)) {
       expect(prompt).toContain("TypeScript conventions");
@@ -178,9 +178,9 @@ describe("the todo-service program", () => {
     }
   });
 
-  it("settles both requests edges and shows each contract to both sides", async () => {
+  it("settles both asks edges and shows each contract to both sides", async () => {
     const { w } = program();
-    const result = await w.build({ reporter: createSilentReporter() });
+    const result = await w.run({ reporter: createSilentReporter() });
 
     expect([...result.contracts].map((c) => c.id).sort()).toEqual([
       "contract:README.md",
@@ -198,7 +198,7 @@ describe("the todo-service program", () => {
     expect(readFileSync(resolve(root, "package.json"), "utf-8")).toContain("express");
   });
 
-  it("orders the uses edge and leaves the requests edges unordered", async () => {
+  it("orders the after edge and leaves the asks edges unordered", async () => {
     const order: string[] = [];
     const w = wolder({
       root,
@@ -214,28 +214,28 @@ describe("the todo-service program", () => {
       },
     });
     const project = w.layer();
-    const readme = project.scopedAgent().canWrite("README.md").act("readme").provides("Docs");
+    const readme = project.agent().owns("README.md").goal("readme").provides("Docs");
     const service = project
-      .scopedAgent()
-      .canWrite("src/services/")
-      .requests(readme, "Document Todo Service usage")
-      .act("service")
+      .agent()
+      .owns("src/services/")
+      .asks(readme, "Document Todo Service usage")
+      .goal("service")
       .provides("Todo Service");
-    project.scopedAgent().canWrite("src/controllers/").uses(service).act("controller");
+    project.agent().owns("src/controllers/").after(service).goal("controller");
 
-    await w.build({ reporter: createSilentReporter() });
+    await w.run({ reporter: createSilentReporter() });
 
     expect(order.indexOf("src/services/**")).toBeLessThan(order.indexOf("src/controllers/**"));
-    // The README is not ordered against the service — a requests edge carries content,
+    // The README is not ordered against the service — an asks edge carries content,
     // not sequence.
     expect(order).toContain("README.md");
   });
 
   it("does no work at all on a second run", async () => {
-    await program().w.build({ reporter: createSilentReporter() });
+    await program().w.run({ reporter: createSilentReporter() });
 
     prompts = {};
-    const second = await program().w.build({ reporter: createSilentReporter() });
+    const second = await program().w.run({ reporter: createSilentReporter() });
 
     expect(prompts).toEqual({});
     expect([...second.skipped].sort()).toEqual([

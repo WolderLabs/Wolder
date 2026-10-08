@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import type { Contract } from "./types.js";
 import { sha256 } from "./util.js";
 
-export const MANIFEST_VERSION = 2;
+export const MANIFEST_VERSION = 3;
 export const DEFAULT_MANIFEST_PATH = "wolder.manifest.json";
 
 export interface ManifestNode {

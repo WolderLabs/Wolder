@@ -70,20 +70,20 @@ real cost dial. Failing is deliberate: generating against a non-agreement is the
 available outcome.
 
 **`maxRetries`** bounds gate retries. A gate that fails three times usually means the
-`.act()` instruction is underspecified, not that the agent needs another go.
+`.goal()` is underspecified, not that the agent needs another go.
 
 **`maxTurns`** bounds one agent's run. Raise it for agents that own a large region.
 
-## Why a build takes as long as it does
+## Why a run takes as long as it does
 
-Independent work already runs concurrently — nodes with no `uses` edge between them, and
+Independent work already runs concurrently — nodes with no `after` edge between them, and
 every contract negotiation. What remains is inherently serial:
 
 - Each negotiation is `2 x negotiationRounds + 1` model calls at worst, and they are
   sequential *within* one contract because each turn answers the last. Lower
   `negotiationRounds` to cap it.
-- A `uses` edge is a barrier by design. A long chain of them is a long build; prefer
-  `requests` where two agents only need to *agree*, since that settles up front and
+- An `after` edge is a barrier by design. A long chain of them is a long build; prefer
+  `asks` where two agents only need to *agree*, since that settles up front and
   leaves both free to run in parallel.
 - Each gate failure costs another full agent run. A gate that fails twice usually means
-  the `.act()` instruction is underspecified.
+  the `.goal()` is underspecified.
